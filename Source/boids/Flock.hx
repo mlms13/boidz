@@ -32,14 +32,7 @@ class Flock {
     }
     public function positionBoids() {
         var neighborBoids = new Array();
-        var v1 = new Point(0, 0);
-        var v2 = new Point(0, 0);
-        var v3 = new Point(0, 0);
-
         setFlockAverages();
-
-        v3.x = avgVelocity.x / 8;
-        v3.y = avgVelocity.y / 8;
 
         // checking each boid, calculate the center of the flock
         for (boid in boids) {
@@ -48,12 +41,9 @@ class Flock {
             // trace('There are ' + neighborBoids.length + ' boids nearby.');
 
             // execute each rule to find the new boid velocity
-            v1 = moveTowardCenter(boid, center, v1);
-            v2 = avoidCollisions(boid, neighborBoids, v2);
-
-            boid.velocity.x = boid.velocity.x + v1.x + v2.x + v3.x;
-            boid.velocity.y = boid.velocity.y + v1.y + v2.y + v3.y;
-
+            moveTowardCenter(boid);
+            avoidCollisions(boid, neighborBoids);
+            matchGroupVelocity(boid);
             respectBoundaries(boid);
             limitSpeed(boid);
 
@@ -90,23 +80,22 @@ class Flock {
 
     // boid positioning rules
 
-    function moveTowardCenter(b:Boid, center:Point, vector:Point):Point {
-        // move 0.5% toward the perceived center of all other boids
-        vector.x = (center.x - b.position.x) / 100;
-        vector.y = (center.y - b.position.y) / 100;
-
-        return vector;
+    function moveTowardCenter(b:Boid) {
+        // move 1% toward the perceived center of all other boids
+        b.velocity.x += (center.x - b.position.x) / 100;
+        b.velocity.y += (center.y - b.position.y) / 100;
     }
 
-    function avoidCollisions(b:Boid, neighbors:Array<Boid>, vector:Point):Point {
-        vector.x = 0;
-        vector.y = 0;
+    function avoidCollisions(b:Boid, neighbors:Array<Boid>) {
         for (n in neighbors) {
-            vector.x -= (n.position.x - b.position.x);
-            vector.y -= (n.position.y - b.position.y);
+            b.velocity.x -= (n.position.x - b.position.x);
+            b.velocity.y -= (n.position.y - b.position.y);
         }
+    }
 
-        return vector;
+    function matchGroupVelocity(b:Boid) {
+        b.velocity.x += avgVelocity.x / 8;
+        b.velocity.y += avgVelocity.y / 8;
     }
 
     function respectBoundaries(b:Boid) {
@@ -133,7 +122,6 @@ class Flock {
         if (speedDifference < 1) {
             b.velocity.x *= speedDifference;
             b.velocity.y *= speedDifference;
-
         }
     }
 }
