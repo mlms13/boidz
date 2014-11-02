@@ -4,16 +4,18 @@ import openfl.geom.Point;
 
 class Flock {
     public var boids:Array<Boid>;
+    public var speedLimit:Int; // measured in pixels per event loop cycle
     public var stageWidth:Int;
     public var stageHeight:Int;
 
-    public function new(numberOfBoids:Int, stageWidth:Int, stageHeight:Int) {
+    public function new(numberOfBoids:Int, stageWidth:Int, stageHeight:Int, ?speedLimit = 15) {
         boids = new Array();
+        this.speedLimit = speedLimit;
         this.stageWidth = stageWidth;
         this.stageHeight = stageHeight;
         initBoids(numberOfBoids);
     }
-    private function initBoids(howMany = 10) {
+    private function initBoids(howMany = 50) {
         var w = Math.min(stageWidth, stageHeight);
         for (i in 0...howMany) {
             // create a new boid and add it to the stage
@@ -53,6 +55,7 @@ class Flock {
             // update boid position given new velocity
             boid.position.x += boid.velocity.x;
             boid.position.y += boid.velocity.y;
+            limitSpeed(boid);
         }
     }
 
@@ -100,5 +103,17 @@ class Flock {
         }
 
         return vector;
+    }
+
+    function limitSpeed(b:Boid) {
+        // TODO, each boid could have a different speed based on its location
+        var currentSpeed = Math.sqrt(Math.pow(b.velocity.x, 2) + Math.pow(b.velocity.y, 2));
+        var speedDifference = speedLimit / currentSpeed;
+
+        if (speedDifference < 1) {
+            b.velocity.x *= speedDifference;
+            b.velocity.y *= speedDifference;
+
+        }
     }
 }
