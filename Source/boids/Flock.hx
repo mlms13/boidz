@@ -8,7 +8,7 @@ class Flock {
     public var stageWidth:Int;
     public var stageHeight:Int;
 
-    public function new(numberOfBoids:Int, stageWidth:Int, stageHeight:Int, ?speedLimit = 15) {
+    public function new(numberOfBoids:Int, stageWidth:Int, stageHeight:Int, ?speedLimit = 10) {
         boids = new Array();
         this.speedLimit = speedLimit;
         this.stageWidth = stageWidth;
@@ -51,6 +51,8 @@ class Flock {
 
             boid.velocity.x = boid.velocity.x + v1.x + v2.x + v3.x;
             boid.velocity.y = boid.velocity.y + v1.y + v2.y + v3.y;
+
+            respectBoundaries(boid);
 
             // update boid position given new velocity
             boid.position.x += boid.velocity.x;
@@ -103,6 +105,22 @@ class Flock {
         }
 
         return vector;
+    }
+
+    function respectBoundaries(b:Boid) {
+        // TODO, this feels a bit brute-force... why not use the same approach
+        // that we use to keep boids from colliding with other boids?
+        if (b.position.x < 0) {
+            b.velocity.x = 10;
+        } else if (b.position.x > stageWidth) {
+            b.velocity.x = -10;
+        }
+
+        if (b.position.y < 0) {
+            b.velocity.y = 10;
+        } else if (b.position.y >stageHeight) {
+            b.velocity.y = -10;
+        }
     }
 
     function limitSpeed(b:Boid) {
