@@ -55,11 +55,11 @@ class Flock {
             boid.velocity.y = boid.velocity.y + v1.y + v2.y + v3.y;
 
             respectBoundaries(boid);
+            limitSpeed(boid);
 
             // update boid position given new velocity
             boid.position.x += boid.velocity.x;
             boid.position.y += boid.velocity.y;
-            limitSpeed(boid);
         }
     }
 
