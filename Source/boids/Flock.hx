@@ -5,11 +5,15 @@ import openfl.geom.Point;
 class Flock {
     public var boids:Array<Boid>;
     public var speedLimit:Int; // measured in pixels per event loop cycle
+    public var center:Point;
+    public var avgVelocity:Point;
     public var stageWidth:Int;
     public var stageHeight:Int;
 
     public function new(numberOfBoids:Int, stageWidth:Int, stageHeight:Int, ?speedLimit = 10) {
         boids = new Array();
+        center = new Point();
+        avgVelocity = new Point();
         this.speedLimit = speedLimit;
         this.stageWidth = stageWidth;
         this.stageHeight = stageHeight;
@@ -27,14 +31,12 @@ class Flock {
         }
     }
     public function positionBoids() {
-        var center = new Point(0, 0);
-        var avgVelocity = new Point(0, 0);
         var neighborBoids = new Array();
         var v1 = new Point(0, 0);
         var v2 = new Point(0, 0);
         var v3 = new Point(0, 0);
 
-        setFlockAverages(center, avgVelocity);
+        setFlockAverages();
 
         v3.x = avgVelocity.x / 8;
         v3.y = avgVelocity.y / 8;
@@ -61,18 +63,18 @@ class Flock {
         }
     }
 
-    function setFlockAverages(center:Point, velocity:Point) {
+    function setFlockAverages() {
         for (boid in boids) {
             center.x += boid.position.x;
             center.y += boid.position.y;
-            velocity.x += boid.velocity.x;
-            velocity.y += boid.velocity.y;
+            avgVelocity.x += boid.velocity.x;
+            avgVelocity.y += boid.velocity.y;
         }
 
         center.x = center.x / boids.length;
         center.y = center.y / boids.length;
-        velocity.x = velocity.x / boids.length;
-        velocity.y = velocity.y / boids.length;
+        avgVelocity.x = avgVelocity.x / boids.length;
+        avgVelocity.y = avgVelocity.y / boids.length;
     }
 
     function findBoidsNearby(boid:Boid, allBoids:Array<Boid>, radius:Int):Array<Boid> {
