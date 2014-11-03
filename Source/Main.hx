@@ -13,6 +13,12 @@ class Main extends Sprite {
         super();
         myFlock = new Flock(200, Lib.current.stage.stageWidth, Lib.current.stage.stageHeight);
 
+        myFlock.addRule(new boids.rules.MoveTowardCenter());
+        myFlock.addRule(new boids.rules.AvoidCollisions());
+        myFlock.addRule(new boids.rules.MatchGroupVelocity());
+        myFlock.addRule(new boids.rules.RespectBoundaries());
+        myFlock.addRule(new boids.rules.LimitSpeed());
+
         addChild(container);
         this.addEventListener(Event.ENTER_FRAME, function (_) {
             myFlock.positionBoids();

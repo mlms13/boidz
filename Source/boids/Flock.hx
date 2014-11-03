@@ -4,6 +4,7 @@ import openfl.geom.Point;
 
 class Flock {
     public var boids:Array<Boid>;
+    public var rules:Array<IFlockRule>;
     public var speedLimit:Int; // measured in pixels per event loop cycle
     public var center:Point;
     public var avgVelocity:Point;
@@ -14,6 +15,7 @@ class Flock {
         boids = new Array();
         center = new Point();
         avgVelocity = new Point();
+        rules = new Array();
         this.speedLimit = speedLimit;
         this.stageWidth = stageWidth;
         this.stageHeight = stageHeight;
@@ -30,6 +32,12 @@ class Flock {
             boids.push(b);
         }
     }
+    public function addRule(rule:IFlockRule) {
+        // for now, just push the rule to the array, but in the future
+        // we could use weighting to determine precedence and have a key
+        // to look up and replace a single rule
+        rules.push(rule);
+    }
     public function positionBoids() {
         var neighborBoids = new Array();
         setFlockAverages();
@@ -41,11 +49,9 @@ class Flock {
             // trace('There are ' + neighborBoids.length + ' boids nearby.');
 
             // execute each rule to find the new boid velocity
-            moveTowardCenter(boid);
-            avoidCollisions(boid, neighborBoids);
-            matchGroupVelocity(boid);
-            respectBoundaries(boid);
-            limitSpeed(boid);
+            for (rule in rules) {
+                rule.modifyBoidVelocity(boid, this, neighborBoids);
+            }
 
             // update boid position given new velocity
             boid.position.x += boid.velocity.x;
@@ -76,52 +82,5 @@ class Flock {
             }
         }
         return neighbors;
-    }
-
-    // boid positioning rules
-
-    function moveTowardCenter(b:Boid) {
-        // move 1% toward the perceived center of all other boids
-        b.velocity.x += (center.x - b.position.x) / 100;
-        b.velocity.y += (center.y - b.position.y) / 100;
-    }
-
-    function avoidCollisions(b:Boid, neighbors:Array<Boid>) {
-        for (n in neighbors) {
-            b.velocity.x -= (n.position.x - b.position.x);
-            b.velocity.y -= (n.position.y - b.position.y);
-        }
-    }
-
-    function matchGroupVelocity(b:Boid) {
-        b.velocity.x += avgVelocity.x / 8;
-        b.velocity.y += avgVelocity.y / 8;
-    }
-
-    function respectBoundaries(b:Boid) {
-        // TODO, this feels a bit brute-force... why not use the same approach
-        // that we use to keep boids from colliding with other boids?
-        if (b.position.x < 0) {
-            b.velocity.x = 10;
-        } else if (b.position.x > stageWidth) {
-            b.velocity.x = -10;
-        }
-
-        if (b.position.y < 0) {
-            b.velocity.y = 10;
-        } else if (b.position.y >stageHeight) {
-            b.velocity.y = -10;
-        }
-    }
-
-    function limitSpeed(b:Boid) {
-        // TODO, each boid could have a different speed based on its location
-        var currentSpeed = Math.sqrt(Math.pow(b.velocity.x, 2) + Math.pow(b.velocity.y, 2));
-        var speedDifference = speedLimit / currentSpeed;
-
-        if (speedDifference < 1) {
-            b.velocity.x *= speedDifference;
-            b.velocity.y *= speedDifference;
-        }
     }
 }
