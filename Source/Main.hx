@@ -1,3 +1,4 @@
+import openfl.display.FPS;
 import openfl.display.Sprite;
 import openfl.events.Event;
 import openfl.events.MouseEvent;
@@ -24,6 +25,7 @@ class Main extends Sprite {
         graphics.endFill();
 
         addChild(container);
+        addChild(new FPS());
 
         myFlock = new Flock();
         var goalRule = new boids.rules.MoveTowardGoal(new Point(stageWidth * Math.random(), stageHeight * Math.random()));
@@ -36,7 +38,7 @@ class Main extends Sprite {
         myFlock.addRule(new boids.rules.LimitSpeed());
         myFlock.addRule(new boids.rules.GraphicsRender(container.graphics));
 
-        addBoids(myFlock, 2000);
+        addBoids(myFlock, 3000);
 
         this.addEventListener(Event.ENTER_FRAME, function (_) {
             myFlock.positionBoids();
