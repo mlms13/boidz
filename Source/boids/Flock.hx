@@ -3,34 +3,20 @@ package boids;
 import openfl.geom.Point;
 
 class Flock {
-    public var boids:Array<Boid>;
-    public var rules:Array<IFlockRule>;
+    public var boids(default, null):Array<Boid>;
+    public var rules(default, null):Array<IFlockRule>;
     public var speedLimit:Int; // measured in pixels per event loop cycle
     public var center:Point;
     public var avgVelocity:Point;
     public var stageWidth:Int;
     public var stageHeight:Int;
 
-    public function new(numberOfBoids:Int, stageWidth:Int, stageHeight:Int, ?speedLimit = 10) {
-        boids = new Array();
+    public function new(?speedLimit = 10) {
+        boids = [];
         center = new Point();
         avgVelocity = new Point();
-        rules = new Array();
+        rules = [];
         this.speedLimit = speedLimit;
-        this.stageWidth = stageWidth;
-        this.stageHeight = stageHeight;
-        initBoids(numberOfBoids);
-    }
-    private function initBoids(howMany = 50) {
-        var w = Math.min(stageWidth, stageHeight);
-        for (i in 0...howMany) {
-            // create a new boid and add it to the stage
-            var a = Math.random() * 2 * Math.PI,
-                d = w * Math.random();
-            //var b = new Boid(Math.floor(Math.random() * stageWidth), Math.floor(Math.random() * stageHeight));
-            var b = new Boid(stageWidth / 2 + Math.cos(a) * d, stageHeight / 2 + Math.sin(a) * d);
-            boids.push(b);
-        }
     }
     public function addRule(rule:IFlockRule) {
         // for now, just push the rule to the array, but in the future
@@ -39,7 +25,7 @@ class Flock {
         rules.push(rule);
     }
     public function positionBoids() {
-        var neighborBoids = new Array();
+        var neighborBoids = [];
         setFlockAverages();
 
         // checking each boid, calculate the center of the flock
