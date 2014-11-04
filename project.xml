@@ -11,4 +11,6 @@
 	<assets path="Assets" rename="assets" />
 	<icon path="Assets/openfl.svg" />
 
+  <window width="800" height="600" fps="60" hardware="true" vsync="false" unless="web" ></window>
+
 </project>

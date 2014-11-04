@@ -38,13 +38,13 @@ class Main extends Sprite {
         myFlock.addRule(new boids.rules.LimitSpeed());
         myFlock.addRule(new boids.rules.GraphicsRender(container.graphics));
 
-        addBoids(myFlock, 3000);
+        addBoids(myFlock, 400);
 
         this.addEventListener(Event.ENTER_FRAME, function (_) {
             myFlock.positionBoids();
         });
 
-        this.addEventListener(MouseEvent.MOUSE_DOWN, function (e:MouseEvent) {
+        container.addEventListener(MouseEvent.MOUSE_DOWN, function (e:MouseEvent) {
             goalRule.goal.x = e.localX;
             goalRule.goal.y = e.localY;
         });
