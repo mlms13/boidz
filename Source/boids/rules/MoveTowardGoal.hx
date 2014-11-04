@@ -7,7 +7,7 @@ class MoveTowardGoal implements IFlockRule {
     public function new(goal:Point) {
       this.goal = goal;
     }
-    public function modifyBoidVelocity(b:Boid, flock:Flock, neighbors:Array<Boid>):Void {
+    public function modifyBoidVelocity(b:Boid, flock:Flock):Void {
           b.velocity.x += (goal.x - b.position.x) / 100;
           b.velocity.y += (goal.y - b.position.y) / 100;
     }

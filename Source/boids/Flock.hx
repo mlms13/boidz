@@ -25,18 +25,13 @@ class Flock {
         rules.push(rule);
     }
     public function positionBoids() {
-        var neighborBoids = [];
         setFlockAverages();
 
         // checking each boid, calculate the center of the flock
         for (boid in boids) {
-            // find each boid near the current boid
-            neighborBoids = findBoidsNearby(boid, boids, 10);
-            // trace('There are ' + neighborBoids.length + ' boids nearby.');
-
             // execute each rule to find the new boid velocity
             for (rule in rules) {
-                rule.modifyBoidVelocity(boid, this, neighborBoids);
+                rule.modifyBoidVelocity(boid, this);
             }
 
             // update boid position given new velocity
@@ -57,16 +52,5 @@ class Flock {
         center.y = center.y / boids.length;
         avgVelocity.x = avgVelocity.x / boids.length;
         avgVelocity.y = avgVelocity.y / boids.length;
-    }
-
-    function findBoidsNearby(boid:Boid, allBoids:Array<Boid>, radius:Int):Array<Boid> {
-        var neighbors = new Array();
-
-        for (b in allBoids) {
-            if (b != boid && Point.distance(boid.position, b.position) < radius) {
-                neighbors.push(b);
-            }
-        }
-        return neighbors;
     }
 }

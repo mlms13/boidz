@@ -2,7 +2,7 @@ package boids.rules;
 
 class RespectBoundaries implements IFlockRule {
     public function new() {}
-    public function modifyBoidVelocity(b:Boid, flock:Flock, neighbors:Array<Boid>):Void {
+    public function modifyBoidVelocity(b:Boid, flock:Flock):Void {
         // TODO, this feels a bit brute-force... why not use the same approach
         // that we use to keep boids from colliding with other boids?
         if (b.position.x < 0) {
