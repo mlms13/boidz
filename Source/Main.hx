@@ -22,19 +22,19 @@ class Main extends Sprite {
         myFlock = new Flock();
         var goalRule = new boids.rules.MoveTowardGoal(new Point(stageWidth * Math.random(), stageHeight * Math.random()));
 
-        myFlock.addRule(new boids.rules.MoveTowardCenter());
-        myFlock.addRule(new boids.rules.AvoidCollisions());
-        myFlock.addRule(new boids.rules.MatchGroupVelocity());
+        myFlock.addRule(new boids.rules.MoveTowardCenter(myFlock));
+        myFlock.addRule(new boids.rules.AvoidCollisions(myFlock));
+        myFlock.addRule(new boids.rules.MatchGroupVelocity(myFlock));
         myFlock.addRule(new boids.rules.RespectBoundaries(10, stageWidth - 10, 10, stageHeight - 10));
         myFlock.addRule(goalRule);
         myFlock.addRule(new boids.rules.LimitSpeed());
+        myFlock.addRule(new boids.rules.GraphicsRender(graphics, stageWidth, stageHeight));
 
         addBoids(myFlock, 200);
 
         addChild(container);
         this.addEventListener(Event.ENTER_FRAME, function (_) {
             myFlock.positionBoids();
-            render();
         });
 
         this.addEventListener(MouseEvent.MOUSE_DOWN, function (e:MouseEvent) {
@@ -52,19 +52,6 @@ class Main extends Sprite {
             //var b = new Boid(Math.floor(Math.random() * stageWidth), Math.floor(Math.random() * stageHeight));
             var b = new Boid(stageWidth / 2 + Math.cos(a) * d, stageHeight / 2 + Math.sin(a) * d);
             flock.boids.push(b);
-        }
-    }
-
-    function render() {
-        var g = container.graphics;
-        g.clear();
-        g.beginFill(0xffffff);
-        g.drawRect(0, 0, stageWidth, stageHeight);
-        g.endFill();
-        g.lineStyle(1, 0x0);
-        for (b in myFlock.boids) {
-            g.moveTo(b.position.x, b.position.y);
-            g.lineTo(b.position.x - b.velocity.x, b.position.y - b.velocity.y);
         }
     }
 }

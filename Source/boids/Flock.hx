@@ -25,17 +25,21 @@ class Flock {
     public function positionBoids() {
         setFlockAverages();
 
+        for (rule in rules)
+            rule.pre();
         // checking each boid, calculate the center of the flock
         for (boid in boids) {
             // execute each rule to find the new boid velocity
             for (rule in rules) {
-                rule.modifyBoidVelocity(boid, this);
+                rule.modify(boid);
             }
 
             // update boid position given new velocity
             boid.position.x += boid.velocity.x;
             boid.position.y += boid.velocity.y;
         }
+        for (rule in rules)
+            rule.post();
     }
 
     function setFlockAverages() {
