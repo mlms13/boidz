@@ -19,6 +19,12 @@ class Main extends Sprite {
         stageWidth = Lib.current.stage.stageWidth;
         stageHeight = Lib.current.stage.stageHeight;
 
+        graphics.beginFill(0xffffff);
+        graphics.drawRect(0, 0, stageWidth, stageHeight);
+        graphics.endFill();
+
+        addChild(container);
+
         myFlock = new Flock();
         var goalRule = new boids.rules.MoveTowardGoal(new Point(stageWidth * Math.random(), stageHeight * Math.random()));
 
@@ -28,11 +34,10 @@ class Main extends Sprite {
         myFlock.addRule(new boids.rules.RespectBoundaries(10, stageWidth - 10, 10, stageHeight - 10));
         myFlock.addRule(goalRule);
         myFlock.addRule(new boids.rules.LimitSpeed());
-        myFlock.addRule(new boids.rules.GraphicsRender(graphics, stageWidth, stageHeight));
+        myFlock.addRule(new boids.rules.GraphicsRender(container.graphics));
 
-        addBoids(myFlock, 200);
+        addBoids(myFlock, 2000);
 
-        addChild(container);
         this.addEventListener(Event.ENTER_FRAME, function (_) {
             myFlock.positionBoids();
         });
