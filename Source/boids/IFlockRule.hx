@@ -1,5 +1,7 @@
 package boids;
 
 interface IFlockRule {
-    public function modifyBoidVelocity(b:Boid, flock:Flock):Void;
+    public function pre() : Void;
+    public function post() : Void;
+    public function modify(b:Boid):Void;
 }

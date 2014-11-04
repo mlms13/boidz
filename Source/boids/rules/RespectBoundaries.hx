@@ -1,6 +1,6 @@
 package boids.rules;
 
-class RespectBoundaries implements IFlockRule {
+class RespectBoundaries extends BaseRule {
     public var minx : Float;
     public var maxx : Float;
     public var miny : Float;
@@ -11,7 +11,7 @@ class RespectBoundaries implements IFlockRule {
         this.miny = miny;
         this.maxy = maxy;
     }
-    public function modifyBoidVelocity(b:Boid, flock:Flock):Void {
+    override public function modify(b:Boid):Void {
         if (b.position.x < minx) {
             b.velocity.x = Math.abs(b.velocity.x);
         } else if (b.position.x > maxx) {

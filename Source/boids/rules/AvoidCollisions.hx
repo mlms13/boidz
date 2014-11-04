@@ -2,13 +2,15 @@ package boids.rules;
 
 import openfl.geom.Point;
 
-class AvoidCollisions implements IFlockRule {
+class AvoidCollisions extends BaseRule {
     public var radius(get, set) : Int;
+    public var flock : Flock;
     var squareRadius : Int;
-    public function new(?radius : Int = 5) {
+    public function new(flock : Flock, ?radius : Int = 5) {
+        this.flock = flock;
         set_radius(radius);
     }
-    public function modifyBoidVelocity(b:Boid, flock:Flock):Void {
+    override public function modify(b:Boid):Void {
         for (n in flock.boids) {
             if(n == b || squareDistance(b.position, n.position) > squareRadius)
               continue;
