@@ -25,7 +25,7 @@ class Main extends Sprite {
         myFlock.addRule(new boids.rules.MoveTowardCenter());
         myFlock.addRule(new boids.rules.AvoidCollisions());
         myFlock.addRule(new boids.rules.MatchGroupVelocity());
-        myFlock.addRule(new boids.rules.RespectBoundaries());
+        myFlock.addRule(new boids.rules.RespectBoundaries(10, stageWidth - 10, 10, stageHeight - 10));
         myFlock.addRule(goalRule);
         myFlock.addRule(new boids.rules.LimitSpeed());
 

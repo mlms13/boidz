@@ -5,18 +5,16 @@ import openfl.geom.Point;
 class Flock {
     public var boids(default, null):Array<Boid>;
     public var rules(default, null):Array<IFlockRule>;
-    public var speedLimit:Int; // measured in pixels per event loop cycle
     public var center:Point;
     public var avgVelocity:Point;
     public var stageWidth:Int;
     public var stageHeight:Int;
 
-    public function new(?speedLimit = 10) {
+    public function new() {
         boids = [];
         center = new Point();
         avgVelocity = new Point();
         rules = [];
-        this.speedLimit = speedLimit;
     }
     public function addRule(rule:IFlockRule) {
         // for now, just push the rule to the array, but in the future

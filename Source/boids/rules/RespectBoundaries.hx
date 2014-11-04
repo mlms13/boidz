@@ -1,20 +1,27 @@
 package boids.rules;
 
 class RespectBoundaries implements IFlockRule {
-    public function new() {}
+    public var minx : Float;
+    public var maxx : Float;
+    public var miny : Float;
+    public var maxy : Float;
+    public function new(minx : Float, maxx : Float, miny : Float, maxy : Float) {
+        this.minx = minx;
+        this.maxx = maxx;
+        this.miny = miny;
+        this.maxy = maxy;
+    }
     public function modifyBoidVelocity(b:Boid, flock:Flock):Void {
-        // TODO, this feels a bit brute-force... why not use the same approach
-        // that we use to keep boids from colliding with other boids?
-        if (b.position.x < 0) {
-            b.velocity.x = 10;
-        } else if (b.position.x > flock.stageWidth) {
-            b.velocity.x = -10;
+        if (b.position.x < minx) {
+            b.velocity.x = Math.abs(b.velocity.x);
+        } else if (b.position.x > maxx) {
+            b.velocity.x = -Math.abs(b.velocity.x);
         }
 
-        if (b.position.y < 0) {
-            b.velocity.y = 10;
-        } else if (b.position.y > flock.stageHeight) {
-            b.velocity.y = -10;
+        if (b.position.y < miny) {
+            b.velocity.y = Math.abs(b.velocity.y);
+        } else if (b.position.y > maxy) {
+            b.velocity.y = -Math.abs(b.velocity.y);
         }
     }
 }
