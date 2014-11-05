@@ -1,16 +1,18 @@
 package boids.rules;
 
-import openfl.geom.Point;
-
 class MoveTowardGoal extends BaseRule {
-    public var goal:Point;
-    public var percent:Float;
-    public function new(goal:Point, ?percent:Float = 1/100) {
-      this.goal = goal;
-      this.percent = percent;
-    }
-    override public function modify(b:Boid):Void {
-          b.velocity.x += (goal.x - b.position.x) * percent;
-          b.velocity.y += (goal.y - b.position.y) * percent;
-    }
+  public var goalx : Float;
+  public var goaly : Float;
+  public var percent : Float;
+
+  public function new(goalx : Float, goaly : Float, ?percent : Float = 1/100) {
+    this.goalx = goalx;
+    this.goaly = goaly;
+    this.percent = percent;
+  }
+
+  override public function modify(b : Boid):Void {
+    b.vx += (goalx - b.px) * percent;
+    b.vy += (goaly - b.py) * percent;
+  }
 }

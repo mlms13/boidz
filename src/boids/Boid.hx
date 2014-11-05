@@ -1,13 +1,14 @@
 package boids;
 
-import openfl.geom.Point;
-
 class Boid {
-    public var velocity(default, null):Point;
-    public var position(default, null):Point;
+  public var vx : Float;
+  public var vy : Float;
+  public var px : Float;
+  public var py : Float;
 
-    public function new (x:Float, y:Float) {
-        velocity = new Point(0, 0);
-        position = new Point(x, y);
-    }
+  public function new (x : Float, y : Float) {
+    vx = vy = 0;
+    px = x;
+    py = y;
+  }
 }

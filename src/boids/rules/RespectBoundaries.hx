@@ -1,27 +1,28 @@
 package boids.rules;
 
 class RespectBoundaries extends BaseRule {
-    public var minx : Float;
-    public var maxx : Float;
-    public var miny : Float;
-    public var maxy : Float;
-    public function new(minx : Float, maxx : Float, miny : Float, maxy : Float) {
-        this.minx = minx;
-        this.maxx = maxx;
-        this.miny = miny;
-        this.maxy = maxy;
-    }
-    override public function modify(b:Boid):Void {
-        if (b.position.x < minx) {
-            b.velocity.x = Math.abs(b.velocity.x);
-        } else if (b.position.x > maxx) {
-            b.velocity.x = -Math.abs(b.velocity.x);
-        }
+  public var minx : Float;
+  public var maxx : Float;
+  public var miny : Float;
+  public var maxy : Float;
+  public function new(minx : Float, maxx : Float, miny : Float, maxy : Float) {
+    this.minx = minx;
+    this.maxx = maxx;
+    this.miny = miny;
+    this.maxy = maxy;
+  }
 
-        if (b.position.y < miny) {
-            b.velocity.y = Math.abs(b.velocity.y);
-        } else if (b.position.y > maxy) {
-            b.velocity.y = -Math.abs(b.velocity.y);
-        }
+  override public function modify(b:Boid):Void {
+    if (b.px < minx) {
+      b.vx = Math.abs(b.vx);
+    } else if (b.px > maxx) {
+      b.vx = -Math.abs(b.vx);
     }
+
+    if (b.py < miny) {
+      b.vy = Math.abs(b.vy);
+    } else if (b.py > maxy) {
+      b.vy = -Math.abs(b.vy);
+    }
+  }
 }
