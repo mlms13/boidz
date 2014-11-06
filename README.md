@@ -1,6 +1,6 @@
-# Boid Game
+# Haxe Boids
 
-This is the beginnings of my amazing game of swarm battles.
+This is a Haxe implementation of the Boids flocking algorithm.
 
 ## Running It
 
