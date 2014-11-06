@@ -1,4 +1,4 @@
-package boids;
+package boidz;
 
 class Flock {
   public var boids(default, null):Array<Boid>;

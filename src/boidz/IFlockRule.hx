@@ -1,4 +1,4 @@
-package boids;
+package boidz;
 
 interface IFlockRule {
     public function pre() : Void;

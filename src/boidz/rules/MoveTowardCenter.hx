@@ -1,4 +1,4 @@
-package boids.rules;
+package boidz.rules;
 
 class MoveTowardCenter extends BaseRule {
   public var flock : Flock;

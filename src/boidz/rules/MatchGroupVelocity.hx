@@ -1,4 +1,4 @@
-package boids.rules;
+package boidz.rules;
 
 class MatchGroupVelocity extends BaseRule {
   public var flock : Flock;

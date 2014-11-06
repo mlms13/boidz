@@ -1,4 +1,4 @@
-package boids.rules;
+package boidz.rules;
 
 class MoveTowardGoal extends BaseRule {
   public var goalx : Float;

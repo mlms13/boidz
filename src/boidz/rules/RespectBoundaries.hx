@@ -1,4 +1,4 @@
-package boids.rules;
+package boidz.rules;
 
 class RespectBoundaries extends BaseRule {
   public var minx : Float;
