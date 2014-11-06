@@ -1,4 +1,4 @@
-package boids.rules;
+package boidz.rules;
 
 class LimitSpeed extends BaseRule {
   public var speedLimit : Int; // measured in pixels per event loop cycle

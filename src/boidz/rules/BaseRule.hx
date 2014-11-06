@@ -1,6 +1,6 @@
-package boids.rules;
+package boidz.rules;
 
-import boids.IFlockRule;
+import boidz.IFlockRule;
 
 class BaseRule implements IFlockRule {
   public function pre() : Void {}

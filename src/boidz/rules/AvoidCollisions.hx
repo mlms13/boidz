@@ -1,4 +1,4 @@
-package boids.rules;
+package boidz.rules;
 
 class AvoidCollisions extends BaseRule {
   public var radius(get, set) : Int;

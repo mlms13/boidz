@@ -1,6 +1,6 @@
-package boids.render;
+package boidz.render;
 
-import boids.rules.BaseRule;
+import boidz.rules.BaseRule;
 import js.html.CanvasRenderingContext2D;
 import js.html.CanvasElement;
 

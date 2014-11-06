@@ -1,4 +1,4 @@
-package boids;
+package boidz;
 
 class Boid {
   public var vx : Float;

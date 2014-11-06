@@ -1,7 +1,7 @@
-import boids.Boid;
-import boids.Flock;
-import boids.rules.*;
-import boids.render.CanvasRender;
+import boidz.Boid;
+import boidz.Flock;
+import boidz.rules.*;
+import boidz.render.CanvasRender;
 
 import js.Browser;
 
@@ -55,52 +55,3 @@ class Main {
     }
   }
 }
-
-
-
-/*
-
-import js.Browserclass Main extends Sprite {
-
-  public var container:Sprite = new Sprite();
-  public var flock:Flock;
-
-  public static var stageWidth : Int;
-  public static var stageHeight : Int;
-
-  public function new() {
-    super();
-    stageWidth = Lib.current.stage.stageWidth;
-    stageHeight = Lib.current.stage.stageHeight;
-
-    graphics.beginFill(0xffffff);
-    graphics.drawRect(0, 0, stageWidth, stageHeight);
-    graphics.endFill();
-
-    addChild(container);
-    addChild(new FPS());
-
-    flock = new Flock();
-    var goalRule = new boids.rules.MoveTowardGoal(new Point(stageWidth * Math.random(), stageHeight * Math.random()));
-
-    flock.addRule(new boids.rules.MoveTowardCenter(flock));
-    flock.addRule(new boids.rules.AvoidCollisions(flock));
-    flock.addRule(new boids.rules.MatchGroupVelocity(flock));
-    flock.addRule(new boids.rules.RespectBoundaries(10, stageWidth - 10, 10, stageHeight - 10));
-    flock.addRule(goalRule);
-    flock.addRule(new boids.rules.LimitSpeed());
-    flock.addRule(new boids.rules.GraphicsRender(container.graphics));
-
-    addBoids(flock, 400);
-
-    this.addEventListener(Event.ENTER_FRAME, function (_) {
-      flock.positionBoids();
-    });
-
-    container.addEventListener(MouseEvent.MOUSE_DOWN, function (e:MouseEvent) {
-      goalRule.goal.x = e.localX;
-      goalRule.goal.y = e.localY;
-    });
-  }
-}
-*/

@@ -1,6 +1,6 @@
-package boids.render;
+package boidz.render;
 
-import boids.rules.BaseRule;
+import boidz.rules.BaseRule;
 import openfl.display.Graphics;
 
 class OpenFLGraphicsRender extends BaseRule {
