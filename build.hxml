@@ -1,0 +1,5 @@
+-js bin/canvas.js
+-cp demo
+-cp src
+-main Main
+-lib thx.core

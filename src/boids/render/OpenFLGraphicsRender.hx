@@ -1,8 +1,9 @@
-package boids.rules;
+package boids.render;
 
+import boids.rules.BaseRule;
 import openfl.display.Graphics;
 
-class GraphicsRender extends BaseRule {
+class OpenFLGraphicsRender extends BaseRule {
     var g : Graphics;
     public function new(graphics : Graphics) {
         g = graphics;
