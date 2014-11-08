@@ -1,16 +1,19 @@
 package boidz.rules;
 
-class AvoidCollisions extends BaseRule {
+import boidz.IFlockRule;
+
+class AvoidCollisions implements IFlockRule {
   public var radius(get, set) : Int;
   public var flock : Flock;
   var squareRadius : Int;
+  var counter = 0;
 
   public function new(flock : Flock, ?radius : Int = 5) {
     this.flock = flock;
     set_radius(radius);
   }
 
-  override public function modify(b : Boid):Void {
+  public function modify(b : Boid):Void {
     for (n in flock.boids) {
       if(n == b || squareDistance(b.px, b.py, n.px, n.py) > squareRadius)
         continue;

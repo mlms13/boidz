@@ -1,6 +1,8 @@
 package boidz.rules;
 
-class MatchGroupVelocity extends BaseRule {
+import boidz.IFlockRule;
+
+class MatchGroupVelocity implements IFlockRule {
   public var flock : Flock;
   public var ratio : Float;
 
@@ -9,7 +11,7 @@ class MatchGroupVelocity extends BaseRule {
     this.ratio = ratio;
   }
 
-  override public function modify(b:Boid):Void {
+  public function modify(b:Boid):Void {
     b.vx += flock.avx * ratio;
     b.vy += flock.avy * ratio;
   }

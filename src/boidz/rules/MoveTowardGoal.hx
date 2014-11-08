@@ -1,6 +1,8 @@
 package boidz.rules;
 
-class MoveTowardGoal extends BaseRule {
+import boidz.IFlockRule;
+
+class MoveTowardGoal implements IFlockRule {
   public var goalx : Float;
   public var goaly : Float;
   public var percent : Float;
@@ -11,7 +13,7 @@ class MoveTowardGoal extends BaseRule {
     this.percent = percent;
   }
 
-  override public function modify(b : Boid):Void {
+  public function modify(b : Boid):Void {
     b.vx += (goalx - b.px) * percent;
     b.vy += (goaly - b.py) * percent;
   }
