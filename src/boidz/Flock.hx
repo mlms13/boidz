@@ -8,6 +8,8 @@ class Flock {
   public var avx : Float;
   public var avy : Float;
 
+  public var step : Float = 0.1;
+
   public function new() {
     cx    = cy = 0;
     avx   = avy = 0;
