@@ -3,16 +3,26 @@ import boidz.Flock;
 import boidz.rules.*;
 import boidz.render.*;
 
+import pixi.primitives.Graphics;
+import pixi.display.Stage;
+import pixi.utils.Detector;
 import js.Browser;
 
-class Main {
+class Pixi {
   static var width  = 800;
   static var height = 600;
 
   public static function main() {
-    var flock  = new Flock(),
-        canvas = getCanvas(),
-        render = new TrailCanvasRender(canvas);
+    var flock    = new Flock(),
+        stage    = new Stage(0xBADA55),
+        sprite   = new Graphics(),
+        renderer = Detector.autoDetectRenderer(width, height, new RenderingOptions(1, true)),
+        render   = new PixiJSRender(sprite);
+
+    //stage.setInteractive(true);
+    stage.addChild(sprite);
+
+    Browser.document.body.appendChild(renderer.view);
 
     var goalRule = new MoveTowardGoal(width * Math.random(), height * Math.random());
 
@@ -36,20 +46,14 @@ class Main {
       }
       residue = delta;
       render.render(flock);
+      renderer.render(stage);
     });
 
-    canvas.addEventListener("click", function(e) {
-      goalRule.goalx = e.clientX;
-      goalRule.goaly = e.clientY;
-    }, false);
-  }
-
-  static function getCanvas() {
-    var canvas = Browser.document.createCanvasElement();
-    canvas.width = width;
-    canvas.height = height;
-    Browser.document.body.appendChild(canvas);
-    return canvas;
+    stage.click = stage.tap = function(data) {
+      var p = data.getLocalPosition(sprite);
+      goalRule.goalx = p.x;
+      goalRule.goaly = p.y;
+    };
   }
 
   static function addBoids(flock : Flock, howMany : Int) {
