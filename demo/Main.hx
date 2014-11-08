@@ -1,7 +1,7 @@
 import boidz.Boid;
 import boidz.Flock;
 import boidz.rules.*;
-import boidz.render.CanvasRender;
+import boidz.render.*;
 
 import js.Browser;
 
@@ -12,7 +12,7 @@ class Main {
   public static function main() {
     var flock  = new Flock(),
         canvas = getCanvas(),
-        render = new CanvasRender(canvas);
+        render = new TrailCanvasRender(canvas);
 
     var goalRule = new MoveTowardGoal(width * Math.random(), height * Math.random());
 

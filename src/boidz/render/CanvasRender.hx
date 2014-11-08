@@ -8,13 +8,14 @@ import js.html.CanvasElement;
 class CanvasRender implements IRender {
   var canvas : CanvasElement;
   var ctx : CanvasRenderingContext2D;
-  var tx : Float;
-  var ty : Float;
-  public function new(canvas : CanvasElement, tx = 1.0, ty = 1.0) {
+  var dx : Float;
+  var dy : Float;
+  // DX and DY are wrong, it should be a Matrix
+  public function new(canvas : CanvasElement, dx = 1.0, dy = 1.0) {
     this.canvas = canvas;
     this.ctx = canvas.getContext2d();
-    this.tx = tx;
-    this.ty = ty;
+    this.dx = dx;
+    this.dy = dy;
   }
 
   public function render(flock : Flock) {
@@ -23,8 +24,8 @@ class CanvasRender implements IRender {
     ctx.beginPath();
     // boidz
     for(b in flock.boids) {
-      ctx.moveTo(b.px * tx, b.py * ty);
-      ctx.lineTo((b.px - b.vx) * tx, (b.py - b.vy) * ty);
+      ctx.moveTo(b.px * dx, b.py * dy);
+      ctx.lineTo((b.px - b.vx) * dx, (b.py - b.vy) * dy);
     }
     // close
     ctx.stroke();
