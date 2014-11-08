@@ -6,7 +6,6 @@ class AvoidCollisions implements IFlockRule {
   public var radius(get, set) : Int;
   public var flock : Flock;
   var squareRadius : Int;
-  var counter = 0;
 
   public function new(flock : Flock, ?radius : Int = 5) {
     this.flock = flock;
@@ -15,7 +14,8 @@ class AvoidCollisions implements IFlockRule {
 
   public function modify(b : Boid):Void {
     for (n in flock.boids) {
-      if(n == b || squareDistance(b.px, b.py, n.px, n.py) > squareRadius)
+      // this simplifies the calculation a little making it a little faster
+      if(n == b || Math.abs(b.px - n.px) > radius || Math.abs(b.py - n.py) > radius)
         continue;
       // TODO this needs to be addressed
       b.vx -= (n.px - b.px);
@@ -30,10 +30,4 @@ class AvoidCollisions implements IFlockRule {
 
   function get_radius()
       return Std.int(Math.sqrt(squareRadius));
-
-  static function squareDistance(x1 : Float, y1 : Float, x2 : Float, y2 : Float) {
-    var x = x1 - x2,
-        y = y1 - y2;
-    return x * x + y * y;
-  }
 }

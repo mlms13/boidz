@@ -29,5 +29,10 @@ class CanvasRender implements IRender {
     }
     // close
     ctx.stroke();
+
+    ctx.beginPath();
+    ctx.fillStyle = "#cc3300";
+    ctx.arc(flock.cx, flock.cy, 4, 0, 2 * Math.PI, false);
+    ctx.fill();
   }
 }

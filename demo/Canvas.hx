@@ -12,7 +12,7 @@ class Canvas {
   public static function main() {
     var flock  = new Flock(),
         canvas = getCanvas(),
-        render = new TrailCanvasRender(canvas);
+        render = new CanvasRender(canvas);
 
     var goalRule = new MoveTowardGoal(width * Math.random(), height * Math.random());
 
