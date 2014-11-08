@@ -11,8 +11,8 @@ class Flock {
   public var step : Float = 0.05;
 
   public function new() {
-    cx    = cy = 0;
-    avx   = avy = 0;
+    cx  = cy  = 0;
+    avx = avy = 0;
     boids = [];
     rules = [];
   }
@@ -25,9 +25,9 @@ class Flock {
   }
 
   public function update() {
+    // checking each boid, calculate the center of the flock
     setFlockAverages();
 
-    // checking each boid, calculate the center of the flock
     for (boid in boids) {
       // execute each rule to find the new boid velocity
       for (rule in rules) {
@@ -41,6 +41,11 @@ class Flock {
   }
 
   function setFlockAverages() {
+    // init
+    cx  = cy  = 0;
+    avx = avy = 0;
+
+    // update
     for (boid in boids) {
       cx += boid.px;
       cy += boid.py;
