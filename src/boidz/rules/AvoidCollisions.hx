@@ -17,6 +17,7 @@ class AvoidCollisions implements IFlockRule {
     for (n in flock.boids) {
       if(n == b || squareDistance(b.px, b.py, n.px, n.py) > squareRadius)
         continue;
+      // TODO this needs to be addressed
       b.vx -= (n.px - b.px);
       b.vy -= (n.py - b.py);
     }

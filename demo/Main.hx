@@ -16,7 +16,8 @@ class Main {
 
     var goalRule = new MoveTowardGoal(width * Math.random(), height * Math.random());
 
-    flock.addRule(new MoveTowardCenter(flock));
+    // this rule doesn't make much sense when used together with MoveTowardGoal, right?
+    //flock.addRule(new MoveTowardCenter(flock));
     flock.addRule(new AvoidCollisions(flock));
     flock.addRule(new MatchGroupVelocity(flock));
     flock.addRule(new RespectBoundaries(10, width - 10, 10, height - 10));

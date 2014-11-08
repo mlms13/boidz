@@ -6,7 +6,7 @@ class MatchGroupVelocity implements IFlockRule {
   public var flock : Flock;
   public var ratio : Float;
 
-  public function new(flock : Flock, ratio : Float = 1/8) {
+  public function new(flock : Flock, ratio : Float = 1/16) {
     this.flock = flock;
     this.ratio = ratio;
   }

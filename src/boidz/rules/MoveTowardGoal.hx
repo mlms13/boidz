@@ -7,7 +7,7 @@ class MoveTowardGoal implements IFlockRule {
   public var goaly : Float;
   public var percent : Float;
 
-  public function new(goalx : Float, goaly : Float, ?percent : Float = 1/100) {
+  public function new(goalx : Float, goaly : Float, ?percent : Float = 1/50) {
     this.goalx = goalx;
     this.goaly = goaly;
     this.percent = percent;

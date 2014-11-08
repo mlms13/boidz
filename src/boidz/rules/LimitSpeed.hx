@@ -3,8 +3,8 @@ package boidz.rules;
 import boidz.IFlockRule;
 
 class LimitSpeed implements IFlockRule {
-  public var speedLimit : Int; // measured in pixels per event loop cycle
-  public function new(speedLimit = 10) {
+  public var speedLimit : Float; // measured in units per event loop cycle (Flock.step)
+  public function new(speedLimit = 10.0) {
     this.speedLimit = speedLimit;
   }
 
