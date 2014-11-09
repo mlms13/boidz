@@ -1,6 +1,8 @@
 package boidz.rules;
 
-class AvoidCollisions extends BaseRule {
+import boidz.IFlockRule;
+
+class AvoidCollisions implements IFlockRule {
   public var radius(get, set) : Int;
   public var flock : Flock;
   var squareRadius : Int;
@@ -10,12 +12,14 @@ class AvoidCollisions extends BaseRule {
     set_radius(radius);
   }
 
-  override public function modify(b : Boid):Void {
+  public function modify(b : Boid):Void {
     for (n in flock.boids) {
-      if(n == b || squareDistance(b.px, b.py, n.px, n.py) > squareRadius)
+      // this simplifies the calculation a little making it a little faster
+      if(n == b || Math.abs(b.px - n.px) > radius || Math.abs(b.py - n.py) > radius)
         continue;
-      b.vx -= (n.px - b.px);
-      b.vy -= (n.py - b.py);
+      // TODO this needs to be addressed
+      b.vx -= n.px - b.px;
+      b.vy -= n.py - b.py;
     }
   }
 
@@ -26,10 +30,4 @@ class AvoidCollisions extends BaseRule {
 
   function get_radius()
       return Std.int(Math.sqrt(squareRadius));
-
-  static function squareDistance(x1 : Float, y1 : Float, x2 : Float, y2 : Float) {
-    var x = x1 - x2,
-        y = y1 - y2;
-    return x * x + y * y;
-  }
 }

@@ -1,6 +1,8 @@
 package boidz.rules;
 
-class RespectBoundaries extends BaseRule {
+import boidz.IFlockRule;
+
+class RespectBoundaries implements IFlockRule {
   public var minx : Float;
   public var maxx : Float;
   public var miny : Float;
@@ -12,7 +14,7 @@ class RespectBoundaries extends BaseRule {
     this.maxy = maxy;
   }
 
-  override public function modify(b:Boid):Void {
+  public function modify(b:Boid):Void {
     if (b.px < minx) {
       b.vx = Math.abs(b.vx);
     } else if (b.px > maxx) {

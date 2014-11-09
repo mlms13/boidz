@@ -1,1 +1,9 @@
 bin/canvas.js
+bin/pixi.js
+bin/android
+bin/mac64
+bin/flash
+bin/html5
+bin/ios
+bin/.build
+*.sublime-*

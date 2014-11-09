@@ -1,6 +1,8 @@
 package boidz.rules;
 
-class MoveTowardCenter extends BaseRule {
+import boidz.IFlockRule;
+
+class MoveTowardCenter implements IFlockRule {
   public var flock : Flock;
   public var percent : Float;
 
@@ -10,7 +12,7 @@ class MoveTowardCenter extends BaseRule {
     this.percent = percent;
   }
 
-  override public function modify(b:Boid):Void {
+  public function modify(b:Boid):Void {
     b.vx += (flock.cx - b.px) * percent;
     b.vy += (flock.cy - b.py) * percent;
   }

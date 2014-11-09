@@ -1,5 +1,13 @@
 -js bin/canvas.js
 -cp demo
 -cp src
--main Main
+-main Canvas
 -lib thx.core
+
+--next
+-js bin/pixi.js
+-cp demo
+-cp src
+-main Pixi
+-lib thx.core
+-lib pixijs

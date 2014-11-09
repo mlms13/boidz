@@ -1,39 +1,39 @@
 package boidz.render;
 
-import boidz.rules.BaseRule;
+import boidz.IRender;
+import boidz.Flock;
 import js.html.CanvasRenderingContext2D;
 import js.html.CanvasElement;
 
-class CanvasRender extends BaseRule {
+class CanvasRender implements IRender {
   var canvas : CanvasElement;
   var ctx : CanvasRenderingContext2D;
-  public function new(canvas : CanvasElement) {
+  var dx : Float;
+  var dy : Float;
+  // DX and DY are wrong, it should be a Matrix
+  public function new(canvas : CanvasElement, dx = 1.0, dy = 1.0) {
     this.canvas = canvas;
     this.ctx = canvas.getContext2d();
+    this.dx = dx;
+    this.dy = dy;
   }
 
-  override public function pre() {
+  public function render(flock : Flock) {
+    // setup
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.beginPath();
-
-// OR
-//    ctx.fillStyle = "rgba(255,255,255,1)";
-//    ctx.fillRect(0, 0, canvas.width, canvas.height);
-//    ctx.fillStyle = "#000";
-  }
-
-  override public function post() {
+    // boidz
+    for(b in flock.boids) {
+      ctx.moveTo(b.px * dx, b.py * dy);
+      ctx.lineTo((b.px - b.vx) * dx, (b.py - b.vy) * dy);
+    }
+    // close
     ctx.stroke();
 
-// OR
-//    ctx.fill();
-  }
-
-  override public function modify(b:Boid):Void {
-    ctx.moveTo(b.px, b.py);
-    ctx.lineTo(b.px - b.vx, b.py - b.vy);
-
-// OR
-//    ctx.fillRect(b.px, b.py, 1, 1);
+    // render centroid
+    ctx.beginPath();
+    ctx.fillStyle = "#cc3300";
+    ctx.arc(flock.cx, flock.cy, 4, 0, 2 * Math.PI, false);
+    ctx.fill();
   }
 }
