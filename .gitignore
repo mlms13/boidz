@@ -3,5 +3,6 @@ bin/pixi.js
 bin/mac64
 bin/flash
 bin/html5
+bin/ios
 bin/.build
 *.sublime-*

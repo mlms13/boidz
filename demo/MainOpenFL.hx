@@ -40,7 +40,7 @@ class MainOpenFL extends Sprite {
     flock.addRule(goalRule);
     flock.addRule(new LimitSpeed());
 
-    addBoids(flock, 400);
+    addBoids(flock, 200);
 
     var residue = 0.0,
         step    = flock.step * 1000;
@@ -54,7 +54,7 @@ class MainOpenFL extends Sprite {
       render.render(flock);
     });
 
-    container.addEventListener(MouseEvent.MOUSE_DOWN, function (e:MouseEvent) {
+    addEventListener(MouseEvent.MOUSE_DOWN, function (e:MouseEvent) {
       goalRule.goalx = e.localX;
       goalRule.goaly = e.localY;
     });
