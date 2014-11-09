@@ -27,6 +27,7 @@ class PixiJSRender implements IRender {
 
     ctx.lineWidth = 0;
 
+    // render centroid
     ctx.beginFill(0xcc3300);
     ctx.arc(flock.cx, flock.cy, 4, 0, 2 * Math.PI, false);
     ctx.endFill();

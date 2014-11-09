@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<project>
+  <meta title="Boidz Demo" package="com.boidz.openfl" version="0.0.1" company="The Boidz Company Name" />
+  <app main="MainOpenFL" path="bin" file="OpenFLDemo" />
+
+  <source path="src" />
+  <source path="demo" />
+
+  <haxelib name="openfl" />
+  <haxelib name="thx.core" />
+
+  <assets path="assets" rename="assets" />
+  <icon path="assets/logo.svg" />
+
+  <window width="800" height="600" fps="60" hardware="true" vsync="false" unless="web" ></window>
+
+</project>

@@ -18,8 +18,8 @@ class AvoidCollisions implements IFlockRule {
       if(n == b || Math.abs(b.px - n.px) > radius || Math.abs(b.py - n.py) > radius)
         continue;
       // TODO this needs to be addressed
-      b.vx -= (n.px - b.px);
-      b.vy -= (n.py - b.py);
+      b.vx -= n.px - b.px;
+      b.vy -= n.py - b.py;
     }
   }
 

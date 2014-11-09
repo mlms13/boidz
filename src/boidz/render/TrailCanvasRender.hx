@@ -39,6 +39,11 @@ class TrailCanvasRender implements IRender {
       ctx.lineTo(b.px - b.vx, b.py - b.vy);
       ctx.stroke();
     }
-    // close
+
+    // render centroid
+    ctx.beginPath();
+    ctx.fillStyle = "#cc3300";
+    ctx.arc(flock.cx, flock.cy, 4, 0, 2 * Math.PI, false);
+    ctx.fill();
   }
 }

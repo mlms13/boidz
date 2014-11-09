@@ -1,3 +1,7 @@
 bin/canvas.js
 bin/pixi.js
+bin/mac64
+bin/flash
+bin/html5
+bin/.build
 *.sublime-*
