@@ -1,8 +1,8 @@
 package boidz;
 
 class Flock {
-  public var boids(default, null):Array<Boid>;
-  public var rules(default, null):Array<IFlockRule>;
+  public var boids(default, null) : Array<Boid>;
+  public var rules(default, null) : Array<IFlockRule>;
   public var cx : Float;
   public var cy : Float;
   public var avx : Float;
@@ -28,12 +28,16 @@ class Flock {
     // checking each boid, calculate the center of the flock
     setFlockAverages();
 
-    for (boid in boids) {
-      // execute each rule to find the new boid velocity
-      for (rule in rules) {
+    // I benchmarked this and incredibly enough it is faster than
+    // inverting the loops
+    // execute each rule to find the new boid velocity
+    for (rule in rules) {
+      for (boid in boids) {
         rule.modify(boid);
       }
+    }
 
+    for (boid in boids) {
       // update boid position given new velocity
       boid.px += boid.vx;
       boid.py += boid.vy;
