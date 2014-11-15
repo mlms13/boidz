@@ -21,19 +21,20 @@ class CanvasRender implements IRender {
   public function render(flock : Flock) {
     // setup
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.beginPath();
-    // boidz
-    for(b in flock.boids) {
-      ctx.moveTo(b.px * dx, b.py * dy);
-      ctx.lineTo((b.px - b.vx) * dx, (b.py - b.vy) * dy);
-    }
-    // close
-    ctx.stroke();
 
     // render centroid
     ctx.beginPath();
     ctx.fillStyle = "#cc3300";
     ctx.arc(flock.cx, flock.cy, 4, 0, 2 * Math.PI, false);
     ctx.fill();
+
+    // boidz
+    ctx.beginPath();
+    for(b in flock.boids) {
+      ctx.moveTo(b.px * dx, b.py * dy);
+      ctx.lineTo((b.px - b.vx) * dx, (b.py - b.vy) * dy);
+    }
+    // close
+    ctx.stroke();
   }
 }
