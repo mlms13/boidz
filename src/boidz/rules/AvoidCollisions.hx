@@ -3,13 +3,13 @@ package boidz.rules;
 import boidz.IFlockRule;
 
 class AvoidCollisions implements IFlockRule {
-  public var radius(get, set) : Int;
+  public var radius : Int;
   public var flock : Flock;
   var squareRadius : Int;
 
   public function new(flock : Flock, ?radius : Int = 5) {
     this.flock = flock;
-    set_radius(radius);
+    this.radius  = radius;
   }
 
   public function modify(b : Boid):Void {
@@ -22,12 +22,4 @@ class AvoidCollisions implements IFlockRule {
       b.vy -= n.py - b.py;
     }
   }
-
-  function set_radius(radius : Int) {
-    squareRadius = radius * radius;
-    return radius;
-  }
-
-  function get_radius()
-      return Std.int(Math.sqrt(squareRadius));
 }

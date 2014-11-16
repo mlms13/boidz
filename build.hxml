@@ -3,6 +3,11 @@
 -cp src
 -main Canvas
 -lib thx.core
+-lib sui
+-lib dots
+-lib thx.stream
+-lib thx.stream.dom
+-D benchmark
 
 --next
 -js bin/pixi.js
