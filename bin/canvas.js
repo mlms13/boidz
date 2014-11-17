@@ -47,16 +47,16 @@ Canvas.main = function() {
 		goalRule.goaly = e.clientY;
 	},false);
 	var sui1 = new sui.Sui();
-	sui1["int"]("boids",flock.boids.length,0,5000,null,function(v) {
+	sui1["int"]("boids",flock.boids.length,{ min : 0, max : 5000},function(v) {
 		if(v > flock.boids.length) Canvas.addBoids(flock,v - flock.boids.length); else flock.boids.splice(v,flock.boids.length - v);
 	});
-	sui1["int"]("collision radius",avoidCollisions.radius,0,50,null,function(v1) {
+	sui1["int"]("collision radius",avoidCollisions.radius,{ min : 0, max : 50},function(v1) {
 		avoidCollisions.radius = v1;
 	});
-	sui1["float"]("match velocity ratio",matchGroupVelocity.ratio,0,1,null,null,function(v2) {
+	sui1["float"]("match velocity ratio",matchGroupVelocity.ratio,{ min : 0, max : 1},function(v2) {
 		matchGroupVelocity.ratio = v2;
 	});
-	sui1["float"]("speed limit",limitSpeed.speedLimit,0,100,null,null,function(v3) {
+	sui1["float"]("speed limit",limitSpeed.speedLimit,{ min : 0, max : 100},function(v3) {
 		limitSpeed.speedLimit = v3;
 	});
 	sui1.attach();
@@ -147,6 +147,14 @@ EReg.prototype = {
 };
 var HxOverrides = function() { };
 HxOverrides.__name__ = true;
+HxOverrides.dateStr = function(date) {
+	var m = date.getMonth() + 1;
+	var d = date.getDate();
+	var h = date.getHours();
+	var mi = date.getMinutes();
+	var s = date.getSeconds();
+	return date.getFullYear() + "-" + (m < 10?"0" + m:"" + m) + "-" + (d < 10?"0" + d:"" + d) + " " + (h < 10?"0" + h:"" + h) + ":" + (mi < 10?"0" + mi:"" + mi) + ":" + (s < 10?"0" + s:"" + s);
+};
 HxOverrides.cca = function(s,index) {
 	var x = s.charCodeAt(index);
 	if(x != x) return undefined;
@@ -199,6 +207,12 @@ Std.__name__ = true;
 Std.string = function(s) {
 	return js.Boot.__string_rec(s,"");
 };
+Std.parseInt = function(x) {
+	var v = parseInt(x,10);
+	if(v == 0 && (HxOverrides.cca(x,1) == 120 || HxOverrides.cca(x,1) == 88)) v = parseInt(x);
+	if(isNaN(v)) return null;
+	return v;
+};
 Std.parseFloat = function(x) {
 	return parseFloat(x);
 };
@@ -217,6 +231,10 @@ StringBuf.prototype = {
 };
 var StringTools = function() { };
 StringTools.__name__ = true;
+StringTools.htmlEscape = function(s,quotes) {
+	s = s.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
+	if(quotes) return s.split("\"").join("&quot;").split("'").join("&#039;"); else return s;
+};
 StringTools.startsWith = function(s,start) {
 	return s.length >= start.length && HxOverrides.substr(s,0,start.length) == start;
 };
@@ -243,6 +261,11 @@ StringTools.rtrim = function(s) {
 };
 StringTools.trim = function(s) {
 	return StringTools.ltrim(StringTools.rtrim(s));
+};
+StringTools.lpad = function(s,c,l) {
+	if(c.length <= 0) return s;
+	while(s.length < l) s = c + s;
+	return s;
 };
 StringTools.replace = function(s,sub,by) {
 	return s.split(sub).join(by);
@@ -834,35 +857,53 @@ sui.Sui = function() {
 };
 sui.Sui.__name__ = true;
 sui.Sui.prototype = {
-	bool: function(label,defaultValue,callback) {
+	bool: function(label,defaultValue,options,callback) {
 		if(defaultValue == null) defaultValue = false;
-		var control = new sui.controls.BoolControl(defaultValue);
+		var control = new sui.controls.BoolControl(defaultValue,options);
 		control.streams.value.subscribe(callback);
 		this.grid.add(null == label?sui.components.CellContent.Single(control):sui.components.CellContent.HorizontalPair(new sui.controls.LabelControl(label),control));
 		return control;
 	}
-	,color: function(label,defaultValue,callback) {
+	,date: function(label,defaultValue,options,callback) {
+		if(null == defaultValue) defaultValue = new Date();
+		var control = new sui.controls.DateControl(defaultValue,options);
+		control.streams.value.subscribe(callback);
+		this.grid.add(null == label?sui.components.CellContent.Single(control):sui.components.CellContent.HorizontalPair(new sui.controls.LabelControl(label),control));
+		return control;
+	}
+	,dateTime: function(label,defaultValue,options,callback) {
+		if(null == defaultValue) defaultValue = new Date();
+		var control = new sui.controls.DateTimeControl(defaultValue,options);
+		control.streams.value.subscribe(callback);
+		this.grid.add(null == label?sui.components.CellContent.Single(control):sui.components.CellContent.HorizontalPair(new sui.controls.LabelControl(label),control));
+		return control;
+	}
+	,email: function(label,defaultValue,options,callback) {
+		if(defaultValue == null) defaultValue = "";
+		var control = new sui.controls.EmailControl(defaultValue,options);
+		control.streams.value.subscribe(callback);
+		this.grid.add(null == label?sui.components.CellContent.Single(control):sui.components.CellContent.HorizontalPair(new sui.controls.LabelControl(label),control));
+		return control;
+	}
+	,color: function(label,defaultValue,options,callback) {
 		if(defaultValue == null) defaultValue = "#AA0000";
-		var control = new sui.controls.ColorControl(defaultValue);
+		var control = new sui.controls.ColorControl(defaultValue,options);
 		control.streams.value.subscribe(callback);
 		this.grid.add(null == label?sui.components.CellContent.Single(control):sui.components.CellContent.HorizontalPair(new sui.controls.LabelControl(label),control));
 		return control;
 	}
-	,'float': function(label,defaultValue,min,max,step,allowNaN,callback) {
-		if(allowNaN == null) allowNaN = false;
-		if(step == null) step = 0.01;
+	,'float': function(label,defaultValue,options,callback) {
 		if(defaultValue == null) defaultValue = 0.0;
 		var control;
-		if(min != null && max != null) control = new sui.controls.FloatRangeControl(defaultValue,min,max,step); else control = new sui.controls.FloatControl(defaultValue,null,allowNaN);
+		if(null != options && options.min != null && options.max != null) control = new sui.controls.FloatRangeControl(defaultValue,options); else control = new sui.controls.FloatControl(defaultValue,options);
 		control.streams.value.subscribe(callback);
 		this.grid.add(null == label?sui.components.CellContent.Single(control):sui.components.CellContent.HorizontalPair(new sui.controls.LabelControl(label),control));
 		return control;
 	}
-	,'int': function(label,defaultValue,min,max,step,callback) {
-		if(step == null) step = 1;
+	,'int': function(label,defaultValue,options,callback) {
 		if(defaultValue == null) defaultValue = 0;
 		var control;
-		if(min != null && max != null) control = new sui.controls.IntRangeControl(defaultValue,min,max,step); else control = new sui.controls.IntControl(defaultValue);
+		if(null != options && options.min != null && options.max != null) control = new sui.controls.IntRangeControl(defaultValue,options); else control = new sui.controls.IntControl(defaultValue,options);
 		control.streams.value.subscribe(callback);
 		this.grid.add(null == label?sui.components.CellContent.Single(control):sui.components.CellContent.HorizontalPair(new sui.controls.LabelControl(label),control));
 		return control;
@@ -874,19 +915,53 @@ sui.Sui.prototype = {
 		this.grid.add(null == label?sui.components.CellContent.Single(control):sui.components.CellContent.HorizontalPair(new sui.controls.LabelControl(label),control));
 		return control;
 	}
-	,text: function(label,defaultValue,placeholder,allowEmptyText,callback) {
-		if(allowEmptyText == null) allowEmptyText = true;
+	,password: function(label,defaultValue,options,callback) {
 		if(defaultValue == null) defaultValue = "";
-		var control = new sui.controls.TextControl(defaultValue,placeholder,allowEmptyText);
+		var control = new sui.controls.PasswordControl(defaultValue,options);
 		control.streams.value.subscribe(callback);
 		this.grid.add(null == label?sui.components.CellContent.Single(control):sui.components.CellContent.HorizontalPair(new sui.controls.LabelControl(label),control));
 		return control;
 	}
-	,trigger: function(actionLabel,label,callback) {
-		var control = new sui.controls.TriggerControl(actionLabel);
+	,search: function(label,defaultValue,options,callback) {
+		if(defaultValue == null) defaultValue = "";
+		var control = new sui.controls.SearchControl(defaultValue,options);
+		control.streams.value.subscribe(callback);
+		this.grid.add(null == label?sui.components.CellContent.Single(control):sui.components.CellContent.HorizontalPair(new sui.controls.LabelControl(label),control));
+		return control;
+	}
+	,tel: function(label,defaultValue,options,callback) {
+		if(defaultValue == null) defaultValue = "";
+		var control = new sui.controls.TelControl(defaultValue,options);
+		control.streams.value.subscribe(callback);
+		this.grid.add(null == label?sui.components.CellContent.Single(control):sui.components.CellContent.HorizontalPair(new sui.controls.LabelControl(label),control));
+		return control;
+	}
+	,text: function(label,defaultValue,options,callback) {
+		if(defaultValue == null) defaultValue = "";
+		var control = new sui.controls.TextControl(defaultValue,options);
+		control.streams.value.subscribe(callback);
+		this.grid.add(null == label?sui.components.CellContent.Single(control):sui.components.CellContent.HorizontalPair(new sui.controls.LabelControl(label),control));
+		return control;
+	}
+	,time: function(label,defaultValue,options,callback) {
+		if(null == defaultValue) defaultValue = 0;
+		var control = new sui.controls.TimeControl(defaultValue,options);
+		control.streams.value.subscribe(callback);
+		this.grid.add(null == label?sui.components.CellContent.Single(control):sui.components.CellContent.HorizontalPair(new sui.controls.LabelControl(label),control));
+		return control;
+	}
+	,trigger: function(actionLabel,label,options,callback) {
+		var control = new sui.controls.TriggerControl(actionLabel,options);
 		control.streams.value.subscribe(function(_) {
 			callback();
 		});
+		this.grid.add(null == label?sui.components.CellContent.Single(control):sui.components.CellContent.HorizontalPair(new sui.controls.LabelControl(label),control));
+		return control;
+	}
+	,url: function(label,defaultValue,options,callback) {
+		if(defaultValue == null) defaultValue = "";
+		var control = new sui.controls.UrlControl(defaultValue,options);
+		control.streams.value.subscribe(callback);
 		this.grid.add(null == label?sui.components.CellContent.Single(control):sui.components.CellContent.HorizontalPair(new sui.controls.LabelControl(label),control));
 		return control;
 	}
@@ -943,279 +1018,676 @@ sui.components.CellContent.Single = function(control) { var $x = ["Single",0,con
 sui.components.CellContent.VerticalPair = function(top,bottom) { var $x = ["VerticalPair",1,top,bottom]; $x.__enum__ = sui.components.CellContent; return $x; };
 sui.components.CellContent.HorizontalPair = function(left,right) { var $x = ["HorizontalPair",2,left,right]; $x.__enum__ = sui.components.CellContent; return $x; };
 sui.controls = {};
-sui.controls.Control = function(valueEmitter) {
-	this._focus = new thx.stream.Value(false);
-	this.streams = new sui.controls.ControlStreams(valueEmitter,this._focus);
+sui.controls.IControl = function() { };
+sui.controls.IControl.__name__ = true;
+sui.controls.IControl.prototype = {
+	__class__: sui.controls.IControl
 };
-sui.controls.Control.__name__ = true;
-sui.controls.Control.prototype = {
-	get: function() {
-		throw new thx.core.error.NotImplemented({ fileName : "Control.hx", lineNumber : 22, className : "sui.controls.Control", methodName : "get"});
+sui.controls.SingleInputControl = function(defaultValue,event,name,type,options) {
+	var _g = this;
+	var template = "<div class=\"sui-control sui-control-single sui-type-" + name + "\"><input type=\"" + type + "\"/></div>";
+	if(null == options) options = { };
+	if(null == options.allownull) options.allownull = true;
+	this.defaultValue = defaultValue;
+	this.values = new sui.controls.ControlValues(defaultValue);
+	this.streams = new sui.controls.ControlStreams(this.values.value,this.values.focused,this.values.enabled);
+	this.el = dots.Html.parseNodes(template)[0];
+	this.input = dots.Query.first("input",this.el);
+	this.values.enabled.subscribe(function(v) {
+		if(v) {
+			_g.el.classList.add("sui-disabled");
+			_g.input.removeAttribute("disabled");
+		} else {
+			_g.el.classList.remove("sui-disabled");
+			_g.input.setAttribute("disabled","disabled");
+		}
+	});
+	this.values.focused.subscribe(function(v1) {
+		if(v1) _g.el.classList.add("sui-focused"); else _g.el.classList.remove("sui-focused");
+	});
+	this.setInput(defaultValue);
+	thx.stream.dom.Dom.streamFocus(this.input).feed(this.values.focused);
+	thx.stream.dom.Dom.streamEvent(this.input,event).map(function(_) {
+		return _g.getInput();
+	}).feed(this.values.value);
+	if(!options.allownull) this.input.setAttribute("required","required");
+	if(options.autofocus) this.focus();
+	if(options.disabled) this.disable();
+};
+sui.controls.SingleInputControl.__name__ = true;
+sui.controls.SingleInputControl.__interfaces__ = [sui.controls.IControl];
+sui.controls.SingleInputControl.prototype = {
+	setInput: function(v) {
+		throw new thx.core.error.AbstractMethod({ fileName : "SingleInputControl.hx", lineNumber : 64, className : "sui.controls.SingleInputControl", methodName : "setInput"});
+	}
+	,getInput: function() {
+		throw new thx.core.error.AbstractMethod({ fileName : "SingleInputControl.hx", lineNumber : 67, className : "sui.controls.SingleInputControl", methodName : "getInput"});
 	}
 	,set: function(v) {
-		throw new thx.core.error.NotImplemented({ fileName : "Control.hx", lineNumber : 25, className : "sui.controls.Control", methodName : "set"});
+		this.setInput(v);
+		this.values.value.set(v);
+	}
+	,get: function() {
+		return this.values.value.get();
+	}
+	,isEnabled: function() {
+		return this.values.enabled.get();
+	}
+	,isFocused: function() {
+		return this.values.focused.get();
+	}
+	,disable: function() {
+		this.values.enabled.set(false);
+	}
+	,enable: function() {
+		this.values.enabled.set(true);
 	}
 	,focus: function() {
-		throw new thx.core.error.NotImplemented({ fileName : "Control.hx", lineNumber : 28, className : "sui.controls.Control", methodName : "focus"});
+		this.input.focus();
 	}
-	,reset: function() {
-		throw new thx.core.error.NotImplemented({ fileName : "Control.hx", lineNumber : 31, className : "sui.controls.Control", methodName : "reset"});
-	}
-	,__class__: sui.controls.Control
-};
-sui.controls.ValueControl = function(defaultValue,equals) {
-	if(null == equals) equals = thx.core.Functions.equality;
-	this.defaultValue = defaultValue;
-	this._value = new thx.stream.Value(defaultValue,equals);
-	sui.controls.Control.call(this,this._value);
-};
-sui.controls.ValueControl.__name__ = true;
-sui.controls.ValueControl.__super__ = sui.controls.Control;
-sui.controls.ValueControl.prototype = $extend(sui.controls.Control.prototype,{
-	get: function() {
-		return this._value.get();
+	,blur: function() {
+		this.input.blur();
 	}
 	,reset: function() {
 		this.set(this.defaultValue);
 	}
-	,__class__: sui.controls.ValueControl
+	,__class__: sui.controls.SingleInputControl
+};
+sui.controls.BaseDateControl = function(value,name,type,dateToString,options) {
+	if(null == options) options = { };
+	this.dateToString = dateToString;
+	sui.controls.SingleInputControl.call(this,value,"input",name,type,options);
+	if(null != options.autocomplete) this.input.setAttribute("autocomplete",options.autocomplete?"on":"off");
+	if(null != options.min) this.input.setAttribute("min",dateToString(options.min));
+	if(null != options.max) this.input.setAttribute("max",dateToString(options.max));
+	if(null != options.list) new sui.controls.DataList(this.el,options.list.map(function(o) {
+		return { label : o.label, value : dateToString(o.value)};
+	})).applyTo(this.input); else if(null != options.values) new sui.controls.DataList(this.el,options.values.map(function(o1) {
+		return { label : HxOverrides.dateStr(o1), value : dateToString(o1)};
+	})).applyTo(this.input);
+};
+sui.controls.BaseDateControl.__name__ = true;
+sui.controls.BaseDateControl.toRFCDate = function(date) {
+	var y = date.getFullYear();
+	var m = StringTools.lpad("" + (date.getMonth() + 1),"0",2);
+	var d = StringTools.lpad("" + date.getDate(),"0",2);
+	return "" + y + "-" + m + "-" + d;
+};
+sui.controls.BaseDateControl.toRFCDateTime = function(date) {
+	var d = sui.controls.BaseDateControl.toRFCDate(date);
+	var hh = StringTools.lpad("" + date.getHours(),"0",2);
+	var mm = StringTools.lpad("" + date.getMinutes(),"0",2);
+	var ss = StringTools.lpad("" + date.getSeconds(),"0",2);
+	return "" + d + "T" + hh + ":" + mm + ":" + ss;
+};
+sui.controls.BaseDateControl.toRFCDateTimeNoSeconds = function(date) {
+	var d = sui.controls.BaseDateControl.toRFCDate(date);
+	var hh = StringTools.lpad("" + date.getHours(),"0",2);
+	var mm = StringTools.lpad("" + date.getMinutes(),"0",2);
+	return "" + d + "T" + hh + ":" + mm + ":00";
+};
+sui.controls.BaseDateControl.fromRFC = function(date) {
+	var dp = date.split("T")[0];
+	var dt;
+	var t1;
+	var _0 = date;
+	var _1;
+	var _2;
+	if(null == _0) t1 = null; else if(null == (_1 = _0.split("T"))) t1 = null; else if(null == (_2 = _1[1])) t1 = null; else t1 = _2;
+	if(t1 != null) dt = t1; else dt = "00:00:00";
+	var p = dp.split("-");
+	var y = Std.parseInt(p[0]);
+	var m = Std.parseInt(p[1]) - 1;
+	var d = Std.parseInt(p[2]);
+	var t = dt.split(":");
+	var hh = Std.parseInt(t[0]);
+	var mm = Std.parseInt(t[1]);
+	var ss = Std.parseInt(t[2]);
+	return new Date(y,m,d,hh,mm,ss);
+};
+sui.controls.BaseDateControl.__super__ = sui.controls.SingleInputControl;
+sui.controls.BaseDateControl.prototype = $extend(sui.controls.SingleInputControl.prototype,{
+	setInput: function(v) {
+		this.input.value = this.dateToString(v);
+	}
+	,getInput: function() {
+		if(thx.core.Strings.isEmpty(this.input.value)) return null; else return sui.controls.BaseDateControl.fromRFC(this.input.value);
+	}
+	,__class__: sui.controls.BaseDateControl
 });
-sui.controls.BoolControl = function(value) {
-	sui.controls.ValueControl.call(this,value);
-	this.el = dots.Html.parseNodes("<div class=\"sui-single sui-input sui-bool\"><input type=\"checkbox\" " + (value?"checked":"") + "/></div>")[0];
-	this.input = dots.Query.first("input",this.el);
-	thx.stream.dom.Dom.streamFocus(this.input).feed(this._focus);
-	thx.stream.dom.Dom.streamChecked(this.input,null).subscribe($bind(this,this.set));
+sui.controls.BaseTextControl = function(value,name,type,options) {
+	if(null == options) options = { };
+	sui.controls.SingleInputControl.call(this,value,"input",name,type,options);
+	if(null != options.maxlength) this.input.setAttribute("maxlength","" + options.maxlength);
+	if(null != options.autocomplete) this.input.setAttribute("autocomplete",options.autocomplete?"on":"off");
+	if(null != options.pattern) this.input.setAttribute("pattern","" + options.pattern);
+	if(null != options.placeholder) this.input.setAttribute("placeholder","" + options.placeholder);
+	if(null != options.list) new sui.controls.DataList(this.el,options.list).applyTo(this.input); else if(null != options.values) sui.controls.DataList.fromArray(this.el,options.values).applyTo(this.input);
+};
+sui.controls.BaseTextControl.__name__ = true;
+sui.controls.BaseTextControl.__super__ = sui.controls.SingleInputControl;
+sui.controls.BaseTextControl.prototype = $extend(sui.controls.SingleInputControl.prototype,{
+	setInput: function(v) {
+		this.input.value = v;
+	}
+	,getInput: function() {
+		return this.input.value;
+	}
+	,__class__: sui.controls.BaseTextControl
+});
+sui.controls.BoolControl = function(value,options) {
+	sui.controls.SingleInputControl.call(this,value,"change","bool","checkbox",options);
 };
 sui.controls.BoolControl.__name__ = true;
-sui.controls.BoolControl.__super__ = sui.controls.ValueControl;
-sui.controls.BoolControl.prototype = $extend(sui.controls.ValueControl.prototype,{
-	set: function(value) {
-		this.input.checked = value;
-		this._value.set(value);
+sui.controls.BoolControl.__super__ = sui.controls.SingleInputControl;
+sui.controls.BoolControl.prototype = $extend(sui.controls.SingleInputControl.prototype,{
+	setInput: function(v) {
+		this.input.checked = v;
 	}
-	,focus: function() {
-		this.input.focus();
+	,getInput: function() {
+		return this.input.checked;
 	}
 	,__class__: sui.controls.BoolControl
 });
-sui.controls.ColorControl = function(value) {
+sui.controls.DoubleInputControl = function(defaultValue,name,event1,type1,event2,type2,filter,options) {
 	var _g = this;
-	sui.controls.ValueControl.call(this,value);
-	this.el = dots.Html.parseNodes("<div class=\"sui-color\">\n<input class=\"sui-input sui-color-control\" type=\"color\" value=\"" + value + "\" />\n<input class=\"sui-input sui-color-text\" type=\"text\" value=\"" + value + "\" />\n</div>")[0];
-	this.picker = dots.Query.first(".sui-color-control",this.el);
-	this.input = dots.Query.first(".sui-color-text",this.el);
-	if(!dots.Detect.supportsInput("color")) this.picker.style.display = "none";
-	thx.stream.dom.Dom.streamFocus(this.picker).merge(thx.stream.dom.Dom.streamFocus(this.input)).debounce(0).distinct().feed(this._focus);
-	thx.stream.dom.Dom.streamInput(this.picker,null).map(function(_) {
-		return _g.picker.value;
-	}).subscribe($bind(this,this.set));
-	thx.stream.dom.Dom.streamInput(this.input,null).map(function(_1) {
-		return _g.input.value;
-	}).subscribe($bind(this,this.set));
+	var template = "<div class=\"sui-control sui-control-double sui-type-" + name + "\"><input class=\"input1\" type=\"" + type1 + "\"/><input class=\"input2\" type=\"" + type2 + "\"/></div>";
+	if(null == options) options = { };
+	if(null == options.allownull) options.allownull = true;
+	this.defaultValue = defaultValue;
+	this.values = new sui.controls.ControlValues(defaultValue);
+	this.streams = new sui.controls.ControlStreams(this.values.value,this.values.focused,this.values.enabled);
+	this.el = dots.Html.parseNodes(template)[0];
+	this.input1 = dots.Query.first(".input1",this.el);
+	this.input2 = dots.Query.first(".input2",this.el);
+	this.values.enabled.subscribe(function(v) {
+		if(v) {
+			_g.el.classList.add("sui-disabled");
+			_g.input1.removeAttribute("disabled");
+			_g.input2.removeAttribute("disabled");
+		} else {
+			_g.el.classList.remove("sui-disabled");
+			_g.input1.setAttribute("disabled","disabled");
+			_g.input2.setAttribute("disabled","disabled");
+		}
+	});
+	this.values.focused.subscribe(function(v1) {
+		if(v1) _g.el.classList.add("sui-focused"); else _g.el.classList.remove("sui-focused");
+	});
+	thx.stream.dom.Dom.streamFocus(this.input1).merge(thx.stream.dom.Dom.streamFocus(this.input2)).feed(this.values.focused);
+	thx.stream.dom.Dom.streamEvent(this.input1,event1).map(function(_) {
+		return _g.getInput1();
+	}).subscribe(function(v2) {
+		_g.setInput2(v2);
+		_g.values.value.set(v2);
+	});
+	thx.stream.dom.Dom.streamEvent(this.input2,event2).map(function(_1) {
+		return _g.getInput2();
+	}).filter(filter).subscribe(function(v3) {
+		_g.setInput1(v3);
+		_g.values.value.set(v3);
+	});
+	if(!options.allownull) {
+		this.input1.setAttribute("required","required");
+		this.input2.setAttribute("required","required");
+	}
+	if(options.autofocus) this.focus();
+	if(options.disabled) this.disable();
+	if(!dots.Detect.supportsInput(type1)) this.input1.style.display = "none";
 };
-sui.controls.ColorControl.__name__ = true;
-sui.controls.ColorControl.__super__ = sui.controls.ValueControl;
-sui.controls.ColorControl.prototype = $extend(sui.controls.ValueControl.prototype,{
-	set: function(value) {
-		this.picker.value = value;
-		this.input.value = value;
-		this._value.set(value);
+sui.controls.DoubleInputControl.__name__ = true;
+sui.controls.DoubleInputControl.__interfaces__ = [sui.controls.IControl];
+sui.controls.DoubleInputControl.prototype = {
+	setInputs: function(v) {
+		this.setInput1(v);
+		this.setInput2(v);
+	}
+	,setInput1: function(v) {
+		throw new thx.core.error.AbstractMethod({ fileName : "DoubleInputControl.hx", lineNumber : 89, className : "sui.controls.DoubleInputControl", methodName : "setInput1"});
+	}
+	,setInput2: function(v) {
+		throw new thx.core.error.AbstractMethod({ fileName : "DoubleInputControl.hx", lineNumber : 92, className : "sui.controls.DoubleInputControl", methodName : "setInput2"});
+	}
+	,getInput1: function() {
+		throw new thx.core.error.AbstractMethod({ fileName : "DoubleInputControl.hx", lineNumber : 95, className : "sui.controls.DoubleInputControl", methodName : "getInput1"});
+	}
+	,getInput2: function() {
+		throw new thx.core.error.AbstractMethod({ fileName : "DoubleInputControl.hx", lineNumber : 98, className : "sui.controls.DoubleInputControl", methodName : "getInput2"});
+	}
+	,set: function(v) {
+		this.setInputs(v);
+		this.values.value.set(v);
+	}
+	,get: function() {
+		return this.values.value.get();
+	}
+	,isEnabled: function() {
+		return this.values.enabled.get();
+	}
+	,isFocused: function() {
+		return this.values.focused.get();
+	}
+	,disable: function() {
+		this.values.enabled.set(false);
+	}
+	,enable: function() {
+		this.values.enabled.set(true);
 	}
 	,focus: function() {
-		this.input.focus();
+		this.input2.focus();
+	}
+	,blur: function() {
+		var el = window.document.activeElement;
+		if(el == this.input1 || el == this.input2) el.blur();
+	}
+	,reset: function() {
+		this.set(this.defaultValue);
+	}
+	,__class__: sui.controls.DoubleInputControl
+};
+sui.controls.ColorControl = function(value,options) {
+	if(null == options) options = { };
+	sui.controls.DoubleInputControl.call(this,value,"color","input","color","input","text",($_=sui.controls.ColorControl.PATTERN,$bind($_,$_.match)),options);
+	if(null != options.autocomplete) this.input2.setAttribute("autocomplete",options.autocomplete?"on":"off");
+	if(null != options.list) new sui.controls.DataList(this.el,options.list).applyTo(this.input1).applyTo(this.input2); else if(null != options.values) sui.controls.DataList.fromArray(this.el,options.values).applyTo(this.input1).applyTo(this.input2);
+	this.setInputs(value);
+};
+sui.controls.ColorControl.__name__ = true;
+sui.controls.ColorControl.__super__ = sui.controls.DoubleInputControl;
+sui.controls.ColorControl.prototype = $extend(sui.controls.DoubleInputControl.prototype,{
+	setInput1: function(v) {
+		this.input1.value = v;
+	}
+	,setInput2: function(v) {
+		this.input2.value = v;
+	}
+	,getInput1: function() {
+		return this.input1.value;
+	}
+	,getInput2: function() {
+		return this.input2.value;
 	}
 	,__class__: sui.controls.ColorControl
 });
-sui.controls.ControlStreams = function(value,focus) {
+sui.controls.ControlStreams = function(value,focused,enabled) {
 	this.value = value;
-	this.focus = focus;
+	this.focused = focused;
+	this.enabled = enabled;
 };
 sui.controls.ControlStreams.__name__ = true;
 sui.controls.ControlStreams.prototype = {
 	__class__: sui.controls.ControlStreams
 };
-sui.controls.FloatControl = function(value,step,allowNaN) {
-	if(allowNaN == null) allowNaN = false;
-	sui.controls.ValueControl.call(this,value);
-	var sstep;
-	if(null == step) sstep = ""; else sstep = "step=\"" + step + "\"";
-	var input = dots.Html.parseNodes("<input class=\"sui-input sui-float\" type=\"number\" value=\"" + value + "\" " + sstep + " />")[0];
-	this.el = input;
-	thx.stream.dom.Dom.streamFocus(input).feed(this._focus);
-	thx.stream.dom.Dom.streamInput(input,null).map(function(_) {
-		if(!allowNaN && isNaN(input.valueAsNumber)) return 0.0; else return input.valueAsNumber;
-	}).subscribe($bind(this,this.set));
+sui.controls.ControlValues = function(defaultValue) {
+	this.value = new thx.stream.Value(defaultValue);
+	this.focused = new thx.stream.Value(false);
+	this.enabled = new thx.stream.Value(true);
+};
+sui.controls.ControlValues.__name__ = true;
+sui.controls.ControlValues.prototype = {
+	__class__: sui.controls.ControlValues
+};
+sui.controls.DataList = function(container,values) {
+	this.id = "sui-dl-" + ++sui.controls.DataList.nid;
+	var datalist = dots.Html.parse("<datalist id=\"" + this.id + "\" style=\"display:none\">" + values.map(sui.controls.DataList.toOption).join("") + "</datalist>");
+	container.appendChild(datalist);
+};
+sui.controls.DataList.__name__ = true;
+sui.controls.DataList.fromArray = function(container,values) {
+	return new sui.controls.DataList(container,values.map(function(v) {
+		return { value : v, label : v};
+	}));
+};
+sui.controls.DataList.toOption = function(o) {
+	return "<option value=\"" + StringTools.htmlEscape(o.value) + "\">" + o.label + "</option>";
+};
+sui.controls.DataList.prototype = {
+	applyTo: function(el) {
+		el.setAttribute("list",this.id);
+		return this;
+	}
+	,__class__: sui.controls.DataList
+};
+sui.controls.DateControl = function(value,options) {
+	sui.controls.BaseDateControl.call(this,value,"date","date",sui.controls.BaseDateControl.toRFCDate,options);
+};
+sui.controls.DateControl.__name__ = true;
+sui.controls.DateControl.__super__ = sui.controls.BaseDateControl;
+sui.controls.DateControl.prototype = $extend(sui.controls.BaseDateControl.prototype,{
+	__class__: sui.controls.DateControl
+});
+sui.controls.DateTimeControl = function(value,options) {
+	sui.controls.BaseDateControl.call(this,value,"date-time","datetime-local",sui.controls.BaseDateControl.toRFCDateTimeNoSeconds,options);
+};
+sui.controls.DateTimeControl.__name__ = true;
+sui.controls.DateTimeControl.__super__ = sui.controls.BaseDateControl;
+sui.controls.DateTimeControl.prototype = $extend(sui.controls.BaseDateControl.prototype,{
+	__class__: sui.controls.DateTimeControl
+});
+sui.controls.EmailControl = function(value,options) {
+	if(null == options) options = { };
+	if(null == options.placeholder) options.placeholder = "name@example.com";
+	sui.controls.BaseTextControl.call(this,value,"email","email",options);
+};
+sui.controls.EmailControl.__name__ = true;
+sui.controls.EmailControl.__super__ = sui.controls.BaseTextControl;
+sui.controls.EmailControl.prototype = $extend(sui.controls.BaseTextControl.prototype,{
+	__class__: sui.controls.EmailControl
+});
+sui.controls.NumberControl = function(value,name,options) {
+	if(null == options) options = { };
+	sui.controls.SingleInputControl.call(this,value,"input",name,"number",options);
+	if(null != options.autocomplete) this.input.setAttribute("autocomplete",options.autocomplete?"on":"off");
+	if(null != options.min) this.input.setAttribute("min","" + Std.string(options.min));
+	if(null != options.max) this.input.setAttribute("max","" + Std.string(options.max));
+	if(null != options.step) this.input.setAttribute("step","" + Std.string(options.step));
+	if(null != options.placeholder) this.input.setAttribute("placeholder","" + options.placeholder);
+	if(null != options.list) new sui.controls.DataList(this.el,options.list.map(function(o) {
+		return { label : o.label, value : "" + Std.string(o.value)};
+	})).applyTo(this.input); else if(null != options.values) new sui.controls.DataList(this.el,options.values.map(function(o1) {
+		return { label : "" + Std.string(o1), value : "" + Std.string(o1)};
+	})).applyTo(this.input);
+};
+sui.controls.NumberControl.__name__ = true;
+sui.controls.NumberControl.__super__ = sui.controls.SingleInputControl;
+sui.controls.NumberControl.prototype = $extend(sui.controls.SingleInputControl.prototype,{
+	__class__: sui.controls.NumberControl
+});
+sui.controls.FloatControl = function(value,options) {
+	sui.controls.NumberControl.call(this,value,"float",options);
 };
 sui.controls.FloatControl.__name__ = true;
-sui.controls.FloatControl.__super__ = sui.controls.ValueControl;
-sui.controls.FloatControl.prototype = $extend(sui.controls.ValueControl.prototype,{
-	set: function(value) {
-		this.el.valueAsNumber = value;
-		this._value.set(value);
+sui.controls.FloatControl.__super__ = sui.controls.NumberControl;
+sui.controls.FloatControl.prototype = $extend(sui.controls.NumberControl.prototype,{
+	setInput: function(v) {
+		this.input.value = "" + v;
 	}
-	,focus: function() {
-		this.el.focus();
+	,getInput: function() {
+		return Std.parseFloat(this.input.value);
 	}
 	,__class__: sui.controls.FloatControl
 });
-sui.controls.FloatRangeControl = function(value,min,max,step,allowNaN) {
-	if(allowNaN == null) allowNaN = false;
-	var _g = this;
-	sui.controls.ValueControl.call(this,value);
-	var sstep;
-	if(null == step) sstep = ""; else sstep = "step=\"" + step + "\"";
-	this.el = dots.Html.parseNodes("<div class=\"sui-range-float\">\n<input class=\"sui-input sui-range-slider-float\" type=\"range\" value=\"" + value + "\" " + sstep + " min=\"" + min + "\" max=\"" + max + "\"/>\n<input class=\"sui-input sui-range-input-float\" type=\"number\" value=\"" + value + "\" " + sstep + " min=\"" + min + "\" max=\"" + max + "\"/>")[0];
-	this.range = dots.Query.first(".sui-range-slider-float",this.el);
-	this.input = dots.Query.first(".sui-range-input-float",this.el);
-	thx.stream.dom.Dom.streamFocus(this.range).merge(thx.stream.dom.Dom.streamFocus(this.input)).debounce(0).distinct().feed(this._focus);
-	thx.stream.dom.Dom.streamInput(this.range,null).map(function(_) {
-		return _g.range.valueAsNumber;
-	}).subscribe($bind(this,this.set));
-	thx.stream.dom.Dom.streamInput(this.input,null).map(function(_1) {
-		if(!allowNaN && isNaN(_g.input.valueAsNumber)) return 0.0; else return _g.input.valueAsNumber;
-	}).map(function(_2) {
-		if(_2 < min) return min; else if(_2 > max) return max; else return _2;
-	}).subscribe($bind(this,this.set));
+sui.controls.NumberRangeControl = function(value,options) {
+	sui.controls.DoubleInputControl.call(this,value,"float-range","input","range","input","number",function(v) {
+		return v != null;
+	},options);
+	if(null != options.autocomplete) {
+		this.input1.setAttribute("autocomplete",options.autocomplete?"on":"off");
+		this.input2.setAttribute("autocomplete",options.autocomplete?"on":"off");
+	}
+	if(null != options.min) {
+		this.input1.setAttribute("min","" + Std.string(options.min));
+		this.input2.setAttribute("min","" + Std.string(options.min));
+	}
+	if(null != options.max) {
+		this.input1.setAttribute("max","" + Std.string(options.max));
+		this.input2.setAttribute("max","" + Std.string(options.max));
+	}
+	if(null != options.step) {
+		this.input1.setAttribute("step","" + Std.string(options.step));
+		this.input2.setAttribute("step","" + Std.string(options.step));
+	}
+	if(null != options.placeholder) this.input2.setAttribute("placeholder","" + options.placeholder);
+	if(null != options.list) new sui.controls.DataList(this.el,options.list.map(function(o) {
+		return { label : o.label, value : "" + Std.string(o.value)};
+	})).applyTo(this.input1).applyTo(this.input2); else if(null != options.values) new sui.controls.DataList(this.el,options.values.map(function(o1) {
+		return { label : "" + Std.string(o1), value : "" + Std.string(o1)};
+	})).applyTo(this.input1).applyTo(this.input2);
+	this.setInputs(value);
+};
+sui.controls.NumberRangeControl.__name__ = true;
+sui.controls.NumberRangeControl.__super__ = sui.controls.DoubleInputControl;
+sui.controls.NumberRangeControl.prototype = $extend(sui.controls.DoubleInputControl.prototype,{
+	setInput1: function(v) {
+		this.input1.value = "" + Std.string(v);
+	}
+	,setInput2: function(v) {
+		this.input2.value = "" + Std.string(v);
+	}
+	,__class__: sui.controls.NumberRangeControl
+});
+sui.controls.FloatRangeControl = function(value,options) {
+	if(null == options) options = { };
+	if(null == options.min) options.min = Math.min(value,0);
+	if(null == options.min) {
+		var s;
+		if(null != options.step) s = options.step; else s = 1;
+		options.max = Math.max(value,s);
+	}
+	sui.controls.NumberRangeControl.call(this,value,options);
 };
 sui.controls.FloatRangeControl.__name__ = true;
-sui.controls.FloatRangeControl.__super__ = sui.controls.ValueControl;
-sui.controls.FloatRangeControl.prototype = $extend(sui.controls.ValueControl.prototype,{
-	set: function(value) {
-		this.range.valueAsNumber = value;
-		this.input.valueAsNumber = value;
-		this._value.set(value);
+sui.controls.FloatRangeControl.__super__ = sui.controls.NumberRangeControl;
+sui.controls.FloatRangeControl.prototype = $extend(sui.controls.NumberRangeControl.prototype,{
+	getInput1: function() {
+		if(thx.core.Floats.canParse(this.input1.value)) return thx.core.Floats.parse(this.input1.value); else return null;
 	}
-	,focus: function() {
-		this.input.focus();
+	,getInput2: function() {
+		if(thx.core.Floats.canParse(this.input2.value)) return thx.core.Floats.parse(this.input2.value); else return null;
 	}
 	,__class__: sui.controls.FloatRangeControl
 });
-sui.controls.IntControl = function(value,step) {
-	if(step == null) step = 1;
-	sui.controls.ValueControl.call(this,value);
-	var input = dots.Html.parseNodes("<input class=\"sui-input sui-int\" type=\"number\" value=\"" + value + "\" step=\"" + step + "\" />")[0];
-	this.el = input;
-	thx.stream.dom.Dom.streamFocus(input).feed(this._focus);
-	thx.stream.dom.Dom.streamInput(input,null).map(function(_) {
-		return input.valueAsNumber | 0;
-	}).subscribe($bind(this,this.set));
+sui.controls.IntControl = function(value,options) {
+	sui.controls.NumberControl.call(this,value,"int",options);
 };
 sui.controls.IntControl.__name__ = true;
-sui.controls.IntControl.__super__ = sui.controls.ValueControl;
-sui.controls.IntControl.prototype = $extend(sui.controls.ValueControl.prototype,{
-	set: function(value) {
-		this.el.valueAsNumber = value;
-		this._value.set(value);
+sui.controls.IntControl.__super__ = sui.controls.NumberControl;
+sui.controls.IntControl.prototype = $extend(sui.controls.NumberControl.prototype,{
+	setInput: function(v) {
+		this.input.value = "" + v;
 	}
-	,focus: function() {
-		this.el.focus();
+	,getInput: function() {
+		return Std.parseInt(this.input.value);
 	}
 	,__class__: sui.controls.IntControl
 });
-sui.controls.IntRangeControl = function(value,min,max,step) {
-	if(step == null) step = 1;
-	var _g = this;
-	sui.controls.ValueControl.call(this,value);
-	this.el = dots.Html.parseNodes("<div class=\"sui-range-int\">\n<input class=\"sui-input sui-range-slider-int\" type=\"range\" value=\"" + value + "\" step=\"" + step + "\" min=\"" + min + "\" max=\"" + max + "\" />\n<input class=\"sui-input sui-range-input-int\" type=\"number\" value=\"" + value + "\" step=\"" + step + "\" min=\"" + min + "\" max=\"" + max + "\" />\n</div>")[0];
-	this.range = dots.Query.first(".sui-range-slider-int",this.el);
-	this.input = dots.Query.first(".sui-range-input-int",this.el);
-	thx.stream.dom.Dom.streamFocus(this.range).merge(thx.stream.dom.Dom.streamFocus(this.input)).debounce(0).distinct().feed(this._focus);
-	thx.stream.dom.Dom.streamInput(this.range,null).map(function(_) {
-		return _g.range.valueAsNumber | 0;
-	}).subscribe($bind(this,this.set));
-	thx.stream.dom.Dom.streamInput(this.input,null).map(function(_1) {
-		return _g.input.valueAsNumber | 0;
-	}).map(function(_2) {
-		if(_2 < min) return min; else if(_2 > max) return max; else return _2;
-	}).subscribe($bind(this,this.set));
+sui.controls.IntRangeControl = function(value,options) {
+	if(null == options) options = { };
+	if(null == options.min) if(value < 0) options.min = value; else options.min = 0;
+	if(null == options.min) {
+		var s;
+		if(null != options.step) s = options.step; else s = 100;
+		if(value > s) options.max = value; else options.max = s;
+	}
+	sui.controls.NumberRangeControl.call(this,value,options);
 };
 sui.controls.IntRangeControl.__name__ = true;
-sui.controls.IntRangeControl.__super__ = sui.controls.ValueControl;
-sui.controls.IntRangeControl.prototype = $extend(sui.controls.ValueControl.prototype,{
-	set: function(value) {
-		this.range.valueAsNumber = value;
-		this.input.valueAsNumber = value;
-		this._value.set(value);
+sui.controls.IntRangeControl.__super__ = sui.controls.NumberRangeControl;
+sui.controls.IntRangeControl.prototype = $extend(sui.controls.NumberRangeControl.prototype,{
+	getInput1: function() {
+		if(thx.core.Ints.canParse(this.input1.value)) return thx.core.Ints.parse(this.input1.value); else return null;
 	}
-	,focus: function() {
-		this.input.focus();
+	,getInput2: function() {
+		if(thx.core.Ints.canParse(this.input2.value)) return thx.core.Ints.parse(this.input2.value); else return null;
 	}
 	,__class__: sui.controls.IntRangeControl
 });
-sui.controls.LabelControl = function(value) {
-	if(null == value) value = "";
-	sui.controls.ValueControl.call(this,value);
-	this.el = dots.Html.parseNodes("<output class=\"sui-output\">" + value + "</output>")[0];
+sui.controls.LabelControl = function(defaultValue) {
+	var _g = this;
+	var template = "<div class=\"sui-control sui-control-single sui-type-label\"><output>" + defaultValue + "</output></div>";
+	this.defaultValue = defaultValue;
+	this.values = new sui.controls.ControlValues(defaultValue);
+	this.streams = new sui.controls.ControlStreams(this.values.value,this.values.focused,this.values.enabled);
+	this.el = dots.Html.parseNodes(template)[0];
+	this.output = dots.Query.first("output",this.el);
+	this.values.enabled.subscribe(function(v) {
+		if(v) _g.el.classList.add("sui-disabled"); else _g.el.classList.remove("sui-disabled");
+	});
 };
 sui.controls.LabelControl.__name__ = true;
-sui.controls.LabelControl.__super__ = sui.controls.ValueControl;
-sui.controls.LabelControl.prototype = $extend(sui.controls.ValueControl.prototype,{
-	set: function(value) {
-		this.el.textContent = value;
-		this._value.set(value);
+sui.controls.LabelControl.__interfaces__ = [sui.controls.IControl];
+sui.controls.LabelControl.prototype = {
+	set: function(v) {
+		this.output.innerHTML = v;
+		this.values.value.set(v);
+	}
+	,get: function() {
+		return this.values.value.get();
+	}
+	,isEnabled: function() {
+		return this.values.enabled.get();
+	}
+	,isFocused: function() {
+		return this.values.focused.get();
+	}
+	,disable: function() {
+		this.values.enabled.set(false);
+	}
+	,enable: function() {
+		this.values.enabled.set(true);
 	}
 	,focus: function() {
 	}
-	,__class__: sui.controls.LabelControl
-});
-sui.controls.TextControl = function(value,placeholder,allowEmptyString) {
-	if(allowEmptyString == null) allowEmptyString = false;
-	if(allowEmptyString && null == value) value = "";
-	sui.controls.ValueControl.call(this,value);
-	var input = dots.Html.parseNodes("<input class=\"sui-input sui-text\" type=\"text\" value=\"" + (function($this) {
-		var $r;
-		var t;
-		{
-			var _0 = value;
-			if(null == _0) t = null; else t = _0;
-		}
-		$r = t != null?t:"";
-		return $r;
-	}(this)) + "\" placeholder=\"" + (null == placeholder?"":placeholder) + "\" />")[0];
-	this.el = input;
-	thx.stream.dom.Dom.streamFocus(input).feed(this._focus);
-	var si = thx.stream.dom.Dom.streamInput(input,null);
-	if(!allowEmptyString) si = si.map(function(_) {
-		if(_ == "") return null; else return _;
-	});
-	si.subscribe($bind(this,this.set));
-};
-sui.controls.TextControl.__name__ = true;
-sui.controls.TextControl.__super__ = sui.controls.ValueControl;
-sui.controls.TextControl.prototype = $extend(sui.controls.ValueControl.prototype,{
-	set: function(value) {
-		this.el.value = value;
-		this._value.set(value);
-	}
-	,focus: function() {
-		this.el.focus();
-	}
-	,__class__: sui.controls.TextControl
-});
-sui.controls.TriggerControl = function(label) {
-	var button = dots.Html.parseNodes("<button class=\"sui-button\">" + label + "</button>")[0];
-	this.el = button;
-	var emitter = thx.stream.dom.Dom.streamEvent(button,"click",false).toNil();
-	sui.controls.Control.call(this,emitter);
-	thx.stream.dom.Dom.streamFocus(button).feed(this._focus);
-};
-sui.controls.TriggerControl.__name__ = true;
-sui.controls.TriggerControl.__super__ = sui.controls.Control;
-sui.controls.TriggerControl.prototype = $extend(sui.controls.Control.prototype,{
-	get: function() {
-		return thx.core.Nil.nil;
-	}
-	,set: function(value) {
-		this.el.click();
+	,blur: function() {
 	}
 	,reset: function() {
-		this.set(thx.core.Nil.nil);
+		this.set(this.defaultValue);
+	}
+	,__class__: sui.controls.LabelControl
+};
+sui.controls.PasswordControl = function(value,options) {
+	sui.controls.BaseTextControl.call(this,value,"text","password",options);
+};
+sui.controls.PasswordControl.__name__ = true;
+sui.controls.PasswordControl.__super__ = sui.controls.BaseTextControl;
+sui.controls.PasswordControl.prototype = $extend(sui.controls.BaseTextControl.prototype,{
+	__class__: sui.controls.PasswordControl
+});
+sui.controls.SearchControl = function(value,options) {
+	if(null == options) options = { };
+	sui.controls.BaseTextControl.call(this,value,"search","search",options);
+};
+sui.controls.SearchControl.__name__ = true;
+sui.controls.SearchControl.__super__ = sui.controls.BaseTextControl;
+sui.controls.SearchControl.prototype = $extend(sui.controls.BaseTextControl.prototype,{
+	__class__: sui.controls.SearchControl
+});
+sui.controls.TelControl = function(value,options) {
+	if(null == options) options = { };
+	sui.controls.BaseTextControl.call(this,value,"tel","tel",options);
+};
+sui.controls.TelControl.__name__ = true;
+sui.controls.TelControl.__super__ = sui.controls.BaseTextControl;
+sui.controls.TelControl.prototype = $extend(sui.controls.BaseTextControl.prototype,{
+	__class__: sui.controls.TelControl
+});
+sui.controls.TextControl = function(value,options) {
+	sui.controls.BaseTextControl.call(this,value,"text","text",options);
+};
+sui.controls.TextControl.__name__ = true;
+sui.controls.TextControl.__super__ = sui.controls.BaseTextControl;
+sui.controls.TextControl.prototype = $extend(sui.controls.BaseTextControl.prototype,{
+	__class__: sui.controls.TextControl
+});
+sui.controls.TimeControl = function(value,options) {
+	if(null == options) options = { };
+	sui.controls.SingleInputControl.call(this,value,"input","time","time",options);
+	if(null != options.autocomplete) this.input.setAttribute("autocomplete",options.autocomplete?"on":"off");
+	if(null != options.min) this.input.setAttribute("min",sui.controls.TimeControl.timeToString(options.min));
+	if(null != options.max) this.input.setAttribute("max",sui.controls.TimeControl.timeToString(options.max));
+	if(null != options.list) new sui.controls.DataList(this.el,options.list.map(function(o) {
+		return { label : o.label, value : sui.controls.TimeControl.timeToString(o.value)};
+	})).applyTo(this.input); else if(null != options.values) new sui.controls.DataList(this.el,options.values.map(function(o1) {
+		return { label : sui.controls.TimeControl.timeToString(o1), value : sui.controls.TimeControl.timeToString(o1)};
+	})).applyTo(this.input);
+};
+sui.controls.TimeControl.__name__ = true;
+sui.controls.TimeControl.timeToString = function(t) {
+	var h = Math.floor(t / 3600000);
+	t -= h * 3600000;
+	var m = Math.floor(t / 60000);
+	t -= m * 60000;
+	var s = t / 1000;
+	var hh = StringTools.lpad("" + h,"0",2);
+	var mm = StringTools.lpad("" + m,"0",2);
+	var ss;
+	ss = (s >= 10?"":"0") + s;
+	return "" + hh + ":" + mm + ":" + ss;
+};
+sui.controls.TimeControl.stringToTime = function(t) {
+	var p = t.split(":");
+	var h = Std.parseInt(p[0]);
+	var m = Std.parseInt(p[1]);
+	var s = Std.parseFloat(p[2]);
+	return s * 1000 + m * 60000 + h * 3600000;
+};
+sui.controls.TimeControl.__super__ = sui.controls.SingleInputControl;
+sui.controls.TimeControl.prototype = $extend(sui.controls.SingleInputControl.prototype,{
+	setInput: function(v) {
+		this.input.value = sui.controls.TimeControl.timeToString(v);
+	}
+	,getInput: function() {
+		return sui.controls.TimeControl.stringToTime(this.input.value);
+	}
+	,__class__: sui.controls.TimeControl
+});
+sui.controls.TriggerControl = function(label,options) {
+	var _g = this;
+	var template = "<div class=\"sui-control sui-control-single sui-type-trigger\"><button>" + label + "</button></div>";
+	if(null == options) options = { };
+	this.defaultValue = thx.core.Nil.nil;
+	this.el = dots.Html.parseNodes(template)[0];
+	this.button = dots.Query.first("button",this.el);
+	this.values = new sui.controls.ControlValues(thx.core.Nil.nil);
+	var emitter = thx.stream.dom.Dom.streamEvent(this.button,"click",false).toNil();
+	this.streams = new sui.controls.ControlStreams(emitter,this.values.focused,this.values.enabled);
+	this.values.enabled.subscribe(function(v) {
+		if(v) {
+			_g.el.classList.add("sui-disabled");
+			_g.button.removeAttribute("disabled");
+		} else {
+			_g.el.classList.remove("sui-disabled");
+			_g.button.setAttribute("disabled","disabled");
+		}
+	});
+	this.values.focused.subscribe(function(v1) {
+		if(v1) _g.el.classList.add("sui-focused"); else _g.el.classList.remove("sui-focused");
+	});
+	thx.stream.dom.Dom.streamFocus(this.button).feed(this.values.focused);
+	if(options.autofocus) this.focus();
+	if(options.disabled) this.disable();
+};
+sui.controls.TriggerControl.__name__ = true;
+sui.controls.TriggerControl.__interfaces__ = [sui.controls.IControl];
+sui.controls.TriggerControl.prototype = {
+	set: function(v) {
+		this.button.click();
+	}
+	,get: function() {
+		return thx.core.Nil.nil;
+	}
+	,isEnabled: function() {
+		return this.values.enabled.get();
+	}
+	,isFocused: function() {
+		return this.values.focused.get();
+	}
+	,disable: function() {
+		this.values.enabled.set(false);
+	}
+	,enable: function() {
+		this.values.enabled.set(true);
 	}
 	,focus: function() {
-		this.el.focus();
+		this.button.focus();
+	}
+	,blur: function() {
+		this.button.blur();
+	}
+	,reset: function() {
+		this.set(this.defaultValue);
 	}
 	,__class__: sui.controls.TriggerControl
+};
+sui.controls.UrlControl = function(value,options) {
+	if(null == options) options = { };
+	if(null == options.placeholder) options.placeholder = "http://example.com";
+	sui.controls.BaseTextControl.call(this,value,"url","url",options);
+};
+sui.controls.UrlControl.__name__ = true;
+sui.controls.UrlControl.__super__ = sui.controls.BaseTextControl;
+sui.controls.UrlControl.prototype = $extend(sui.controls.BaseTextControl.prototype,{
+	__class__: sui.controls.UrlControl
 });
 var thx = {};
 thx.core = {};
@@ -2441,13 +2913,13 @@ thx.core._Tuple.Tuple6_Impl_.toString = function(this1) {
 	return "Tuple6(" + Std.string(this1._0) + "," + Std.string(this1._1) + "," + Std.string(this1._2) + "," + Std.string(this1._3) + "," + Std.string(this1._4) + "," + Std.string(this1._5) + ")";
 };
 thx.core.error = {};
-thx.core.error.NotImplemented = function(posInfo) {
-	thx.core.Error.call(this,"method " + posInfo.className + "." + posInfo.methodName + "() needs to be implemented",null,posInfo);
+thx.core.error.AbstractMethod = function(posInfo) {
+	thx.core.Error.call(this,"method " + posInfo.className + "." + posInfo.methodName + "() is abstract",null,posInfo);
 };
-thx.core.error.NotImplemented.__name__ = true;
-thx.core.error.NotImplemented.__super__ = thx.core.Error;
-thx.core.error.NotImplemented.prototype = $extend(thx.core.Error.prototype,{
-	__class__: thx.core.error.NotImplemented
+thx.core.error.AbstractMethod.__name__ = true;
+thx.core.error.AbstractMethod.__super__ = thx.core.Error;
+thx.core.error.AbstractMethod.prototype = $extend(thx.core.Error.prototype,{
+	__class__: thx.core.error.AbstractMethod
 });
 thx.promise = {};
 thx.promise.Future = function() {
@@ -4562,6 +5034,7 @@ Canvas.height = 600;
 dots.Html.pattern = new EReg("[<]([^> ]+)","");
 dots.Query.doc = document;
 sui.controls.ColorControl.PATTERN = new EReg("^[#][0-9a-f]{6}$","i");
+sui.controls.DataList.nid = 0;
 thx.core.Floats.TOLERANCE = 10e-5;
 thx.core.Floats.EPSILON = 10e-10;
 thx.core.Floats.pattern_parse = new EReg("^(\\+|-)?\\d+(\\.\\d+)?(e-?\\d+)?$","");
