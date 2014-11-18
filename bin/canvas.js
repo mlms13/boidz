@@ -47,13 +47,13 @@ Canvas.main = function() {
 		goalRule.goaly = e.clientY;
 	},false);
 	var sui1 = new sui.Sui();
-	sui1["int"]("boids",flock.boids.length,{ min : 0, max : 5000},function(v) {
+	sui1["int"]("boids",flock.boids.length,{ min : 0, max : 3000},function(v) {
 		if(v > flock.boids.length) Canvas.addBoids(flock,v - flock.boids.length); else flock.boids.splice(v,flock.boids.length - v);
 	});
 	sui1["int"]("collision radius",avoidCollisions.radius,{ min : 0, max : 50},function(v1) {
 		avoidCollisions.radius = v1;
 	});
-	sui1["float"]("match velocity ratio",matchGroupVelocity.ratio,{ min : 0, max : 1},function(v2) {
+	sui1["float"]("match velocity ratio",matchGroupVelocity.ratio,{ min : 0, max : 1, step : 0.05},function(v2) {
 		matchGroupVelocity.ratio = v2;
 	});
 	sui1["float"]("speed limit",limitSpeed.speedLimit,{ min : 0, max : 100},function(v3) {
@@ -417,7 +417,7 @@ boidz.rules.LimitSpeed.prototype = {
 	,__class__: boidz.rules.LimitSpeed
 };
 boidz.rules.MatchGroupVelocity = function(flock,ratio) {
-	if(ratio == null) ratio = 0.0625;
+	if(ratio == null) ratio = 0.05;
 	this.flock = flock;
 	this.ratio = ratio;
 };
