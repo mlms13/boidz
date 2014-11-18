@@ -63,7 +63,7 @@ class Canvas {
 
     var sui = new sui.Sui();
     sui.int("boids",
-      flock.boids.length, { min : 0, max : 5000 },
+      flock.boids.length, { min : 0, max : 3000 },
       function(v){
         if(v > flock.boids.length)
           addBoids(flock, v - flock.boids.length)
@@ -74,7 +74,7 @@ class Canvas {
       avoidCollisions.radius, { min : 0, max : 50 },
       function(v) avoidCollisions.radius = v);
     sui.float("match velocity ratio",
-      matchGroupVelocity.ratio, { min : 0, max : 1 },
+      matchGroupVelocity.ratio, { min : 0, max : 1, step : 0.05 },
       function(v) matchGroupVelocity.ratio = v);
     sui.float("speed limit",
       limitSpeed.speedLimit, { min : 0, max : 100 },
