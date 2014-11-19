@@ -7,6 +7,7 @@ class RespectBoundaries implements IFlockRule {
   public var maxx : Float;
   public var miny : Float;
   public var maxy : Float;
+  public var enabled : Bool = true;
   public function new(minx : Float, maxx : Float, miny : Float, maxy : Float) {
     this.minx = minx;
     this.maxx = maxx;

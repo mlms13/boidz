@@ -16,9 +16,10 @@ Canvas.main = function() {
 	var avoidCollisions = new boidz.rules.AvoidCollisions(flock);
 	var matchGroupVelocity = new boidz.rules.MatchGroupVelocity(flock);
 	var limitSpeed = new boidz.rules.LimitSpeed();
+	var respectBoundaries = new boidz.rules.RespectBoundaries(10,Canvas.width - 10,10,Canvas.height - 10);
 	flock.addRule(avoidCollisions);
 	flock.addRule(matchGroupVelocity);
-	flock.addRule(new boidz.rules.RespectBoundaries(10,Canvas.width - 10,10,Canvas.height - 10));
+	flock.addRule(respectBoundaries);
 	flock.addRule(goalRule);
 	flock.addRule(limitSpeed);
 	Canvas.addBoids(flock,1000);
@@ -40,7 +41,7 @@ Canvas.main = function() {
 		var average = thx.core.Floats.round(thx.core.ArrayFloats.average(benchmarks),2);
 		var min = thx.core.Floats.round(thx.core.ArrayFloats.min(benchmarks),2);
 		var max = thx.core.Floats.round(thx.core.ArrayFloats.max(benchmarks),2);
-		haxe.Log.trace("executions time " + average + " (" + min + " -> " + max + ")",{ fileName : "Canvas.hx", lineNumber : 56, className : "Canvas", methodName : "main"});
+		haxe.Log.trace("executions time " + average + " (" + min + " -> " + max + ")",{ fileName : "Canvas.hx", lineNumber : 57, className : "Canvas", methodName : "main"});
 	},2000);
 	canvas.addEventListener("click",function(e) {
 		goalRule.goalx = e.clientX;
@@ -50,14 +51,34 @@ Canvas.main = function() {
 	sui1["int"]("boids",flock.boids.length,{ min : 0, max : 3000},function(v) {
 		if(v > flock.boids.length) Canvas.addBoids(flock,v - flock.boids.length); else flock.boids.splice(v,flock.boids.length - v);
 	});
-	sui1["int"]("collision radius",avoidCollisions.radius,{ min : 0, max : 50},function(v1) {
-		avoidCollisions.radius = v1;
+	sui1.bool("avoid collisions?",true,null,function(v1) {
+		avoidCollisions.enabled = v1;
 	});
-	sui1["float"]("match velocity ratio",matchGroupVelocity.ratio,{ min : 0, max : 1, step : 0.05},function(v2) {
-		matchGroupVelocity.ratio = v2;
+	sui1["float"]("radius",avoidCollisions.get_radius(),{ min : 0, max : 50, step : 0.5},function(v2) {
+		avoidCollisions.set_radius(v2);
 	});
-	sui1["float"]("speed limit",limitSpeed.speedLimit,{ min : 0, max : 100},function(v3) {
-		limitSpeed.speedLimit = v3;
+	sui1.bool("match velocity?",true,null,function(v3) {
+		matchGroupVelocity.enabled = v3;
+	});
+	sui1["float"]("ratio",matchGroupVelocity.ratio,{ min : 0, max : 1, step : 0.05},function(v4) {
+		matchGroupVelocity.ratio = v4;
+	});
+	sui1.bool("speed limit?",true,null,function(v5) {
+		limitSpeed.enabled = v5;
+	});
+	sui1["float"]("limit",limitSpeed.speedLimit,{ min : 1, max : 20},function(v6) {
+		limitSpeed.speedLimit = v6;
+	});
+	sui1.bool("goal rule?",true,null,function(v7) {
+		goalRule.enabled = v7;
+	});
+	sui1.bool("respect boundaries?",true,null,function(v8) {
+		respectBoundaries.enabled = v8;
+	});
+	sui1.trigger("reset velocity",null,null,function() {
+		flock.boids.map(function(_) {
+			return _.vx = _.vy = 0;
+		});
 	});
 	sui1.attach();
 };
@@ -299,6 +320,7 @@ boidz.Flock.prototype = {
 		while(_g < _g1.length) {
 			var rule = _g1[_g];
 			++_g;
+			if(!rule.enabled) continue;
 			var _g2 = 0;
 			var _g3 = this.boids;
 			while(_g2 < _g3.length) {
@@ -380,27 +402,51 @@ boidz.render.CanvasRender.prototype = {
 boidz.rules = {};
 boidz.rules.AvoidCollisions = function(flock,radius) {
 	if(radius == null) radius = 5;
+	this.enabled = true;
 	this.flock = flock;
-	this.radius = radius;
+	this.set_radius(radius);
 };
 boidz.rules.AvoidCollisions.__name__ = true;
 boidz.rules.AvoidCollisions.__interfaces__ = [boidz.IFlockRule];
 boidz.rules.AvoidCollisions.prototype = {
 	modify: function(b) {
+		var ax = 0.0;
+		var ay = 0.0;
+		var dx = 0.0;
+		var dy = 0.0;
+		var count = 0;
 		var _g = 0;
 		var _g1 = this.flock.boids;
 		while(_g < _g1.length) {
 			var n = _g1[_g];
 			++_g;
-			if(n == b || Math.abs(b.px - n.px) > this.radius || Math.abs(b.py - n.py) > this.radius) continue;
-			b.vx -= n.px - b.px;
-			b.vy -= n.py - b.py;
+			if(n == b) continue;
+			dx = b.px - n.px;
+			dy = b.py - n.py;
+			if(dx * dx + dy * dy > this.squareRadius) continue;
+			ax += n.px;
+			ay += n.py;
+			count++;
 		}
+		if(count == 0) return;
+		ax /= count;
+		ay /= count;
+		b.vx -= (ax - b.px) / this.get_radius();
+		b.vy -= (ay - b.py) / this.get_radius();
+	}
+	,get_radius: function() {
+		return this.radius;
+	}
+	,set_radius: function(r) {
+		this.radius = r;
+		this.squareRadius = r * r;
+		return r;
 	}
 	,__class__: boidz.rules.AvoidCollisions
 };
 boidz.rules.LimitSpeed = function(speedLimit) {
 	if(speedLimit == null) speedLimit = 10.0;
+	this.enabled = true;
 	this.speedLimit = speedLimit;
 };
 boidz.rules.LimitSpeed.__name__ = true;
@@ -418,6 +464,7 @@ boidz.rules.LimitSpeed.prototype = {
 };
 boidz.rules.MatchGroupVelocity = function(flock,ratio) {
 	if(ratio == null) ratio = 0.05;
+	this.enabled = true;
 	this.flock = flock;
 	this.ratio = ratio;
 };
@@ -425,13 +472,14 @@ boidz.rules.MatchGroupVelocity.__name__ = true;
 boidz.rules.MatchGroupVelocity.__interfaces__ = [boidz.IFlockRule];
 boidz.rules.MatchGroupVelocity.prototype = {
 	modify: function(b) {
-		b.vx += this.flock.avx * this.ratio;
-		b.vy += this.flock.avy * this.ratio;
+		b.vx = (1 - this.ratio) * b.vx + this.flock.avx * this.ratio;
+		b.vy = (1 - this.ratio) * b.vy + this.flock.avy * this.ratio;
 	}
 	,__class__: boidz.rules.MatchGroupVelocity
 };
 boidz.rules.MoveTowardGoal = function(goalx,goaly,percent) {
 	if(percent == null) percent = 0.02;
+	this.enabled = true;
 	this.goalx = goalx;
 	this.goaly = goaly;
 	this.percent = percent;
@@ -446,6 +494,7 @@ boidz.rules.MoveTowardGoal.prototype = {
 	,__class__: boidz.rules.MoveTowardGoal
 };
 boidz.rules.RespectBoundaries = function(minx,maxx,miny,maxy) {
+	this.enabled = true;
 	this.minx = minx;
 	this.maxx = maxx;
 	this.miny = miny;
