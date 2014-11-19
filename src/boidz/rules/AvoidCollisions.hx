@@ -35,8 +35,8 @@ class AvoidCollisions implements IFlockRule {
     ax /= count;
     ay /= count;
 
-    b.vx -= (ax - b.px) / radius;
-    b.vy -= (ay - b.py) / radius;
+    b.vx -= (ax - b.px);
+    b.vy -= (ay - b.py);
   }
 
   function get_radius() return radius;

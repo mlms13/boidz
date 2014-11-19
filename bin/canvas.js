@@ -431,8 +431,8 @@ boidz.rules.AvoidCollisions.prototype = {
 		if(count == 0) return;
 		ax /= count;
 		ay /= count;
-		b.vx -= (ax - b.px) / this.get_radius();
-		b.vy -= (ay - b.py) / this.get_radius();
+		b.vx -= ax - b.px;
+		b.vy -= ay - b.py;
 	}
 	,get_radius: function() {
 		return this.radius;
