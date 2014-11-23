@@ -4,6 +4,7 @@ import boidz.IFlockRule;
 
 class LimitSpeed implements IFlockRule {
   public var speedLimit : Float; // measured in units per event loop cycle (Flock.step)
+  public var enabled : Bool = true;
   public function new(speedLimit = 10.0) {
     this.speedLimit = speedLimit;
   }

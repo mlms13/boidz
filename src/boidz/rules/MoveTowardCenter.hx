@@ -5,6 +5,7 @@ import boidz.IFlockRule;
 class MoveTowardCenter implements IFlockRule {
   public var flock : Flock;
   public var percent : Float;
+  public var enabled : Bool = true;
 
   // move 1% toward the perceived center of all other boids
   public function new(flock : Flock, percent : Float = 1/100) {

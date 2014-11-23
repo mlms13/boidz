@@ -32,6 +32,7 @@ class Flock {
     // inverting the loops
     // execute each rule to find the new boid velocity
     for (rule in rules) {
+      if(!rule.enabled) continue;
       for (boid in boids) {
         rule.modify(boid);
       }

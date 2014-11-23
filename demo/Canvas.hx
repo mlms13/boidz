@@ -19,13 +19,14 @@ class Canvas {
     var goalRule = new MoveTowardGoal(width * Math.random(), height * Math.random()),
         avoidCollisions = new AvoidCollisions(flock),
         matchGroupVelocity = new MatchGroupVelocity(flock),
-        limitSpeed = new LimitSpeed();
+        limitSpeed = new LimitSpeed(),
+        respectBoundaries = new RespectBoundaries(10, width - 10, 10, height - 10);
 
     // this rule doesn't make much sense when used together with MoveTowardGoal, right?
     //flock.addRule(new MoveTowardCenter(flock));
     flock.addRule(avoidCollisions);
     flock.addRule(matchGroupVelocity);
-    flock.addRule(new RespectBoundaries(10, width - 10, 10, height - 10));
+    flock.addRule(respectBoundaries);
     flock.addRule(goalRule);
     flock.addRule(limitSpeed);
 
@@ -70,15 +71,21 @@ class Canvas {
         else
           flock.boids.splice(v, flock.boids.length - v);
       });
-    sui.int("collision radius",
-      avoidCollisions.radius, { min : 0, max : 50 },
+    sui.bool("avoid collisions?", true, function(v) avoidCollisions.enabled = v);
+    sui.float("radius",
+      avoidCollisions.radius, { min : 0, max : 50, step : 0.5 },
       function(v) avoidCollisions.radius = v);
-    sui.float("match velocity ratio",
+    sui.bool("match velocity?", true, function(v) matchGroupVelocity.enabled = v);
+    sui.float("ratio",
       matchGroupVelocity.ratio, { min : 0, max : 1, step : 0.05 },
       function(v) matchGroupVelocity.ratio = v);
-    sui.float("speed limit",
-      limitSpeed.speedLimit, { min : 0, max : 100 },
+    sui.bool("speed limit?", true, function(v) limitSpeed.enabled = v);
+    sui.float("limit",
+      limitSpeed.speedLimit, { min : 1, max : 20 },
       function(v) limitSpeed.speedLimit = v);
+    sui.bool("goal rule?", true, function(v) goalRule.enabled = v);
+    sui.bool("respect boundaries?", true, function(v) respectBoundaries.enabled = v);
+    sui.trigger("reset velocity", function() flock.boids.pluck(_.vx = _.vy = 0));
     sui.attach();
   }
 
