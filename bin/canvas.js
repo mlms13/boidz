@@ -1,5 +1,4 @@
 (function () { "use strict";
-var console = (1,eval)('this').console || {log:function(){}};
 function $extend(from, fields) {
 	function Inherit() {} Inherit.prototype = from; var proto = new Inherit();
 	for (var name in fields) proto[name] = fields[name];
@@ -215,6 +214,8 @@ HxOverrides.iter = function(a) {
 		return this.arr[this.cur++];
 	}};
 };
+var IMap = function() { };
+IMap.__name__ = true;
 Math.__name__ = true;
 var Reflect = function() { };
 Reflect.__name__ = true;
@@ -731,8 +732,6 @@ haxe.CallStack.makeStack = function(s) {
 		return m;
 	} else return s;
 };
-haxe.IMap = function() { };
-haxe.IMap.__name__ = true;
 haxe.Log = function() { };
 haxe.Log.__name__ = true;
 haxe.Log.trace = function(v,infos) {
@@ -743,7 +742,7 @@ haxe.ds.IntMap = function() {
 	this.h = { };
 };
 haxe.ds.IntMap.__name__ = true;
-haxe.ds.IntMap.__interfaces__ = [haxe.IMap];
+haxe.ds.IntMap.__interfaces__ = [IMap];
 haxe.ds.IntMap.prototype = {
 	set: function(key,value) {
 		this.h[key] = value;
@@ -761,7 +760,7 @@ haxe.ds.StringMap = function() {
 	this.h = { };
 };
 haxe.ds.StringMap.__name__ = true;
-haxe.ds.StringMap.__interfaces__ = [haxe.IMap];
+haxe.ds.StringMap.__interfaces__ = [IMap];
 haxe.ds.StringMap.prototype = {
 	set: function(key,value) {
 		this.h["$" + key] = value;
@@ -797,13 +796,7 @@ js.Boot.__trace = function(v,i) {
 	if(typeof(document) != "undefined" && (d = document.getElementById("haxe:trace")) != null) d.innerHTML += js.Boot.__unhtml(msg) + "<br/>"; else if(typeof console != "undefined" && console.log != null) console.log(msg);
 };
 js.Boot.getClass = function(o) {
-	if((o instanceof Array) && o.__enum__ == null) return Array; else {
-		var cl = o.__class__;
-		if(cl != null) return cl;
-		var name = js.Boot.__nativeClassName(o);
-		if(name != null) return js.Boot.__resolveNativeClass(name);
-		return null;
-	}
+	if((o instanceof Array) && o.__enum__ == null) return Array; else return o.__class__;
 };
 js.Boot.__string_rec = function(o,s) {
 	if(o == null) return "null";
@@ -815,18 +808,18 @@ js.Boot.__string_rec = function(o,s) {
 		if(o instanceof Array) {
 			if(o.__enum__) {
 				if(o.length == 2) return o[0];
-				var str2 = o[0] + "(";
+				var str = o[0] + "(";
 				s += "\t";
 				var _g1 = 2;
 				var _g = o.length;
 				while(_g1 < _g) {
-					var i1 = _g1++;
-					if(i1 != 2) str2 += "," + js.Boot.__string_rec(o[i1],s); else str2 += js.Boot.__string_rec(o[i1],s);
+					var i = _g1++;
+					if(i != 2) str += "," + js.Boot.__string_rec(o[i],s); else str += js.Boot.__string_rec(o[i],s);
 				}
-				return str2 + ")";
+				return str + ")";
 			}
 			var l = o.length;
-			var i;
+			var i1;
 			var str1 = "[";
 			s += "\t";
 			var _g2 = 0;
@@ -843,12 +836,12 @@ js.Boot.__string_rec = function(o,s) {
 		} catch( e ) {
 			return "???";
 		}
-		if(tostr != null && tostr != Object.toString && typeof(tostr) == "function") {
+		if(tostr != null && tostr != Object.toString) {
 			var s2 = o.toString();
 			if(s2 != "[object Object]") return s2;
 		}
 		var k = null;
-		var str = "{\n";
+		var str2 = "{\n";
 		s += "\t";
 		var hasp = o.hasOwnProperty != null;
 		for( var k in o ) {
@@ -858,12 +851,12 @@ js.Boot.__string_rec = function(o,s) {
 		if(k == "prototype" || k == "__class__" || k == "__super__" || k == "__interfaces__" || k == "__properties__") {
 			continue;
 		}
-		if(str.length != 2) str += ", \n";
-		str += s + k + " : " + js.Boot.__string_rec(o[k],s);
+		if(str2.length != 2) str2 += ", \n";
+		str2 += s + k + " : " + js.Boot.__string_rec(o[k],s);
 		}
 		s = s.substring(1);
-		str += "\n" + s + "}";
-		return str;
+		str2 += "\n" + s + "}";
+		return str2;
 	case "function":
 		return "<function>";
 	case "string":
@@ -907,8 +900,6 @@ js.Boot.__instanceof = function(o,cl) {
 			if(typeof(cl) == "function") {
 				if(o instanceof cl) return true;
 				if(js.Boot.__interfLoop(js.Boot.getClass(o),cl)) return true;
-			} else if(typeof(cl) == "object" && js.Boot.__isNativeObj(cl)) {
-				if(o instanceof cl) return true;
 			}
 		} else return false;
 		if(cl == Class && o.__name__ != null) return true;
@@ -916,19 +907,6 @@ js.Boot.__instanceof = function(o,cl) {
 		return o.__enum__ == cl;
 	}
 };
-js.Boot.__nativeClassName = function(o) {
-	var name = js.Boot.__toStr.call(o).slice(8,-1);
-	if(name == "Object" || name == "Function" || name == "Math" || name == "JSON") return null;
-	return name;
-};
-js.Boot.__isNativeObj = function(o) {
-	return js.Boot.__nativeClassName(o) != null;
-};
-js.Boot.__resolveNativeClass = function(name) {
-	if(typeof window != "undefined") return window[name]; else return global[name];
-};
-js.Browser = function() { };
-js.Browser.__name__ = true;
 var sui = {};
 sui.Sui = function() {
 	this.grid = new sui.components.Grid();
@@ -969,23 +947,18 @@ sui.Sui.createDate = function(defaultValue,options) {
 		var _01 = options;
 		var _11;
 		if(null == _01) t1 = null; else if(null == (_11 = _01.kind)) t1 = null; else t1 = _11;
-		if(t1 != null) _g1 = t1; else _g1 = null;
-		if(_g != null) switch(_g) {
+		if(t1 != null) _g1 = t1; else _g1 = sui.controls.DateKind.DateOnly;
+		switch(_g) {
 		case true:
 			return new sui.controls.DateSelectControl(defaultValue,options);
 		default:
-			if(_g1 != null) switch(_g1[1]) {
+			switch(_g1[1]) {
 			case 1:
 				return new sui.controls.DateTimeControl(defaultValue,options);
 			default:
 				return new sui.controls.DateControl(defaultValue,options);
-			} else return new sui.controls.DateControl(defaultValue,options);
-		} else if(_g1 != null) switch(_g1[1]) {
-		case 1:
-			return new sui.controls.DateTimeControl(defaultValue,options);
-		default:
-			return new sui.controls.DateControl(defaultValue,options);
-		} else return new sui.controls.DateControl(defaultValue,options);
+			}
+		}
 	}
 };
 sui.Sui.createFloat = function(defaultValue,options) {
@@ -1002,23 +975,18 @@ sui.Sui.createFloat = function(defaultValue,options) {
 		var _01 = options;
 		var _11;
 		if(null == _01) t1 = null; else if(null == (_11 = _01.kind)) t1 = null; else t1 = _11;
-		if(t1 != null) _g1 = t1; else _g1 = null;
-		if(_g != null) switch(_g) {
+		if(t1 != null) _g1 = t1; else _g1 = sui.controls.FloatKind.FloatNumber;
+		switch(_g) {
 		case true:
 			return new sui.controls.NumberSelectControl(defaultValue,options);
 		default:
-			if(_g1 != null) switch(_g1[1]) {
+			switch(_g1[1]) {
 			case 1:
 				return new sui.controls.TimeControl(defaultValue,options);
 			default:
 				if(null != options && options.min != null && options.max != null) return new sui.controls.FloatRangeControl(defaultValue,options); else return new sui.controls.FloatControl(defaultValue,options);
-			} else if(null != options && options.min != null && options.max != null) return new sui.controls.FloatRangeControl(defaultValue,options); else return new sui.controls.FloatControl(defaultValue,options);
-		} else if(_g1 != null) switch(_g1[1]) {
-		case 1:
-			return new sui.controls.TimeControl(defaultValue,options);
-		default:
-			if(null != options && options.min != null && options.max != null) return new sui.controls.FloatRangeControl(defaultValue,options); else return new sui.controls.FloatControl(defaultValue,options);
-		} else if(null != options && options.min != null && options.max != null) return new sui.controls.FloatRangeControl(defaultValue,options); else return new sui.controls.FloatControl(defaultValue,options);
+			}
+		}
 	}
 };
 sui.Sui.createInt = function(defaultValue,options) {
@@ -1053,12 +1021,12 @@ sui.Sui.createText = function(defaultValue,options) {
 		var _01 = options;
 		var _11;
 		if(null == _01) t1 = null; else if(null == (_11 = _01.kind)) t1 = null; else t1 = _11;
-		if(t1 != null) _g1 = t1; else _g1 = null;
-		if(_g != null) switch(_g) {
+		if(t1 != null) _g1 = t1; else _g1 = sui.controls.TextKind.PlainText;
+		switch(_g) {
 		case true:
 			return new sui.controls.TextSelectControl(defaultValue,options);
 		default:
-			if(_g1 != null) switch(_g1[1]) {
+			switch(_g1[1]) {
 			case 0:
 				return new sui.controls.EmailControl(defaultValue,options);
 			case 1:
@@ -1071,21 +1039,8 @@ sui.Sui.createText = function(defaultValue,options) {
 				return new sui.controls.UrlControl(defaultValue,options);
 			default:
 				return new sui.controls.TextControl(defaultValue,options);
-			} else return new sui.controls.TextControl(defaultValue,options);
-		} else if(_g1 != null) switch(_g1[1]) {
-		case 0:
-			return new sui.controls.EmailControl(defaultValue,options);
-		case 1:
-			return new sui.controls.PasswordControl(defaultValue,options);
-		case 3:
-			return new sui.controls.TelControl(defaultValue,options);
-		case 2:
-			return new sui.controls.SearchControl(defaultValue,options);
-		case 5:
-			return new sui.controls.UrlControl(defaultValue,options);
-		default:
-			return new sui.controls.TextControl(defaultValue,options);
-		} else return new sui.controls.TextControl(defaultValue,options);
+			}
+		}
 	}
 };
 sui.Sui.createTrigger = function(actionLabel,options) {
@@ -1109,6 +1064,13 @@ sui.Sui.prototype = {
 	,'float': function(label,defaultValue,options,callback) {
 		if(defaultValue == null) defaultValue = 0.0;
 		return this.control(label,sui.Sui.createFloat(defaultValue,options),callback);
+	}
+	,folder: function(label) {
+		var sui1 = new sui.Sui();
+		var header = { el : dots.Html.parseNodes("<header class=\"sui-folder\">" + label + "</header>")[0]};
+		sui1.grid.el.classList.add("sui-grid-inner");
+		this.grid.add(sui.components.CellContent.VerticalPair(header,sui1.grid));
+		return sui1;
 	}
 	,'int': function(label,defaultValue,options,callback) {
 		if(defaultValue == null) defaultValue = 0;
@@ -1148,6 +1110,9 @@ sui.Sui.prototype = {
 	}
 	,__class__: sui.Sui
 };
+sui._Sui = {};
+sui._Sui.Anchor_Impl_ = function() { };
+sui._Sui.Anchor_Impl_.__name__ = true;
 sui.components = {};
 sui.components.Grid = function() {
 	this.el = dots.Html.parseNodes("<table class=\"sui-grid\"></table>")[0];
@@ -1224,8 +1189,7 @@ sui.controls.ArrayControl = function(defaultValue,defaultElementValue,createElem
 	thx.stream.EmitterBools.negate(this.values.enabled).subscribe(thx.stream.dom.Dom.subscribeToggleClass(this.el,"sui-disabled"));
 	this.values.enabled.subscribe(function(v2) {
 		_g.elements.map(function(_1) {
-			if(v2) _1.control.enable(); else _1.control.disable();
-			return;
+			if(v2) return _1.control.enable(); else return _1.control.disable();
 		});
 	});
 	this.setValue(defaultValue);
@@ -1287,8 +1251,7 @@ sui.controls.ArrayControl.prototype = {
 	,setValue: function(v) {
 		var _g = this;
 		v.map(function(_) {
-			_g.addControl(_);
-			return;
+			return _g.addControl(_);
 		});
 	}
 	,getValue: function() {
@@ -1325,8 +1288,7 @@ sui.controls.ArrayControl.prototype = {
 	,blur: function() {
 		var el = window.document.activeElement;
 		(function(_) {
-			if(null == _) null; else el.blur();
-			return;
+			if(null == _) return null; else return el.blur();
 		})(thx.core.Arrays.first(this.elements.filter(function(_1) {
 			return _1.control.el == el;
 		})));
@@ -1450,20 +1412,20 @@ sui.controls.BaseDateControl.toRFCDateTimeNoSeconds = function(date) {
 sui.controls.BaseDateControl.fromRFC = function(date) {
 	var dp = date.split("T")[0];
 	var dt;
-	var t1;
+	var t;
 	var _0 = date;
 	var _1;
 	var _2;
-	if(null == _0) t1 = null; else if(null == (_1 = _0.split("T"))) t1 = null; else if(null == (_2 = _1[1])) t1 = null; else t1 = _2;
-	if(t1 != null) dt = t1; else dt = "00:00:00";
+	if(null == _0) t = null; else if(null == (_1 = _0.split("T"))) t = null; else if(null == (_2 = _1[1])) t = null; else t = _2;
+	if(t != null) dt = t; else dt = "00:00:00";
 	var p = dp.split("-");
 	var y = Std.parseInt(p[0]);
 	var m = Std.parseInt(p[1]) - 1;
 	var d = Std.parseInt(p[2]);
-	var t = dt.split(":");
-	var hh = Std.parseInt(t[0]);
-	var mm = Std.parseInt(t[1]);
-	var ss = Std.parseInt(t[2]);
+	var t1 = dt.split(":");
+	var hh = Std.parseInt(t1[0]);
+	var mm = Std.parseInt(t1[1]);
+	var ss = Std.parseInt(t1[2]);
 	return new Date(y,m,d,hh,mm,ss);
 };
 sui.controls.BaseDateControl.__super__ = sui.controls.SingleInputControl;
@@ -2513,7 +2475,7 @@ thx.core.ArrayFloats.average = function(arr) {
 };
 thx.core.ArrayFloats.compact = function(arr) {
 	return arr.filter(function(v) {
-		return null != v && isFinite(v);
+		return null != v && Math.isFinite(v);
 	});
 };
 thx.core.ArrayFloats.max = function(arr) {
@@ -2836,7 +2798,7 @@ thx.core.Ints.min = function(a,b) {
 };
 thx.core.Ints.parse = function(s,base) {
 	var v = parseInt(s,base);
-	if(isNaN(v)) return null; else return v;
+	if(Math.isNaN(v)) return null; else return v;
 };
 thx.core.Ints.random = function(min,max) {
 	if(min == null) min = 0;
@@ -2848,7 +2810,7 @@ thx.core.Ints.range = function(start,stop,step) {
 		stop = start;
 		start = 0;
 	}
-	if((stop - start) / step == Infinity) throw "infinite range";
+	if((stop - start) / step == Math.POSITIVE_INFINITY) throw "infinite range";
 	var range = [];
 	var i = -1;
 	var j;
@@ -2949,7 +2911,7 @@ thx.core.Options.toValue = function(option) {
 	}
 };
 thx.core._Result = {};
-thx.core._Result.Result_Impl_ = {};
+thx.core._Result.Result_Impl_ = function() { };
 thx.core._Result.Result_Impl_.__name__ = true;
 thx.core._Result.Result_Impl_.optionValue = function(this1) {
 	switch(this1[1]) {
@@ -3222,14 +3184,14 @@ thx.core.Timer.throttle = function(callback,delayms,leading) {
 thx.core.Timer.repeat = function(callback,delayms) {
 	return (function(f,id) {
 		return function() {
-			f(id);
+			return f(id);
 		};
 	})(thx.core.Timer.clear,setInterval(callback,delayms));
 };
 thx.core.Timer.delay = function(callback,delayms) {
 	return (function(f,id) {
 		return function() {
-			f(id);
+			return f(id);
 		};
 	})(thx.core.Timer.clear,setTimeout(callback,delayms));
 };
@@ -3259,19 +3221,18 @@ thx.core.Timer.nextFrame = function(callback) {
 thx.core.Timer.immediate = function(callback) {
 	return (function(f,id) {
 		return function() {
-			f(id);
+			return f(id);
 		};
 	})(thx.core.Timer.clear,setImmediate(callback));
 };
 thx.core.Timer.clear = function(id) {
-	clearTimeout(id);
-	return;
+	return clearTimeout(id);
 };
 thx.core.Timer.time = function() {
 	return performance.now();
 };
 thx.core._Tuple = {};
-thx.core._Tuple.Tuple0_Impl_ = {};
+thx.core._Tuple.Tuple0_Impl_ = function() { };
 thx.core._Tuple.Tuple0_Impl_.__name__ = true;
 thx.core._Tuple.Tuple0_Impl_._new = function() {
 	return thx.core.Nil.nil;
@@ -3288,7 +3249,7 @@ thx.core._Tuple.Tuple0_Impl_.toNil = function(this1) {
 thx.core._Tuple.Tuple0_Impl_.nilToTuple = function(v) {
 	return thx.core.Nil.nil;
 };
-thx.core._Tuple.Tuple1_Impl_ = {};
+thx.core._Tuple.Tuple1_Impl_ = function() { };
 thx.core._Tuple.Tuple1_Impl_.__name__ = true;
 thx.core._Tuple.Tuple1_Impl_._new = function(_0) {
 	return _0;
@@ -3302,7 +3263,7 @@ thx.core._Tuple.Tuple1_Impl_["with"] = function(this1,v) {
 thx.core._Tuple.Tuple1_Impl_.toString = function(this1) {
 	return "Tuple1(" + Std.string(this1) + ")";
 };
-thx.core._Tuple.Tuple2_Impl_ = {};
+thx.core._Tuple.Tuple2_Impl_ = function() { };
 thx.core._Tuple.Tuple2_Impl_.__name__ = true;
 thx.core._Tuple.Tuple2_Impl_._new = function(_0,_1) {
 	return { _0 : _0, _1 : _1};
@@ -3328,7 +3289,7 @@ thx.core._Tuple.Tuple2_Impl_["with"] = function(this1,v) {
 thx.core._Tuple.Tuple2_Impl_.toString = function(this1) {
 	return "Tuple2(" + Std.string(this1._0) + "," + Std.string(this1._1) + ")";
 };
-thx.core._Tuple.Tuple3_Impl_ = {};
+thx.core._Tuple.Tuple3_Impl_ = function() { };
 thx.core._Tuple.Tuple3_Impl_.__name__ = true;
 thx.core._Tuple.Tuple3_Impl_._new = function(_0,_1,_2) {
 	return { _0 : _0, _1 : _1, _2 : _2};
@@ -3348,7 +3309,7 @@ thx.core._Tuple.Tuple3_Impl_["with"] = function(this1,v) {
 thx.core._Tuple.Tuple3_Impl_.toString = function(this1) {
 	return "Tuple3(" + Std.string(this1._0) + "," + Std.string(this1._1) + "," + Std.string(this1._2) + ")";
 };
-thx.core._Tuple.Tuple4_Impl_ = {};
+thx.core._Tuple.Tuple4_Impl_ = function() { };
 thx.core._Tuple.Tuple4_Impl_.__name__ = true;
 thx.core._Tuple.Tuple4_Impl_._new = function(_0,_1,_2,_3) {
 	return { _0 : _0, _1 : _1, _2 : _2, _3 : _3};
@@ -3368,7 +3329,7 @@ thx.core._Tuple.Tuple4_Impl_["with"] = function(this1,v) {
 thx.core._Tuple.Tuple4_Impl_.toString = function(this1) {
 	return "Tuple4(" + Std.string(this1._0) + "," + Std.string(this1._1) + "," + Std.string(this1._2) + "," + Std.string(this1._3) + ")";
 };
-thx.core._Tuple.Tuple5_Impl_ = {};
+thx.core._Tuple.Tuple5_Impl_ = function() { };
 thx.core._Tuple.Tuple5_Impl_.__name__ = true;
 thx.core._Tuple.Tuple5_Impl_._new = function(_0,_1,_2,_3,_4) {
 	return { _0 : _0, _1 : _1, _2 : _2, _3 : _3, _4 : _4};
@@ -3388,7 +3349,7 @@ thx.core._Tuple.Tuple5_Impl_["with"] = function(this1,v) {
 thx.core._Tuple.Tuple5_Impl_.toString = function(this1) {
 	return "Tuple5(" + Std.string(this1._0) + "," + Std.string(this1._1) + "," + Std.string(this1._2) + "," + Std.string(this1._3) + "," + Std.string(this1._4) + ")";
 };
-thx.core._Tuple.Tuple6_Impl_ = {};
+thx.core._Tuple.Tuple6_Impl_ = function() { };
 thx.core._Tuple.Tuple6_Impl_.__name__ = true;
 thx.core._Tuple.Tuple6_Impl_._new = function(_0,_1,_2,_3,_4,_5) {
 	return { _0 : _0, _1 : _1, _2 : _2, _3 : _3, _4 : _4, _5 : _5};
@@ -3559,8 +3520,7 @@ thx.promise.FutureTuple6.mapTuple = function(future,callback) {
 };
 thx.promise.FutureTuple6.mapTupleAsync = function(future,callback) {
 	return future.mapAsync(function(t,cb) {
-		callback(t._0,t._1,t._2,t._3,t._4,t._5,cb);
-		return;
+		return callback(t._0,t._1,t._2,t._3,t._4,t._5,cb);
 	});
 };
 thx.promise.FutureTuple6.mapTupleFuture = function(future,callback) {
@@ -3594,8 +3554,7 @@ thx.promise.FutureTuple5.mapTuple = function(future,callback) {
 };
 thx.promise.FutureTuple5.mapTupleAsync = function(future,callback) {
 	return future.mapAsync(function(t,cb) {
-		callback(t._0,t._1,t._2,t._3,t._4,cb);
-		return;
+		return callback(t._0,t._1,t._2,t._3,t._4,cb);
 	});
 };
 thx.promise.FutureTuple5.mapTupleFuture = function(future,callback) {
@@ -3629,8 +3588,7 @@ thx.promise.FutureTuple4.mapTuple = function(future,callback) {
 };
 thx.promise.FutureTuple4.mapTupleAsync = function(future,callback) {
 	return future.mapAsync(function(t,cb) {
-		callback(t._0,t._1,t._2,t._3,cb);
-		return;
+		return callback(t._0,t._1,t._2,t._3,cb);
 	});
 };
 thx.promise.FutureTuple4.mapTupleFuture = function(future,callback) {
@@ -3664,8 +3622,7 @@ thx.promise.FutureTuple3.mapTuple = function(future,callback) {
 };
 thx.promise.FutureTuple3.mapTupleAsync = function(future,callback) {
 	return future.mapAsync(function(t,cb) {
-		callback(t._0,t._1,t._2,cb);
-		return;
+		return callback(t._0,t._1,t._2,cb);
 	});
 };
 thx.promise.FutureTuple3.mapTupleFuture = function(future,callback) {
@@ -3699,8 +3656,7 @@ thx.promise.FutureTuple2.mapTuple = function(future,callback) {
 };
 thx.promise.FutureTuple2.mapTupleAsync = function(future,callback) {
 	return future.mapAsync(function(t,cb) {
-		callback(t._0,t._1,cb);
-		return;
+		return callback(t._0,t._1,cb);
 	});
 };
 thx.promise.FutureTuple2.mapTupleFuture = function(future,callback) {
@@ -3723,7 +3679,7 @@ thx.promise.FutureNil.join = function(p1,p2) {
 	});
 };
 thx.promise._Promise = {};
-thx.promise._Promise.Promise_Impl_ = {};
+thx.promise._Promise.Promise_Impl_ = function() { };
 thx.promise._Promise.Promise_Impl_.__name__ = true;
 thx.promise._Promise.Promise_Impl_.futureToPromise = function(future) {
 	return future.map(function(v) {
@@ -3839,8 +3795,7 @@ thx.promise._Promise.Promise_Impl_.mapAlways = function(this1,handler) {
 };
 thx.promise._Promise.Promise_Impl_.mapAlwaysAsync = function(this1,handler) {
 	return this1.mapAsync(function(_,cb) {
-		handler(cb);
-		return;
+		return handler(cb);
 	});
 };
 thx.promise._Promise.Promise_Impl_.mapAlwaysFuture = function(this1,handler) {
@@ -4111,7 +4066,7 @@ thx.promise.Timer.delayValue = function(value,delayms) {
 	return thx.promise.Future.create(function(callback) {
 		thx.core.Timer.delay((function(f,a1) {
 			return function() {
-				f(a1);
+				return f(a1);
 			};
 		})(callback,value),delayms);
 	});
@@ -4123,7 +4078,7 @@ thx.promise.Timer.immediateValue = function(value) {
 	return thx.promise.Future.create(function(callback) {
 		thx.core.Timer.immediate((function(f,a1) {
 			return function() {
-				f(a1);
+				return f(a1);
 			};
 		})(callback,value));
 	});
@@ -4236,7 +4191,7 @@ thx.stream.Emitter.prototype = {
 					cancel();
 					cancel = thx.core.Timer.delay((function(f,v1) {
 						return function() {
-							f(v1);
+							return f(v1);
 						};
 					})($bind(stream,stream.pulse),v),delay);
 					break;
@@ -5062,7 +5017,7 @@ thx.stream.EmitterFloats.lessThanOrEqualTo = function(emitter,x) {
 };
 thx.stream.EmitterFloats.max = function(emitter) {
 	return emitter.filter((function() {
-		var max = -Infinity;
+		var max = Math.NEGATIVE_INFINITY;
 		return function(v) {
 			if(v > max) {
 				max = v;
@@ -5073,7 +5028,7 @@ thx.stream.EmitterFloats.max = function(emitter) {
 };
 thx.stream.EmitterFloats.min = function(emitter) {
 	return emitter.filter((function() {
-		var min = Infinity;
+		var min = Math.POSITIVE_INFINITY;
 		return function(v) {
 			if(v < min) {
 				min = v;
@@ -5422,6 +5377,15 @@ function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id
 if(Array.prototype.indexOf) HxOverrides.indexOf = function(a,o,i) {
 	return Array.prototype.indexOf.call(a,o,i);
 };
+Math.NaN = Number.NaN;
+Math.NEGATIVE_INFINITY = Number.NEGATIVE_INFINITY;
+Math.POSITIVE_INFINITY = Number.POSITIVE_INFINITY;
+Math.isFinite = function(i) {
+	return isFinite(i);
+};
+Math.isNaN = function(i1) {
+	return isNaN(i1);
+};
 String.prototype.__class__ = String;
 String.__name__ = true;
 Array.__name__ = true;
@@ -5456,7 +5420,7 @@ if(Array.prototype.filter == null) Array.prototype.filter = function(f1) {
 	}
 	return a1;
 };
-dots.Dom.addCss(".sui-icon-add,.sui-icon-down,.sui-icon-remove,.sui-icon-up{background-repeat:no-repeat}.sui-icon-add{background-image:url(\"data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2264%22%20height%3D%2264%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cpath%20d%3D%22M45%2029H35V19c0-1.657-1.343-3-3-3s-3%201.343-3%203v10H19c-1.657%200-3%201.343-3%203s1.343%203%203%203h10v10c0%201.657%201.343%203%203%203s3-1.343%203-3V35h10c1.657%200%203-1.343%203-3s-1.343-3-3-3zM32%200C14.327%200%200%2014.327%200%2032s14.327%2032%2032%2032%2032-14.327%2032-32S49.673%200%2032%200zm0%2058C17.64%2058%206%2046.36%206%2032S17.64%206%2032%206s26%2011.64%2026%2026-11.64%2026-26%2026z%22%20enable-background%3D%22new%22%2F%3E%3C%2Fsvg%3E\")}.sui-icon-down{background-image:url(\"data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2264%22%20height%3D%2264%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cpath%20d%3D%22M53%2023c0-1.657-1.343-3-3-3-.81%200-1.542.32-2.082.84L31.992%2036.764%2016.275%2021.046C15.725%2020.406%2014.91%2020%2014%2020c-1.657%200-3%201.343-3%203%200%20.805.318%201.536.835%202.075l-.008.008%2018%2018c.547.565%201.312.917%202.16.917H32c.85%200%201.613-.352%202.16-.918l18-18c.52-.54.84-1.273.84-2.082z%22%20enable-background%3D%22new%22%2F%3E%3C%2Fsvg%3E\")}.sui-icon-remove{background-image:url(\"data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2264%22%20height%3D%2264%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cpath%20d%3D%22M45%2029H19c-1.657%200-3%201.343-3%203s1.343%203%203%203h26c1.657%200%203-1.343%203-3s-1.343-3-3-3zM32%200C14.327%200%200%2014.327%200%2032s14.327%2032%2032%2032%2032-14.327%2032-32S49.673%200%2032%200zm0%2058C17.64%2058%206%2046.36%206%2032S17.64%206%2032%206s26%2011.64%2026%2026-11.64%2026-26%2026z%22%20enable-background%3D%22new%22%2F%3E%3C%2Fsvg%3E\")}.sui-icon-up{background-image:url(\"data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2264%22%20height%3D%2264%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cpath%20d%3D%22M52.16%2038.918l-18-18C33.612%2020.352%2032.847%2020%2032%2020h-.014c-.848%200-1.613.352-2.16.918l-18%2018%20.008.007c-.516.54-.834%201.27-.834%202.075%200%201.657%201.343%203%203%203%20.91%200%201.725-.406%202.275-1.046l15.718-15.718L47.917%2043.16c.54.52%201.274.84%202.083.84%201.657%200%203-1.343%203-3%200-.81-.32-1.542-.84-2.082z%22%20enable-background%3D%22new%22%2F%3E%3C%2Fsvg%3E\")}table.sui-grid{box-sizing:border-box;border-collapse:collapse;}table.sui-grid *{box-sizing:border-box}table.sui-grid td{border-bottom:1px solid #ddd;margin:0;padding:0}table.sui-grid tr:first-child td{border-top:1px solid #ddd}table.sui-grid td:first-child{border-left:1px solid #ddd}table.sui-grid td:last-child{border-right:1px solid #ddd}table.sui-grid td.sui-top,table.sui-grid td.sui-left{background-color:#fff}table.sui-grid td.sui-bottom,table.sui-grid td.sui-right{background-color:#f6f6f6}.sui-bottom-left,.sui-bottom-right,.sui-top-left,.sui-top-right{position:absolute;background-color:#fff}.sui-top-right{top:0;right:0;-webkit-box-shadow:-1px 1px 6px rgba(0,0,0,0.1);-moz-box-shadow:-1px 1px 6px rgba(0,0,0,0.1);box-shadow:-1px 1px 6px rgba(0,0,0,0.1);}.sui-top-right.sui-grid tr:first-child td{border-top:none}.sui-top-right.sui-grid td:last-child{border-right:none}.sui-top-left{top:0;left:0;-webkit-box-shadow:1px 1px 6px rgba(0,0,0,0.1);-moz-box-shadow:1px 1px 6px rgba(0,0,0,0.1);box-shadow:1px 1px 6px rgba(0,0,0,0.1);}.sui-top-left.sui-grid tr:first-child td{border-top:none}.sui-top-left.sui-grid td:last-child{border-left:none}.sui-bottom-right{bottom:0;right:0;-webkit-box-shadow:-1px 1px 6px rgba(0,0,0,0.1);-moz-box-shadow:-1px 1px 6px rgba(0,0,0,0.1);box-shadow:-1px 1px 6px rgba(0,0,0,0.1);}.sui-bottom-right.sui-grid tr:first-child td{border-bottom:none}.sui-bottom-right.sui-grid td:last-child{border-right:none}.sui-bottom-left{bottom:0;left:0;-webkit-box-shadow:1px 1px 6px rgba(0,0,0,0.1);-moz-box-shadow:1px 1px 6px rgba(0,0,0,0.1);box-shadow:1px 1px 6px rgba(0,0,0,0.1);}.sui-bottom-left.sui-grid tr:first-child td{border-bottom:none}.sui-bottom-left.sui-grid td:last-child{border-left:none}.sui-fill{position:absolute;width:100%;max-height:100%;top:0;left:0}.sui-append{width:100%}.sui-control{-moz-user-select:-moz-none;-khtml-user-select:none;-webkit-user-select:none;-o-user-select:none;user-select:none;box-sizing:border-box;font-size:11px;font-family:Helvetica,\"Nimbus Sans L\",\"Liberation Sans\",Arial,sans-serif;line-height:18px;vertical-align:middle;}.sui-control *{box-sizing:border-box;margin:0;padding:0}.sui-control button{line-height:18px;vertical-align:middle}.sui-control input{line-height:18px;vertical-align:middle;border:none;background-color:#f6f6f6}.sui-control button:hover{background-color:#fafafa;border:1px solid #ddd}.sui-control button:focus{background-color:#fafafa;border:1px solid #aaa;outline:#eee solid 2px}.sui-control input:focus{outline:#eee solid 2px;$outline-offset:-2px;background-color:#fafafa}.sui-control output{padding:0 6px;background-color:#fff}.sui-control input[type=\"number\"],.sui-control input[type=\"date\"],.sui-control input[type=\"datetime-local\"],.sui-control input[type=\"time\"]{text-align:right}.sui-control input[type=\"number\"]{font-family:Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New,monospace}.sui-control input{padding:0 6px}.sui-control input[type=\"color\"],.sui-control input[type=\"checkbox\"]{padding:0;margin:0}.sui-control input[type=\"range\"]{margin:0 8px;min-height:19px}.sui-control button{background-color:#eee;border:1px solid #aaa;border-radius:4px}.sui-control.sui-control-single input,.sui-control.sui-control-single output,.sui-control.sui-control-single button{width:100%}.sui-control.sui-control-single input[type=\"checkbox\"]{width:initial}.sui-control.sui-control-double input,.sui-control.sui-control-double output,.sui-control.sui-control-double button{width:50%}.sui-control.sui-control-double .input1{width:calc(100% - 7em)}.sui-control.sui-control-double .input2{width:7em}.sui-control.sui-control-double .input1[type=\"range\"]{width:calc(100% - 7em - 16px)}.sui-control.sui-type-bool{text-align:center}.sui-control.sui-invalid{border-left:4px solid #d00}.sui-array{list-style:none;}.sui-array .sui-array-item{border-bottom:1px dotted #aaa;position:relative;}.sui-array .sui-array-item .sui-icon,.sui-array .sui-array-item .sui-icon-mini{opacity:.1}.sui-array .sui-array-item .sui-array-add .sui-icon,.sui-array .sui-array-item .sui-array-add .sui-icon-mini{opacity:.2}.sui-array .sui-array-item > *{vertical-align:top}.sui-array .sui-array-item:first-child > .sui-move > .sui-icon-up{visibility:hidden}.sui-array .sui-array-item:last-child{border-bottom:none;}.sui-array .sui-array-item:last-child > .sui-move > .sui-icon-down{visibility:hidden}.sui-array .sui-array-item > div{display:inline-block}.sui-array .sui-array-item .sui-move{position:absolute;width:8px;height:100%;}.sui-array .sui-array-item .sui-move .sui-icon-mini{display:block;position:absolute}.sui-array .sui-array-item .sui-move .sui-icon-up{top:0;left:1px}.sui-array .sui-array-item .sui-move .sui-icon-down{bottom:0;left:1px}.sui-array .sui-array-item .sui-control-container{margin:0 14px 0 10px;width:calc(100% - 24px)}.sui-array .sui-array-item .sui-remove{width:12px;position:absolute;right:1px;top:0}.sui-array .sui-array-item .sui-icon-remove,.sui-array .sui-array-item .sui-icon-up,.sui-array .sui-array-item .sui-icon-down{cursor:pointer}.sui-array .sui-array-item.sui-focus > .sui-move .sui-icon,.sui-array .sui-array-item.sui-focus > .sui-remove .sui-icon,.sui-array .sui-array-item.sui-focus > .sui-move .sui-icon-mini,.sui-array .sui-array-item.sui-focus > .sui-remove .sui-icon-mini{opacity:.4}.sui-array ~ .sui-control{margin-bottom:0}.sui-map{border-collapse:collapse;}.sui-map .sui-map-item > td{border-bottom:1px dotted #aaa}.sui-map .sui-map-item:last-child > td{border-bottom:none}.sui-map .sui-map-item .sui-icon{opacity:.1}.sui-map .sui-map-item .sui-array-add .sui-icon{opacity:.2}.sui-map .sui-map-item .sui-remove{width:14px;text-align:right;padding:0 1px}.sui-map .sui-map-item .sui-icon-remove{cursor:pointer}.sui-map .sui-map-item.sui-focus > .sui-remove .sui-icon{opacity:.4}.sui-disabled .sui-icon,.sui-disabled .sui-icon-mini,.sui-disabled .sui-icon:hover,.sui-disabled .sui-icon-mini:hover{opacity:.05 !important;cursor:default}.sui-array-add{text-align:right;}.sui-array-add .sui-icon,.sui-array-add .sui-icon-mini{margin-right:1px;opacity:.2;cursor:pointer}.sui-icon,.sui-icon-mini{display:inline-block;opacity:.4;vertical-align:middle;}.sui-icon:hover,.sui-icon-mini:hover{opacity:.8 !important}.sui-icon{width:12px;height:12px;background-size:12px 12px}.sui-icon-mini{width:8px;height:8px;background-size:8px 8px}");
+dots.Dom.addCss(".sui-icon-add,.sui-icon-down,.sui-icon-remove,.sui-icon-up{background-repeat:no-repeat}.sui-icon-add{background-image:url(\"data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2264%22%20height%3D%2264%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cpath%20d%3D%22M45%2029H35V19c0-1.657-1.343-3-3-3s-3%201.343-3%203v10H19c-1.657%200-3%201.343-3%203s1.343%203%203%203h10v10c0%201.657%201.343%203%203%203s3-1.343%203-3V35h10c1.657%200%203-1.343%203-3s-1.343-3-3-3zM32%200C14.327%200%200%2014.327%200%2032s14.327%2032%2032%2032%2032-14.327%2032-32S49.673%200%2032%200zm0%2058C17.64%2058%206%2046.36%206%2032S17.64%206%2032%206s26%2011.64%2026%2026-11.64%2026-26%2026z%22%20enable-background%3D%22new%22%2F%3E%3C%2Fsvg%3E\")}.sui-icon-down{background-image:url(\"data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2264%22%20height%3D%2264%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cpath%20d%3D%22M53%2023c0-1.657-1.343-3-3-3-.81%200-1.542.32-2.082.84L31.992%2036.764%2016.275%2021.046C15.725%2020.406%2014.91%2020%2014%2020c-1.657%200-3%201.343-3%203%200%20.805.318%201.536.835%202.075l-.008.008%2018%2018c.547.565%201.312.917%202.16.917H32c.85%200%201.613-.352%202.16-.918l18-18c.52-.54.84-1.273.84-2.082z%22%20enable-background%3D%22new%22%2F%3E%3C%2Fsvg%3E\")}.sui-icon-remove{background-image:url(\"data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2264%22%20height%3D%2264%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cpath%20d%3D%22M45%2029H19c-1.657%200-3%201.343-3%203s1.343%203%203%203h26c1.657%200%203-1.343%203-3s-1.343-3-3-3zM32%200C14.327%200%200%2014.327%200%2032s14.327%2032%2032%2032%2032-14.327%2032-32S49.673%200%2032%200zm0%2058C17.64%2058%206%2046.36%206%2032S17.64%206%2032%206s26%2011.64%2026%2026-11.64%2026-26%2026z%22%20enable-background%3D%22new%22%2F%3E%3C%2Fsvg%3E\")}.sui-icon-up{background-image:url(\"data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2264%22%20height%3D%2264%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cpath%20d%3D%22M52.16%2038.918l-18-18C33.612%2020.352%2032.847%2020%2032%2020h-.014c-.848%200-1.613.352-2.16.918l-18%2018%20.008.007c-.516.54-.834%201.27-.834%202.075%200%201.657%201.343%203%203%203%20.91%200%201.725-.406%202.275-1.046l15.718-15.718L47.917%2043.16c.54.52%201.274.84%202.083.84%201.657%200%203-1.343%203-3%200-.81-.32-1.542-.84-2.082z%22%20enable-background%3D%22new%22%2F%3E%3C%2Fsvg%3E\")}table.sui-grid{box-sizing:border-box;border-collapse:collapse;}table.sui-grid *{box-sizing:border-box}table.sui-grid td{border-bottom:1px solid #ddd;margin:0;padding:0}table.sui-grid tr:first-child td{border-top:1px solid #ddd}table.sui-grid td:first-child{border-left:1px solid #ddd}table.sui-grid td:last-child{border-right:1px solid #ddd}table.sui-grid td.sui-top,table.sui-grid td.sui-left{background-color:#fff}table.sui-grid td.sui-bottom,table.sui-grid td.sui-right{background-color:#f6f6f6}.sui-bottom-left,.sui-bottom-right,.sui-top-left,.sui-top-right{position:absolute;background-color:#fff}.sui-top-right{top:0;right:0;-webkit-box-shadow:-1px 1px 6px rgba(0,0,0,0.1);-moz-box-shadow:-1px 1px 6px rgba(0,0,0,0.1);box-shadow:-1px 1px 6px rgba(0,0,0,0.1);}.sui-top-right.sui-grid tr:first-child td{border-top:none}.sui-top-right.sui-grid td:last-child{border-right:none}.sui-top-left{top:0;left:0;-webkit-box-shadow:1px 1px 6px rgba(0,0,0,0.1);-moz-box-shadow:1px 1px 6px rgba(0,0,0,0.1);box-shadow:1px 1px 6px rgba(0,0,0,0.1);}.sui-top-left.sui-grid tr:first-child td{border-top:none}.sui-top-left.sui-grid td:last-child{border-left:none}.sui-bottom-right{bottom:0;right:0;-webkit-box-shadow:-1px 1px 6px rgba(0,0,0,0.1);-moz-box-shadow:-1px 1px 6px rgba(0,0,0,0.1);box-shadow:-1px 1px 6px rgba(0,0,0,0.1);}.sui-bottom-right.sui-grid tr:first-child td{border-bottom:none}.sui-bottom-right.sui-grid td:last-child{border-right:none}.sui-bottom-left{bottom:0;left:0;-webkit-box-shadow:1px 1px 6px rgba(0,0,0,0.1);-moz-box-shadow:1px 1px 6px rgba(0,0,0,0.1);box-shadow:1px 1px 6px rgba(0,0,0,0.1);}.sui-bottom-left.sui-grid tr:first-child td{border-bottom:none}.sui-bottom-left.sui-grid td:last-child{border-left:none}.sui-fill{position:absolute;width:100%;max-height:100%;top:0;left:0}.sui-append{width:100%}.sui-control,.sui-folder{-moz-user-select:-moz-none;-khtml-user-select:none;-webkit-user-select:none;-o-user-select:none;user-select:none;box-sizing:border-box;font-size:11px;font-family:Helvetica,\"Nimbus Sans L\",\"Liberation Sans\",Arial,sans-serif;line-height:18px;vertical-align:middle;}.sui-control *,.sui-folder *{box-sizing:border-box;margin:0;padding:0}.sui-control button,.sui-folder button{line-height:18px;vertical-align:middle}.sui-control input,.sui-folder input{line-height:18px;vertical-align:middle;border:none;background-color:#f6f6f6}.sui-control button:hover,.sui-folder button:hover{background-color:#fafafa;border:1px solid #ddd}.sui-control button:focus,.sui-folder button:focus{background-color:#fafafa;border:1px solid #aaa;outline:#eee solid 2px}.sui-control input:focus,.sui-folder input:focus{outline:#eee solid 2px;$outline-offset:-2px;background-color:#fafafa}.sui-control output,.sui-folder output{padding:0 6px;background-color:#fff}.sui-control input[type=\"number\"],.sui-folder input[type=\"number\"],.sui-control input[type=\"date\"],.sui-folder input[type=\"date\"],.sui-control input[type=\"datetime-local\"],.sui-folder input[type=\"datetime-local\"],.sui-control input[type=\"time\"],.sui-folder input[type=\"time\"]{text-align:right}.sui-control input[type=\"number\"],.sui-folder input[type=\"number\"]{font-family:Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New,monospace}.sui-control input,.sui-folder input{padding:0 6px}.sui-control input[type=\"color\"],.sui-folder input[type=\"color\"],.sui-control input[type=\"checkbox\"],.sui-folder input[type=\"checkbox\"]{padding:0;margin:0}.sui-control input[type=\"range\"],.sui-folder input[type=\"range\"]{margin:0 8px;min-height:19px}.sui-control button,.sui-folder button{background-color:#eee;border:1px solid #aaa;border-radius:4px}.sui-control.sui-control-single input,.sui-folder.sui-control-single input,.sui-control.sui-control-single output,.sui-folder.sui-control-single output,.sui-control.sui-control-single button,.sui-folder.sui-control-single button{width:100%}.sui-control.sui-control-single input[type=\"checkbox\"],.sui-folder.sui-control-single input[type=\"checkbox\"]{width:initial}.sui-control.sui-control-double input,.sui-folder.sui-control-double input,.sui-control.sui-control-double output,.sui-folder.sui-control-double output,.sui-control.sui-control-double button,.sui-folder.sui-control-double button{width:50%}.sui-control.sui-control-double .input1,.sui-folder.sui-control-double .input1{width:calc(100% - 7em)}.sui-control.sui-control-double .input2,.sui-folder.sui-control-double .input2{width:7em}.sui-control.sui-control-double .input1[type=\"range\"],.sui-folder.sui-control-double .input1[type=\"range\"]{width:calc(100% - 7em - 16px)}.sui-control.sui-type-bool,.sui-folder.sui-type-bool{text-align:center}.sui-control.sui-invalid,.sui-folder.sui-invalid{border-left:4px solid #d00}.sui-array{list-style:none;}.sui-array .sui-array-item{border-bottom:1px dotted #aaa;position:relative;}.sui-array .sui-array-item .sui-icon,.sui-array .sui-array-item .sui-icon-mini{opacity:.1}.sui-array .sui-array-item .sui-array-add .sui-icon,.sui-array .sui-array-item .sui-array-add .sui-icon-mini{opacity:.2}.sui-array .sui-array-item > *{vertical-align:top}.sui-array .sui-array-item:first-child > .sui-move > .sui-icon-up{visibility:hidden}.sui-array .sui-array-item:last-child{border-bottom:none;}.sui-array .sui-array-item:last-child > .sui-move > .sui-icon-down{visibility:hidden}.sui-array .sui-array-item > div{display:inline-block}.sui-array .sui-array-item .sui-move{position:absolute;width:8px;height:100%;}.sui-array .sui-array-item .sui-move .sui-icon-mini{display:block;position:absolute}.sui-array .sui-array-item .sui-move .sui-icon-up{top:0;left:1px}.sui-array .sui-array-item .sui-move .sui-icon-down{bottom:0;left:1px}.sui-array .sui-array-item .sui-control-container{margin:0 14px 0 10px;width:calc(100% - 24px)}.sui-array .sui-array-item .sui-remove{width:12px;position:absolute;right:1px;top:0}.sui-array .sui-array-item .sui-icon-remove,.sui-array .sui-array-item .sui-icon-up,.sui-array .sui-array-item .sui-icon-down{cursor:pointer}.sui-array .sui-array-item.sui-focus > .sui-move .sui-icon,.sui-array .sui-array-item.sui-focus > .sui-remove .sui-icon,.sui-array .sui-array-item.sui-focus > .sui-move .sui-icon-mini,.sui-array .sui-array-item.sui-focus > .sui-remove .sui-icon-mini{opacity:.4}.sui-array ~ .sui-control{margin-bottom:0}.sui-map{border-collapse:collapse;}.sui-map .sui-map-item > td{border-bottom:1px dotted #aaa}.sui-map .sui-map-item:last-child > td{border-bottom:none}.sui-map .sui-map-item .sui-icon{opacity:.1}.sui-map .sui-map-item .sui-array-add .sui-icon{opacity:.2}.sui-map .sui-map-item .sui-remove{width:14px;text-align:right;padding:0 1px}.sui-map .sui-map-item .sui-icon-remove{cursor:pointer}.sui-map .sui-map-item.sui-focus > .sui-remove .sui-icon{opacity:.4}.sui-disabled .sui-icon,.sui-disabled .sui-icon-mini,.sui-disabled .sui-icon:hover,.sui-disabled .sui-icon-mini:hover{opacity:.05 !important;cursor:default}.sui-array-add{text-align:right;}.sui-array-add .sui-icon,.sui-array-add .sui-icon-mini{margin-right:1px;opacity:.2;cursor:pointer}.sui-icon,.sui-icon-mini{display:inline-block;opacity:.4;vertical-align:middle;}.sui-icon:hover,.sui-icon-mini:hover{opacity:.8 !important}.sui-icon{width:12px;height:12px;background-size:12px 12px}.sui-icon-mini{width:8px;height:8px;background-size:8px 8px}.sui-folder{padding:0 6px;font-weight:bold}.sui-grid-inner{width:100%;margin-left:6px}");
 
       // Production steps of ECMA-262, Edition 5, 15.4.4.21
       // Reference: http://es5.github.io/#x15.4.4.21
@@ -5527,7 +5491,12 @@ Canvas.width = 800;
 Canvas.height = 600;
 dots.Html.pattern = new EReg("[<]([^> ]+)","");
 dots.Query.doc = document;
-js.Boot.__toStr = {}.toString;
+sui._Sui.Anchor_Impl_.topLeft = "sui-top-left";
+sui._Sui.Anchor_Impl_.topRight = "sui-top-right";
+sui._Sui.Anchor_Impl_.bottomLeft = "sui-bottom-left";
+sui._Sui.Anchor_Impl_.bottomRight = "sui-bottom-right";
+sui._Sui.Anchor_Impl_.fill = "sui-fill";
+sui._Sui.Anchor_Impl_.append = "sui-append";
 sui.controls.ColorControl.PATTERN = new EReg("^[#][0-9a-f]{6}$","i");
 sui.controls.DataList.nid = 0;
 thx.core.Floats.TOLERANCE = 10e-5;

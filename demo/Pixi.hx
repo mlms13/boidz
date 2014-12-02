@@ -16,8 +16,10 @@ class Pixi {
     var flock    = new Flock(),
         stage    = new Stage(0xBADA55),
         sprite   = new Graphics(),
-        renderer = Detector.autoDetectRenderer(width, height, new RenderingOptions(1, true)),
+        renderer = Detector.autoDetectRenderer(width, height, { resolution : 1, antialias : true }),
         render   = new PixiJSRender(sprite);
+
+
 
     //stage.setInteractive(true);
     stage.addChild(sprite);
