@@ -12,17 +12,18 @@ Canvas.main = function() {
 	var canvas = Canvas.getCanvas();
 	var render = new boidz.render.canvas.CanvasRender(canvas);
 	var display = new boidz.Display(render);
-	var goalRule = new boidz.rules.MoveTowardGoal(Canvas.width * Math.random(),Canvas.height * Math.random());
 	var avoidCollisions = new boidz.rules.AvoidCollisions(flock);
 	var matchGroupVelocity = new boidz.rules.MatchGroupVelocity(flock);
 	var limitSpeed = new boidz.rules.LimitSpeed();
 	var respectBoundaries = new boidz.rules.RespectBoundaries(10,Canvas.width - 10,10,Canvas.height - 10);
+	var waypoints = new boidz.rules.Waypoints(flock);
 	flock.addRule(avoidCollisions);
 	flock.addRule(matchGroupVelocity);
 	flock.addRule(respectBoundaries);
-	flock.addRule(goalRule);
+	flock.addRule(waypoints);
 	flock.addRule(limitSpeed);
 	Canvas.addBoids(flock,1000);
+	display.addRenderable(new boidz.render.canvas.CanvasWaypoints(waypoints));
 	display.addRenderable(new boidz.render.canvas.CanvasFlock(flock));
 	var benchmarks = [];
 	var residue = 0.0;
@@ -46,8 +47,7 @@ Canvas.main = function() {
 		label.set("" + average + " (" + min + " -> " + max + ")");
 	},2000);
 	canvas.addEventListener("click",function(e) {
-		goalRule.goalx = e.clientX;
-		goalRule.goaly = e.clientY;
+		waypoints.goals.push([e.clientX,e.clientY]);
 	},false);
 	var sui1 = new sui.Sui();
 	sui1["int"]("boids",flock.boids.length,{ min : 0, max : 3000},function(v) {
@@ -71,8 +71,8 @@ Canvas.main = function() {
 	sui1["float"]("limit",limitSpeed.speedLimit,{ min : 1, max : 20},function(v6) {
 		limitSpeed.speedLimit = v6;
 	});
-	sui1.bool("goal rule?",true,null,function(v7) {
-		goalRule.enabled = v7;
+	sui1.bool("waypoints?",true,null,function(v7) {
+		waypoints.enabled = v7;
 	});
 	sui1.bool("respect boundaries?",true,null,function(v8) {
 		respectBoundaries.enabled = v8;
@@ -476,6 +476,7 @@ boidz.Flock.prototype = {
 			var rule = _g1[_g];
 			++_g;
 			if(!rule.enabled) continue;
+			if(!rule.before()) continue;
 			var _g2 = 0;
 			var _g3 = this.boids;
 			while(_g2 < _g3.length) {
@@ -517,6 +518,7 @@ boidz.IFlockRule = function() { };
 boidz.IFlockRule.__name__ = ["boidz","IFlockRule"];
 boidz.IFlockRule.prototype = {
 	enabled: null
+	,before: null
 	,modify: null
 	,__class__: boidz.IFlockRule
 };
@@ -554,6 +556,8 @@ boidz.render.canvas.CanvasFlock.prototype = {
 			ctx.arc(this.flock.cx,this.flock.cy,4,0,2 * Math.PI,false);
 			ctx.fill();
 		}
+		ctx.strokeStyle = "#000000";
+		ctx.setLineDash([]);
 		ctx.beginPath();
 		var _g = 0;
 		var _g1 = this.flock.boids;
@@ -581,6 +585,51 @@ boidz.render.canvas.CanvasRender.prototype = {
 	}
 	,__class__: boidz.render.canvas.CanvasRender
 };
+boidz.render.canvas.CanvasWaypoints = function(waypoints) {
+	this.enabled = true;
+	this.waypoints = waypoints;
+};
+boidz.render.canvas.CanvasWaypoints.__name__ = ["boidz","render","canvas","CanvasWaypoints"];
+boidz.render.canvas.CanvasWaypoints.__interfaces__ = [boidz.IRenderable];
+boidz.render.canvas.CanvasWaypoints.prototype = {
+	waypoints: null
+	,enabled: null
+	,render: function(render) {
+		var ctx = render.ctx;
+		if(null == this.waypoints.goalRule) return;
+		ctx.beginPath();
+		ctx.strokeStyle = "#CCCCCC";
+		ctx.setLineDash([2,5]);
+		ctx.moveTo(this.waypoints.flock.cx,this.waypoints.flock.cy);
+		ctx.lineTo(this.waypoints.goalRule.goalx,this.waypoints.goalRule.goaly);
+		ctx.stroke();
+		ctx.beginPath();
+		ctx.strokeStyle = "#666666";
+		ctx.setLineDash([]);
+		ctx.arc(this.waypoints.goalRule.goalx,this.waypoints.goalRule.goaly,this.waypoints.radius,0,2 * Math.PI,false);
+		ctx.stroke();
+		ctx.beginPath();
+		ctx.moveTo(this.waypoints.goalRule.goalx,this.waypoints.goalRule.goaly);
+		var _g = 0;
+		var _g1 = this.waypoints.goals;
+		while(_g < _g1.length) {
+			var goal = _g1[_g];
+			++_g;
+			ctx.strokeStyle = "#AAAAAA";
+			ctx.setLineDash([2,5]);
+			ctx.lineTo(goal[0],goal[1]);
+			ctx.stroke();
+			ctx.beginPath();
+			ctx.strokeStyle = "#999999";
+			ctx.setLineDash([]);
+			ctx.arc(goal[0],goal[1],this.waypoints.radius,0,2 * Math.PI,false);
+			ctx.stroke();
+			ctx.moveTo(goal[0],goal[1]);
+		}
+		ctx.stroke();
+	}
+	,__class__: boidz.render.canvas.CanvasWaypoints
+};
 boidz.rules = {};
 boidz.rules.AvoidCollisions = function(flock,radius) {
 	if(radius == null) radius = 5;
@@ -595,6 +644,9 @@ boidz.rules.AvoidCollisions.prototype = {
 	,flock: null
 	,enabled: null
 	,squareRadius: null
+	,before: function() {
+		return true;
+	}
 	,modify: function(b) {
 		var ax = 0.0;
 		var ay = 0.0;
@@ -640,6 +692,9 @@ boidz.rules.LimitSpeed.__interfaces__ = [boidz.IFlockRule];
 boidz.rules.LimitSpeed.prototype = {
 	speedLimit: null
 	,enabled: null
+	,before: function() {
+		return true;
+	}
 	,modify: function(b) {
 		var currentSpeed = Math.sqrt(Math.pow(b.vx,2) + Math.pow(b.vy,2));
 		var speedDifference = this.speedLimit / currentSpeed;
@@ -662,6 +717,9 @@ boidz.rules.MatchGroupVelocity.prototype = {
 	flock: null
 	,ratio: null
 	,enabled: null
+	,before: function() {
+		return true;
+	}
 	,modify: function(b) {
 		b.vx = (1 - this.ratio) * b.vx + this.flock.avx * this.ratio;
 		b.vy = (1 - this.ratio) * b.vy + this.flock.avy * this.ratio;
@@ -682,6 +740,9 @@ boidz.rules.MoveTowardGoal.prototype = {
 	,goaly: null
 	,percent: null
 	,enabled: null
+	,before: function() {
+		return true;
+	}
 	,modify: function(b) {
 		b.vx += (this.goalx - b.px) * this.percent;
 		b.vy += (this.goaly - b.py) * this.percent;
@@ -703,11 +764,52 @@ boidz.rules.RespectBoundaries.prototype = {
 	,miny: null
 	,maxy: null
 	,enabled: null
+	,before: function() {
+		return true;
+	}
 	,modify: function(b) {
 		if(b.px < this.minx) b.vx = Math.abs(b.vx); else if(b.px > this.maxx) b.vx = -Math.abs(b.vx);
 		if(b.py < this.miny) b.vy = Math.abs(b.vy); else if(b.py > this.maxy) b.vy = -Math.abs(b.vy);
 	}
 	,__class__: boidz.rules.RespectBoundaries
+};
+boidz.rules.Waypoints = function(flock,radius) {
+	if(radius == null) radius = 10;
+	this.enabled = true;
+	this.flock = flock;
+	this.radius = radius;
+	this.goals = [];
+	this.onStep = function(coords) {
+	};
+};
+boidz.rules.Waypoints.__name__ = ["boidz","rules","Waypoints"];
+boidz.rules.Waypoints.__interfaces__ = [boidz.IFlockRule];
+boidz.rules.Waypoints.prototype = {
+	goals: null
+	,enabled: null
+	,radius: null
+	,onStep: null
+	,flock: null
+	,goalRule: null
+	,before: function() {
+		if(null != this.goalRule) {
+			var dx = this.goalRule.goalx - this.flock.cx;
+			var dy = this.goalRule.goaly - this.flock.cy;
+			if(dx * dx + dy * dy <= this.radius * this.radius) {
+				this.onStep([this.goalRule.goalx,this.goalRule.goaly]);
+				this.goalRule = null;
+			}
+		}
+		if(null == this.goalRule && this.goals.length > 0) {
+			var p = this.goals.shift();
+			this.goalRule = new boidz.rules.MoveTowardGoal(p[0],p[1]);
+		}
+		return null != this.goalRule;
+	}
+	,modify: function(b) {
+		this.goalRule.modify(b);
+	}
+	,__class__: boidz.rules.Waypoints
 };
 var dots = {};
 dots.Detect = function() { };
