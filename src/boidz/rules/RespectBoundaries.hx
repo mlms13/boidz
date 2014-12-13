@@ -15,6 +15,8 @@ class RespectBoundaries implements IFlockRule {
     this.maxy = maxy;
   }
 
+  public function before() return true;
+
   public function modify(b:Boid):Void {
     if (b.px < minx) {
       b.vx = Math.abs(b.vx);

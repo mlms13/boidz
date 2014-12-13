@@ -13,6 +13,8 @@ class AvoidCollisions implements IFlockRule {
     this.radius  = radius;
   }
 
+  public function before() return true;
+
   public function modify(b : Boid):Void {
     var ax = 0.0,
         ay = 0.0,
