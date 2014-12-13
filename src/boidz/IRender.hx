@@ -1,5 +1,5 @@
 package boidz;
 
 interface IRender {
-  public function render(flock : Flock) : Void;
+  public function clear() : Void;
 }
