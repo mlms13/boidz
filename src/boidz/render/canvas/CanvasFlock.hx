@@ -22,6 +22,8 @@ class CanvasFlock implements IRenderable<CanvasRender> {
     }
 
     // boidz
+    ctx.strokeStyle = "#000000";
+    ctx.setLineDash([]);
     ctx.beginPath();
     for(b in flock.boids) {
       ctx.moveTo(b.px, b.py);
