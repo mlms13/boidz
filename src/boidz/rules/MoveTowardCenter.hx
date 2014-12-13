@@ -13,6 +13,8 @@ class MoveTowardCenter implements IFlockRule {
     this.percent = percent;
   }
 
+  public function before() return true;
+
   public function modify(b:Boid):Void {
     b.vx += (flock.cx - b.px) * percent;
     b.vy += (flock.cy - b.py) * percent;

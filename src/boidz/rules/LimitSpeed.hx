@@ -9,6 +9,8 @@ class LimitSpeed implements IFlockRule {
     this.speedLimit = speedLimit;
   }
 
+  public function before() return true;
+
   public function modify(b : Boid) : Void {
     // TODO, each boid could have a different speed based on its location
     var currentSpeed = Math.sqrt(Math.pow(b.vx, 2) + Math.pow(b.vy, 2)),

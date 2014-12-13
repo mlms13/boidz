@@ -18,22 +18,23 @@ class Canvas {
         render = new CanvasRender(canvas),
         display = new Display(render);
 
-    var goalRule = new MoveTowardGoal(width * Math.random(), height * Math.random()),
-        avoidCollisions = new AvoidCollisions(flock),
+    var avoidCollisions = new AvoidCollisions(flock),
         matchGroupVelocity = new MatchGroupVelocity(flock),
         limitSpeed = new LimitSpeed(),
-        respectBoundaries = new RespectBoundaries(10, width - 10, 10, height - 10);
+        respectBoundaries = new RespectBoundaries(10, width - 10, 10, height - 10),
+        waypoints = new Waypoints(flock);
 
     // this rule doesn't make much sense when used together with MoveTowardGoal, right?
     //flock.addRule(new MoveTowardCenter(flock));
     flock.addRule(avoidCollisions);
     flock.addRule(matchGroupVelocity);
     flock.addRule(respectBoundaries);
-    flock.addRule(goalRule);
+    flock.addRule(waypoints);
     flock.addRule(limitSpeed);
 
     addBoids(flock, 1000);
 
+    display.addRenderable(new CanvasWaypoints(waypoints));
     display.addRenderable(new CanvasFlock(flock));
 
     var benchmarks = [],
@@ -62,8 +63,7 @@ class Canvas {
       label.set('$average ($min -> $max)');
     }, 2000);
     canvas.addEventListener("click", function(e) {
-      goalRule.goalx = e.clientX;
-      goalRule.goaly = e.clientY;
+      waypoints.goals.push([e.clientX, e.clientY]);
     }, false);
 
     // UI
@@ -88,7 +88,7 @@ class Canvas {
     sui.float("limit",
       limitSpeed.speedLimit, { min : 1, max : 20 },
       function(v) limitSpeed.speedLimit = v);
-    sui.bool("goal rule?", true, function(v) goalRule.enabled = v);
+    sui.bool("waypoints?", true, function(v) waypoints.enabled = v);
     sui.bool("respect boundaries?", true, function(v) respectBoundaries.enabled = v);
     sui.trigger("reset velocity", function() flock.boids.pluck(_.vx = _.vy = 0));
     label = sui.label("...", "execution time");

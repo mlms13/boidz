@@ -12,6 +12,8 @@ class MatchGroupVelocity implements IFlockRule {
     this.ratio = ratio;
   }
 
+  public function before() return true;
+
   public function modify(b:Boid):Void {
     // suggested by @sponticelli
     b.vx = (1-ratio) * b.vx + flock.avx * ratio;

@@ -14,6 +14,8 @@ class MoveTowardGoal implements IFlockRule {
     this.percent = percent;
   }
 
+  public function before() return true;
+
   public function modify(b : Boid):Void {
     b.vx += (goalx - b.px) * percent;
     b.vy += (goaly - b.py) * percent;
