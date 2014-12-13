@@ -1,7 +1,8 @@
 import boidz.Boid;
+import boidz.Display;
 import boidz.Flock;
 import boidz.rules.*;
-import boidz.render.*;
+import boidz.render.canvas.*;
 using thx.core.Arrays;
 using thx.core.Floats;
 
@@ -14,7 +15,8 @@ class Canvas {
   public static function main() {
     var flock  = new Flock(),
         canvas = getCanvas(),
-        render = new CanvasRender(canvas);
+        render = new CanvasRender(canvas),
+        display = new Display(render);
 
     var goalRule = new MoveTowardGoal(width * Math.random(), height * Math.random()),
         avoidCollisions = new AvoidCollisions(flock),
@@ -32,9 +34,12 @@ class Canvas {
 
     addBoids(flock, 1000);
 
+    display.addRenderable(new CanvasFlock(flock));
+
     var benchmarks = [],
         residue = 0.0,
-        step    = flock.step * 1000;
+        step    = flock.step * 1000,
+        label   = null;
     thx.core.Timer.frame(function(delta) {
       delta += residue;
       while(delta - step >= 0) {
@@ -46,22 +51,22 @@ class Canvas {
         delta -= step;
       }
       residue = delta;
-      render.render(flock);
+      display.render();
     });
 
     thx.core.Timer.repeat(function() {
       var average = benchmarks.average().round(2),
           min     = benchmarks.min().round(2),
           max     = benchmarks.max().round(2);
-      // executions time 8.62 (5.03 -> 13.38) with 1000
-      trace('executions time $average ($min -> $max)');
+      // execution time 8.62 (5.03 -> 13.38) with 1000
+      label.set('$average ($min -> $max)');
     }, 2000);
-
     canvas.addEventListener("click", function(e) {
       goalRule.goalx = e.clientX;
       goalRule.goaly = e.clientY;
     }, false);
 
+    // UI
     var sui = new sui.Sui();
     sui.int("boids",
       flock.boids.length, { min : 0, max : 3000 },
@@ -86,6 +91,7 @@ class Canvas {
     sui.bool("goal rule?", true, function(v) goalRule.enabled = v);
     sui.bool("respect boundaries?", true, function(v) respectBoundaries.enabled = v);
     sui.trigger("reset velocity", function() flock.boids.pluck(_.vx = _.vy = 0));
+    label = sui.label("...", "execution time");
     sui.attach();
   }
 
