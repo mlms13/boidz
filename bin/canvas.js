@@ -13,7 +13,7 @@ Canvas.main = function() {
 	var render = new boidz.render.canvas.CanvasRender(canvas);
 	var display = new boidz.Display(render);
 	var avoidCollisions = new boidz.rules.AvoidCollisions(flock,3,thx.unit.angle._Degree.Degree_Impl_._new(25));
-	var respectBoundaries = new boidz.rules.RespectBoundaries(0,Canvas.width,0,Canvas.height,50);
+	var respectBoundaries = new boidz.rules.RespectBoundaries(0,Canvas.width,0,Canvas.height,50,thx.unit.angle._Degree.Degree_Impl_._new(25));
 	var waypoints = new boidz.rules.Waypoints(flock,10);
 	var velocity = 3.0;
 	flock.addRule(waypoints);
@@ -685,7 +685,7 @@ boidz.render.canvas.CanvasFlock.prototype = {
 		ctx.setLineDash([]);
 		if(this.renderTrail) {
 			ctx.beginPath();
-			ctx.strokeStyle = "rgba(0,0,150,0.075)";
+			ctx.strokeStyle = "rgba(140,120,70,0.15)";
 			var c;
 			var _g = 0;
 			var _g1 = this.flock.boids;

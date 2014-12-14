@@ -42,7 +42,7 @@ class CanvasFlock implements IRenderable<CanvasRender> {
     // boidz trail
     if(renderTrail) {
       ctx.beginPath();
-      ctx.strokeStyle = "rgba(0,0,150,0.075)";
+      ctx.strokeStyle = "rgba(140,120,70,0.15)";
       var c;
       for(b in flock.boids) {
         c = getTrail(b);

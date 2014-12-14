@@ -19,7 +19,7 @@ class Canvas {
         render = new CanvasRender(canvas),
         display = new Display(render),
         avoidCollisions = new AvoidCollisions(flock, 3, 25),
-        respectBoundaries = new RespectBoundaries(0, width, 0, height, 50),
+        respectBoundaries = new RespectBoundaries(0, width, 0, height, 50, 25),
         waypoints = new Waypoints(flock, 10),
         velocity = 3.0;
 
