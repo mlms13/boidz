@@ -1,14 +1,17 @@
 package boidz;
 
-class Boid {
-  public var vx : Float;
-  public var vy : Float;
-  public var px : Float;
-  public var py : Float;
+import thx.unit.angle.Degree;
 
-  public function new (x : Float, y : Float) {
-    vx = vy = 0;
-    px = x;
-    py = y;
+class Boid {
+  public var x : Float;
+  public var y : Float;
+  public var v : Float;
+  public var d : Degree;
+
+  public function new (x : Float, y : Float, ?v = 0.0, ?d : Degree = 0.0) {
+    this.x = x;
+    this.y = y;
+    this.v = v;
+    this.d = d;
   }
 }

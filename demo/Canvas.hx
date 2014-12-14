@@ -7,6 +7,7 @@ using thx.core.Arrays;
 using thx.core.Floats;
 
 import js.Browser;
+import thx.core.Timer;
 
 class Canvas {
   static var width  = 800;
@@ -16,51 +17,73 @@ class Canvas {
     var flock  = new Flock(),
         canvas = getCanvas(),
         render = new CanvasRender(canvas),
-        display = new Display(render);
+        display = new Display(render),
+        avoidCollisions = new AvoidCollisions(flock, 3, 25),
+        respectBoundaries = new RespectBoundaries(0, width, 0, height, 50, 25),
+        waypoints = new Waypoints(flock, 10),
+        velocity = 3.0;
 
-    var avoidCollisions = new AvoidCollisions(flock),
-        matchGroupVelocity = new MatchGroupVelocity(flock),
-        limitSpeed = new LimitSpeed(),
-        respectBoundaries = new RespectBoundaries(10, width - 10, 10, height - 10),
-        waypoints = new Waypoints(flock);
-
-    // this rule doesn't make much sense when used together with MoveTowardGoal, right?
-    //flock.addRule(new MoveTowardCenter(flock));
-    flock.addRule(avoidCollisions);
-    flock.addRule(matchGroupVelocity);
-    flock.addRule(respectBoundaries);
+    //flock.addRule(new SteerTowardCenter(flock));
     flock.addRule(waypoints);
-    flock.addRule(limitSpeed);
+    flock.addRule(avoidCollisions);
+    flock.addRule(respectBoundaries);
+    addBoids(flock, 1000, velocity, respectBoundaries.offset);
 
-    addBoids(flock, 1000);
+    var canvasBoundaries = new CanvasBoundaries(respectBoundaries),
+        canvasWaypoints = new CanvasWaypoints(waypoints),
+        canvasFlock = new CanvasFlock(flock);
 
-    display.addRenderable(new CanvasWaypoints(waypoints));
-    display.addRenderable(new CanvasFlock(flock));
+    display.addRenderable(canvasBoundaries);
+    display.addRenderable(canvasWaypoints);
+    display.addRenderable(canvasFlock);
 
     var benchmarks = [],
+        frames = [],
+        renderings = [],
         residue = 0.0,
         step    = flock.step * 1000,
-        label   = null;
+        execution = null,
+        rendering = null,
+        frameRate = null,
+        start = Timer.time();
     thx.core.Timer.frame(function(delta) {
       delta += residue;
       while(delta - step >= 0) {
 
-        var time = thx.core.Timer.time();
+        var time = Timer.time();
         flock.update();
-        benchmarks.push(thx.core.Timer.time() - time);
+        benchmarks.splice(1, 10);
+        benchmarks.push(Timer.time() - time);
 
         delta -= step;
       }
       residue = delta;
+      var before = Timer.time();
       display.render();
+      renderings.splice(1, 10);
+      renderings.push(Timer.time() - before);
+
+      var n = Timer.time();
+      frames.splice(1, 10);
+      frames.push(n - start);
+      start = n;
     });
 
     thx.core.Timer.repeat(function() {
       var average = benchmarks.average().round(2),
           min     = benchmarks.min().round(2),
           max     = benchmarks.max().round(2);
-      // execution time 8.62 (5.03 -> 13.38) with 1000
-      label.set('$average ($min -> $max)');
+      execution.set('$average ($min -> $max)');
+
+      average = renderings.average().round(1);
+      min     = renderings.min().round(1);
+      max     = renderings.max().round(1);
+      rendering.set('$average ($min -> $max)');
+
+      average = (1000 / frames.average()).round(1);
+      min     = (1000 / frames.min()).round(1);
+      max     = (1000 / frames.max()).round(1);
+      frameRate.set('$average/s ($min -> $max)');
     }, 2000);
     canvas.addEventListener("click", function(e) {
       waypoints.goals.push([e.clientX, e.clientY]);
@@ -68,30 +91,61 @@ class Canvas {
 
     // UI
     var sui = new sui.Sui();
-    sui.int("boids",
+    var ui = sui.folder("flock");
+    ui.int("boids",
       flock.boids.length, { min : 0, max : 3000 },
       function(v){
         if(v > flock.boids.length)
-          addBoids(flock, v - flock.boids.length)
+          addBoids(flock, v - flock.boids.length, velocity, respectBoundaries.offset);
         else
           flock.boids.splice(v, flock.boids.length - v);
       });
-    sui.bool("avoid collisions?", true, function(v) avoidCollisions.enabled = v);
-    sui.float("radius",
-      avoidCollisions.radius, { min : 0, max : 50, step : 0.5 },
-      function(v) avoidCollisions.radius = v);
-    sui.bool("match velocity?", true, function(v) matchGroupVelocity.enabled = v);
-    sui.float("ratio",
-      matchGroupVelocity.ratio, { min : 0, max : 1, step : 0.05 },
-      function(v) matchGroupVelocity.ratio = v);
-    sui.bool("speed limit?", true, function(v) limitSpeed.enabled = v);
-    sui.float("limit",
-      limitSpeed.speedLimit, { min : 1, max : 20 },
-      function(v) limitSpeed.speedLimit = v);
-    sui.bool("waypoints?", true, function(v) waypoints.enabled = v);
-    sui.bool("respect boundaries?", true, function(v) respectBoundaries.enabled = v);
-    sui.trigger("reset velocity", function() flock.boids.pluck(_.vx = _.vy = 0));
-    label = sui.label("...", "execution time");
+    var randomVelocity = false;
+
+    function updateVelocity() {
+      for(boid in flock.boids)
+        boid.v = velocity * (randomVelocity ? Math.random() : 1);
+    }
+
+    ui.float("velocity",
+      velocity, { min : 0, max : 20 },
+      function(v){
+        velocity = v;
+        updateVelocity();
+      });
+    ui.bool("random velocity",
+      randomVelocity,
+      function(v) {
+        randomVelocity = v;
+        updateVelocity();
+      });
+    ui = ui.folder("render", { collapsible : false });
+    ui.bind(canvasFlock.renderCentroid);
+    ui.bind(canvasFlock.renderTrail);
+    ui.bind(canvasFlock.trailLength, { min : 1, max : 400 });
+
+    ui = sui.folder("collisions");
+    ui.bind(avoidCollisions.enabled);
+    ui.bind(avoidCollisions.radius, { min : 0, max : 100 });
+    ui.bind(avoidCollisions.maxSteer, { min : 1, max : 90 });
+
+    ui = sui.folder("boundaries");
+    ui.bind(respectBoundaries.enabled);
+    ui.bind(respectBoundaries.offset, { min : 0, max : Math.min(width, height) / 2.1 });
+    ui.bind(respectBoundaries.maxSteer, { min : 1, max : 90 });
+    ui = ui.folder("render", { collapsible : false });
+    ui.bind(canvasBoundaries.enabled);
+
+    ui = sui.folder("waypoints");
+    ui.bind(waypoints.enabled);
+    ui.bind(waypoints.radius, { min : 1, max : 100 });
+    ui.bind(waypoints.maxSteer, { min : 1, max : 90 });
+    ui = ui.folder("render", { collapsible : false });
+    ui.bind(canvasWaypoints.enabled);
+
+    execution = sui.label("...", "execution time");
+    rendering = sui.label("...", "rendering time");
+    frameRate = sui.label("...", "frame rate");
     sui.attach();
   }
 
@@ -103,13 +157,15 @@ class Canvas {
     return canvas;
   }
 
-  static function addBoids(flock : Flock, howMany : Int) {
+  static function addBoids(flock : Flock, howMany : Int, velocity : Float, offset : Float) {
     var w = Math.min(width, height);
     for (i in 0...howMany) {
       // create a new boid and add it to the stage
-      var a = Math.random() * 2 * Math.PI,
-          d = w * Math.random(),
-          b = new Boid(width / 2 + Math.cos(a) * d, height / 2 + Math.sin(a) * d);
+      var b = new Boid(
+            offset + (width - offset * 2) * Math.random(),
+            offset + (height - offset * 2) * Math.random(),
+            velocity,
+            Math.random() * 360);
       flock.boids.push(b);
     }
   }

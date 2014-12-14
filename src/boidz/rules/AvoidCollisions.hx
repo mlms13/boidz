@@ -1,44 +1,49 @@
 package boidz.rules;
 
 import boidz.IFlockRule;
+import boidz.Point;
+import boidz.util.Steer;
+import thx.unit.angle.Degree;
 
 class AvoidCollisions implements IFlockRule {
   @:isVar public var radius(get, set) : Float;
-  public var flock : Flock;
+  var flock : Flock;
   public var enabled : Bool = true;
+  public var maxSteer : Float;
   var squareRadius : Float;
+  var a : Point;
 
-  public function new(flock : Flock, ?radius : Float = 5) {
+  public function new(flock : Flock, ?radius : Float = 5, ?maxSteer : Degree = 10) {
     this.flock = flock;
-    this.radius  = radius;
+    this.radius = radius;
+    this.maxSteer = maxSteer;
+    this.a = { x : 0.0 , y : 0.0 };
   }
 
   public function before() return true;
 
   public function modify(b : Boid):Void {
-    var ax = 0.0,
-        ay = 0.0,
-        dx = 0.0,
+    var dx = 0.0,
         dy = 0.0,
         count = 0;
+    a.x = a.y = 0.0;
     for (n in flock.boids) {
       if(n == b) continue;
-      dx = b.px - n.px;
-      dy = b.py - n.py;
+      dx = b.x - n.x;
+      dy = b.y - n.y;
       if((dx * dx + dy * dy) > squareRadius) continue;
 
-      ax += n.px;
-      ay += n.py;
+      a.x += n.x;
+      a.y += n.y;
 
       count++;
     }
     if(count == 0) return;
 
-    ax /= count;
-    ay /= count;
+    a.x /= count;
+    a.y /= count;
 
-    b.vx -= (ax - b.px);
-    b.vy -= (ay - b.py);
+    b.d += Steer.away(b, a, maxSteer);
   }
 
   function get_radius() return radius;

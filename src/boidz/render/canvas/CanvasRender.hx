@@ -11,9 +11,16 @@ class CanvasRender implements IRender {
   public function new(canvas : CanvasElement) {
     this.canvas = canvas;
     this.ctx = canvas.getContext2d();
+    this.ctx.save();
   }
 
   public function clear() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
   }
+
+  public function beforeEach()
+    this.ctx.save();
+
+  public function afterEach()
+    this.ctx.restore();
 }

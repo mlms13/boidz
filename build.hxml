@@ -2,9 +2,10 @@
 -cp demo
 -cp src
 -main Canvas
--lib thx.core
 -lib sui
 -lib dots
+-lib thx.core
 -lib thx.stream
 -lib thx.stream.dom
+-lib thx.unit
 -D benchmark
