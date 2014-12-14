@@ -12,77 +12,139 @@ Canvas.main = function() {
 	var canvas = Canvas.getCanvas();
 	var render = new boidz.render.canvas.CanvasRender(canvas);
 	var display = new boidz.Display(render);
-	var avoidCollisions = new boidz.rules.AvoidCollisions(flock);
-	var matchGroupVelocity = new boidz.rules.MatchGroupVelocity(flock);
-	var limitSpeed = new boidz.rules.LimitSpeed();
-	var respectBoundaries = new boidz.rules.RespectBoundaries(10,Canvas.width - 10,10,Canvas.height - 10);
-	var waypoints = new boidz.rules.Waypoints(flock);
-	flock.addRule(avoidCollisions);
-	flock.addRule(matchGroupVelocity);
-	flock.addRule(respectBoundaries);
+	var avoidCollisions = new boidz.rules.AvoidCollisions(flock,3,thx.unit.angle._Degree.Degree_Impl_._new(25));
+	var respectBoundaries = new boidz.rules.RespectBoundaries(0,Canvas.width,0,Canvas.height,50);
+	var waypoints = new boidz.rules.Waypoints(flock,10);
+	var velocity = 3.0;
 	flock.addRule(waypoints);
-	flock.addRule(limitSpeed);
-	Canvas.addBoids(flock,1000);
-	display.addRenderable(new boidz.render.canvas.CanvasWaypoints(waypoints));
-	display.addRenderable(new boidz.render.canvas.CanvasFlock(flock));
+	flock.addRule(avoidCollisions);
+	flock.addRule(respectBoundaries);
+	Canvas.addBoids(flock,1000,velocity,respectBoundaries.offset);
+	var canvasBoundaries = new boidz.render.canvas.CanvasBoundaries(respectBoundaries);
+	var canvasWaypoints = new boidz.render.canvas.CanvasWaypoints(waypoints);
+	var canvasFlock = new boidz.render.canvas.CanvasFlock(flock);
+	display.addRenderable(canvasBoundaries);
+	display.addRenderable(canvasWaypoints);
+	display.addRenderable(canvasFlock);
 	var benchmarks = [];
+	var frames = [];
+	var renderings = [];
 	var residue = 0.0;
 	var step = flock.step * 1000;
-	var label = null;
+	var execution = null;
+	var rendering = null;
+	var frameRate = null;
+	var start = performance.now();
 	thx.core.Timer.frame(function(delta) {
 		delta += residue;
 		while(delta - step >= 0) {
 			var time = performance.now();
 			flock.update();
+			benchmarks.splice(1,10);
 			benchmarks.push(performance.now() - time);
 			delta -= step;
 		}
 		residue = delta;
+		var before = performance.now();
 		display.render();
+		renderings.splice(1,10);
+		renderings.push(performance.now() - before);
+		var n = performance.now();
+		frames.splice(1,10);
+		frames.push(n - start);
+		start = n;
 	});
 	thx.core.Timer.repeat(function() {
 		var average = thx.core.Floats.round(thx.core.ArrayFloats.average(benchmarks),2);
 		var min = thx.core.Floats.round(thx.core.ArrayFloats.min(benchmarks),2);
 		var max = thx.core.Floats.round(thx.core.ArrayFloats.max(benchmarks),2);
-		label.set("" + average + " (" + min + " -> " + max + ")");
+		execution.set("" + average + " (" + min + " -> " + max + ")");
+		average = thx.core.Floats.round(thx.core.ArrayFloats.average(renderings),1);
+		min = thx.core.Floats.round(thx.core.ArrayFloats.min(renderings),1);
+		max = thx.core.Floats.round(thx.core.ArrayFloats.max(renderings),1);
+		rendering.set("" + average + " (" + min + " -> " + max + ")");
+		average = thx.core.Floats.round(1000 / thx.core.ArrayFloats.average(frames),1);
+		min = thx.core.Floats.round(1000 / thx.core.ArrayFloats.min(frames),1);
+		max = thx.core.Floats.round(1000 / thx.core.ArrayFloats.max(frames),1);
+		frameRate.set("" + average + "/s (" + min + " -> " + max + ")");
 	},2000);
 	canvas.addEventListener("click",function(e) {
 		waypoints.goals.push([e.clientX,e.clientY]);
 	},false);
 	var sui1 = new sui.Sui();
-	sui1["int"]("boids",flock.boids.length,{ min : 0, max : 3000},function(v) {
-		if(v > flock.boids.length) Canvas.addBoids(flock,v - flock.boids.length); else flock.boids.splice(v,flock.boids.length - v);
+	var ui = sui1.folder("flock");
+	ui["int"]("boids",flock.boids.length,{ min : 0, max : 3000},function(v) {
+		if(v > flock.boids.length) Canvas.addBoids(flock,v - flock.boids.length,velocity,respectBoundaries.offset); else flock.boids.splice(v,flock.boids.length - v);
 	});
-	sui1.bool("avoid collisions?",true,null,function(v1) {
-		avoidCollisions.enabled = v1;
+	var randomVelocity = false;
+	var updateVelocity = function() {
+		var _g = 0;
+		var _g1 = flock.boids;
+		while(_g < _g1.length) {
+			var boid = _g1[_g];
+			++_g;
+			boid.v = velocity * (randomVelocity?Math.random():1);
+		}
+	};
+	ui["float"]("velocity",velocity,{ min : 0, max : 20},function(v1) {
+		velocity = v1;
+		updateVelocity();
 	});
-	sui1["float"]("radius",avoidCollisions.get_radius(),{ min : 0, max : 50, step : 0.5},function(v2) {
-		avoidCollisions.set_radius(v2);
+	ui.bool("random velocity",randomVelocity,null,function(v2) {
+		randomVelocity = v2;
+		updateVelocity();
 	});
-	sui1.bool("match velocity?",true,null,function(v3) {
-		matchGroupVelocity.enabled = v3;
+	ui = ui.folder("render",{ collapsible : false});
+	ui.bool("render centroid",canvasFlock.renderCentroid,null,function(v3) {
+		canvasFlock.renderCentroid = v3;
 	});
-	sui1["float"]("ratio",matchGroupVelocity.ratio,{ min : 0, max : 1, step : 0.05},function(v4) {
-		matchGroupVelocity.ratio = v4;
+	ui.bool("render trail",canvasFlock.renderTrail,null,function(v4) {
+		canvasFlock.renderTrail = v4;
 	});
-	sui1.bool("speed limit?",true,null,function(v5) {
-		limitSpeed.enabled = v5;
+	ui["int"]("trail length",canvasFlock.trailLength,{ min : 1, max : 400},function(v5) {
+		canvasFlock.trailLength = v5;
 	});
-	sui1["float"]("limit",limitSpeed.speedLimit,{ min : 1, max : 20},function(v6) {
-		limitSpeed.speedLimit = v6;
+	ui = sui1.folder("collisions");
+	ui.bool("enabled",avoidCollisions.enabled,null,function(v6) {
+		avoidCollisions.enabled = v6;
 	});
-	sui1.bool("waypoints?",true,null,function(v7) {
-		waypoints.enabled = v7;
+	ui["float"]("radius",avoidCollisions.get_radius(),{ min : 0, max : 100},function(v7) {
+		avoidCollisions.set_radius(v7);
 	});
-	sui1.bool("respect boundaries?",true,null,function(v8) {
-		respectBoundaries.enabled = v8;
+	ui["float"]("max steer",avoidCollisions.maxSteer,{ min : 1, max : 90},function(v8) {
+		avoidCollisions.maxSteer = v8;
 	});
-	sui1.trigger("reset velocity",null,null,function() {
-		flock.boids.map(function(_) {
-			return _.vx = _.vy = 0;
-		});
+	ui = sui1.folder("boundaries");
+	ui.bool("enabled",respectBoundaries.enabled,null,function(v9) {
+		respectBoundaries.enabled = v9;
 	});
-	label = sui1.label("...","execution time");
+	ui["float"]("offset",respectBoundaries.offset,{ min : 0, max : Math.min(Canvas.width,Canvas.height) / 2.1},function(v10) {
+		respectBoundaries.offset = v10;
+	});
+	ui["float"]("max steer",respectBoundaries.maxSteer,{ min : 1, max : 90},function(v11) {
+		respectBoundaries.maxSteer = v11;
+	});
+	ui = ui.folder("render",{ collapsible : false});
+	ui.bool("enabled",canvasBoundaries.enabled,null,function(v12) {
+		canvasBoundaries.enabled = v12;
+	});
+	ui = sui1.folder("waypoints");
+	ui.bool("enabled",waypoints.enabled,null,function(v13) {
+		waypoints.enabled = v13;
+	});
+	ui["float"]("radius",waypoints.radius,{ min : 1, max : 100},function(v14) {
+		waypoints.radius = v14;
+	});
+	ui["float"]("max steer",waypoints.get_maxSteer(),{ min : 1, max : 90},function(v15) {
+		waypoints.set_maxSteer(v15);
+	});
+	ui = ui.folder("render",{ collapsible : false});
+	ui.bool("enabled",canvasWaypoints.enabled,null,function(v16) {
+		canvasWaypoints.enabled = v16;
+	});
+	execution = sui1.label("...","execution time");
+	rendering = sui1.label("...","rendering time");
+	frameRate = sui1.label("...","frame rate");
 	sui1.attach();
 };
 Canvas.getCanvas = function() {
@@ -94,14 +156,17 @@ Canvas.getCanvas = function() {
 	window.document.body.appendChild(canvas);
 	return canvas;
 };
-Canvas.addBoids = function(flock,howMany) {
+Canvas.addBoids = function(flock,howMany,velocity,offset) {
 	var w = Math.min(Canvas.width,Canvas.height);
 	var _g = 0;
 	while(_g < howMany) {
 		var i = _g++;
-		var a = Math.random() * 2 * Math.PI;
-		var d = w * Math.random();
-		var b = new boidz.Boid(Canvas.width / 2 + Math.cos(a) * d,Canvas.height / 2 + Math.sin(a) * d);
+		var b = new boidz.Boid(offset + (Canvas.width - offset * 2) * Math.random(),offset + (Canvas.height - offset * 2) * Math.random(),velocity,(function($this) {
+			var $r;
+			var value = Math.random() * 360;
+			$r = thx.unit.angle._Degree.Degree_Impl_._new(value);
+			return $r;
+		}(this)));
 		flock.boids.push(b);
 	}
 };
@@ -413,17 +478,20 @@ Type["typeof"] = function(v) {
 	}
 };
 var boidz = {};
-boidz.Boid = function(x,y) {
-	this.vx = this.vy = 0;
-	this.px = x;
-	this.py = y;
+boidz.Boid = function(x,y,v,d) {
+	if(d == null) d = 0.0;
+	if(v == null) v = 0.0;
+	this.x = x;
+	this.y = y;
+	this.v = v;
+	this.d = d;
 };
 boidz.Boid.__name__ = ["boidz","Boid"];
 boidz.Boid.prototype = {
-	vx: null
-	,vy: null
-	,px: null
-	,py: null
+	x: null
+	,y: null
+	,v: null
+	,d: null
 	,__class__: boidz.Boid
 };
 boidz.Display = function(render) {
@@ -444,15 +512,20 @@ boidz.Display.prototype = {
 		while(_g < _g1.length) {
 			var renderable = _g1[_g];
 			++_g;
-			if(renderable.enabled) renderable.render(this.renderEngine);
+			if(renderable.enabled) {
+				this.renderEngine.beforeEach();
+				renderable.render(this.renderEngine);
+				this.renderEngine.afterEach();
+			}
 		}
 	}
 	,__class__: boidz.Display
 };
 boidz.Flock = function() {
 	this.step = 0.05;
-	this.cx = this.cy = 0;
-	this.avx = this.avy = 0;
+	this.x = this.y = 0;
+	this.v = 0;
+	this.d = thx.unit.angle._Degree.Degree_Impl_._new(0);
 	this.boids = [];
 	this.rules = [];
 };
@@ -460,10 +533,10 @@ boidz.Flock.__name__ = ["boidz","Flock"];
 boidz.Flock.prototype = {
 	boids: null
 	,rules: null
-	,cx: null
-	,cy: null
-	,avx: null
-	,avy: null
+	,x: null
+	,y: null
+	,v: null
+	,d: null
 	,step: null
 	,addRule: function(rule) {
 		this.rules.push(rule);
@@ -490,27 +563,39 @@ boidz.Flock.prototype = {
 		while(_g4 < _g11.length) {
 			var boid1 = _g11[_g4];
 			++_g4;
-			boid1.px += boid1.vx;
-			boid1.py += boid1.vy;
+			boid1.x += boid1.v * (function($this) {
+				var $r;
+				var this1 = thx.unit.angle._Radian.Radian_Impl_._new(boid1.d * 0.0174532925199433);
+				$r = Math.cos(this1);
+				return $r;
+			}(this));
+			boid1.y += boid1.v * (function($this) {
+				var $r;
+				var this2 = thx.unit.angle._Radian.Radian_Impl_._new(boid1.d * 0.0174532925199433);
+				$r = Math.sin(this2);
+				return $r;
+			}(this));
 		}
 	}
 	,setFlockAverages: function() {
-		this.cx = this.cy = 0;
-		this.avx = this.avy = 0;
+		this.x = this.y = 0;
+		this.v = 0;
+		this.d = thx.unit.angle._Degree.Degree_Impl_._new(0);
 		var _g = 0;
 		var _g1 = this.boids;
 		while(_g < _g1.length) {
 			var boid = _g1[_g];
 			++_g;
-			this.cx += boid.px;
-			this.cy += boid.py;
-			this.avx += boid.vx;
-			this.avy += boid.vy;
+			this.x += boid.x;
+			this.y += boid.y;
+			this.v += boid.v;
+			this.d = thx.unit.angle._Degree.Degree_Impl_._new(this.d + boid.d);
 		}
-		this.cx = this.cx / this.boids.length;
-		this.cy = this.cy / this.boids.length;
-		this.avx = this.avx / this.boids.length;
-		this.avy = this.avy / this.boids.length;
+		var l = this.boids.length;
+		this.x = this.x / l;
+		this.y = this.y / l;
+		this.v = this.v / l;
+		this.d = thx.unit.angle._Degree.Degree_Impl_._new(this.d / l);
 	}
 	,__class__: boidz.Flock
 };
@@ -526,6 +611,8 @@ boidz.IRender = function() { };
 boidz.IRender.__name__ = ["boidz","IRender"];
 boidz.IRender.prototype = {
 	clear: null
+	,beforeEach: null
+	,afterEach: null
 	,__class__: boidz.IRender
 };
 boidz.IRenderable = function() { };
@@ -537,10 +624,38 @@ boidz.IRenderable.prototype = {
 };
 boidz.render = {};
 boidz.render.canvas = {};
+boidz.render.canvas.CanvasBoundaries = function(boundaries) {
+	this.color = "#BBBBBB";
+	this.enabled = true;
+	this.boundaries = boundaries;
+};
+boidz.render.canvas.CanvasBoundaries.__name__ = ["boidz","render","canvas","CanvasBoundaries"];
+boidz.render.canvas.CanvasBoundaries.__interfaces__ = [boidz.IRenderable];
+boidz.render.canvas.CanvasBoundaries.prototype = {
+	boundaries: null
+	,enabled: null
+	,color: null
+	,render: function(render) {
+		var ctx = render.ctx;
+		ctx.beginPath();
+		ctx.strokeStyle = this.color;
+		ctx.setLineDash([2,2]);
+		ctx.moveTo(Math.round(this.boundaries.minx + this.boundaries.offset) + 0.5,Math.round(this.boundaries.miny + this.boundaries.offset) + 0.5);
+		ctx.lineTo(Math.round(this.boundaries.maxx - this.boundaries.offset) + 0.5,Math.round(this.boundaries.miny + this.boundaries.offset) + 0.5);
+		ctx.lineTo(Math.round(this.boundaries.maxx - this.boundaries.offset) + 0.5,Math.round(this.boundaries.maxy - this.boundaries.offset) + 0.5);
+		ctx.lineTo(Math.round(this.boundaries.minx + this.boundaries.offset) + 0.5,Math.round(this.boundaries.maxy - this.boundaries.offset) + 0.5);
+		ctx.lineTo(Math.round(this.boundaries.minx + this.boundaries.offset) + 0.5,Math.round(this.boundaries.miny + this.boundaries.offset) + 0.5);
+		ctx.stroke();
+	}
+	,__class__: boidz.render.canvas.CanvasBoundaries
+};
 boidz.render.canvas.CanvasFlock = function(flock) {
+	this.trailLength = 20;
+	this.renderTrail = true;
 	this.renderCentroid = true;
 	this.enabled = true;
 	this.flock = flock;
+	this.map = new haxe.ds.ObjectMap();
 };
 boidz.render.canvas.CanvasFlock.__name__ = ["boidz","render","canvas","CanvasFlock"];
 boidz.render.canvas.CanvasFlock.__interfaces__ = [boidz.IRenderable];
@@ -548,32 +663,70 @@ boidz.render.canvas.CanvasFlock.prototype = {
 	flock: null
 	,enabled: null
 	,renderCentroid: null
+	,renderTrail: null
+	,trailLength: null
+	,map: null
+	,getTrail: function(b) {
+		var c = this.map.h[b.__id__];
+		if(c == null) {
+			c = [];
+			this.map.set(b,c);
+		}
+		if(c.length < this.trailLength) c.push({ x : b.x, y : b.y}); else {
+			var p = c.pop();
+			p.x = b.x;
+			p.y = b.y;
+			c.unshift(p);
+		}
+		return c;
+	}
 	,render: function(render) {
 		var ctx = render.ctx;
+		ctx.setLineDash([]);
+		if(this.renderTrail) {
+			ctx.beginPath();
+			ctx.strokeStyle = "rgba(0,0,150,0.075)";
+			var c;
+			var _g = 0;
+			var _g1 = this.flock.boids;
+			while(_g < _g1.length) {
+				var b = _g1[_g];
+				++_g;
+				c = this.getTrail(b);
+				if(c.length < 2) continue;
+				ctx.moveTo(c[0].x,c[0].y);
+				var _g3 = 1;
+				var _g2 = thx.core.Ints.min(c.length,this.trailLength);
+				while(_g3 < _g2) {
+					var i = _g3++;
+					ctx.lineTo(c[i].x,c[i].y);
+				}
+			}
+			ctx.stroke();
+		}
+		var _g4 = 0;
+		var _g11 = this.flock.boids;
+		while(_g4 < _g11.length) {
+			var b1 = _g11[_g4];
+			++_g4;
+			ctx.beginPath();
+			ctx.fillStyle = "#000000";
+			ctx.arc(b1.x,b1.y,1,0,2 * Math.PI,false);
+			ctx.fill();
+		}
 		if(this.renderCentroid) {
 			ctx.beginPath();
 			ctx.fillStyle = "#cc3300";
-			ctx.arc(this.flock.cx,this.flock.cy,4,0,2 * Math.PI,false);
+			ctx.arc(this.flock.x,this.flock.y,4,0,2 * Math.PI,false);
 			ctx.fill();
 		}
-		ctx.strokeStyle = "#000000";
-		ctx.setLineDash([]);
-		ctx.beginPath();
-		var _g = 0;
-		var _g1 = this.flock.boids;
-		while(_g < _g1.length) {
-			var b = _g1[_g];
-			++_g;
-			ctx.moveTo(b.px,b.py);
-			ctx.lineTo(b.px - b.vx,b.py - b.vy);
-		}
-		ctx.stroke();
 	}
 	,__class__: boidz.render.canvas.CanvasFlock
 };
 boidz.render.canvas.CanvasRender = function(canvas) {
 	this.canvas = canvas;
 	this.ctx = canvas.getContext("2d");
+	this.ctx.save();
 };
 boidz.render.canvas.CanvasRender.__name__ = ["boidz","render","canvas","CanvasRender"];
 boidz.render.canvas.CanvasRender.__interfaces__ = [boidz.IRender];
@@ -582,6 +735,12 @@ boidz.render.canvas.CanvasRender.prototype = {
 	,ctx: null
 	,clear: function() {
 		this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height);
+	}
+	,beforeEach: function() {
+		this.ctx.save();
+	}
+	,afterEach: function() {
+		this.ctx.restore();
 	}
 	,__class__: boidz.render.canvas.CanvasRender
 };
@@ -595,47 +754,50 @@ boidz.render.canvas.CanvasWaypoints.prototype = {
 	waypoints: null
 	,enabled: null
 	,render: function(render) {
-		var ctx = render.ctx;
 		if(null == this.waypoints.goalRule) return;
+		var ctx = render.ctx;
+		ctx.lineWidth = 1;
+		ctx.setLineDash([2]);
 		ctx.beginPath();
-		ctx.strokeStyle = "#CCCCCC";
-		ctx.setLineDash([2,5]);
-		ctx.moveTo(this.waypoints.flock.cx,this.waypoints.flock.cy);
-		ctx.lineTo(this.waypoints.goalRule.goalx,this.waypoints.goalRule.goaly);
+		ctx.strokeStyle = "#999999";
+		ctx.moveTo(this.waypoints.flock.x,this.waypoints.flock.y);
+		ctx.lineTo(this.waypoints.goalRule.x,this.waypoints.goalRule.y);
 		ctx.stroke();
 		ctx.beginPath();
-		ctx.strokeStyle = "#666666";
-		ctx.setLineDash([]);
-		ctx.arc(this.waypoints.goalRule.goalx,this.waypoints.goalRule.goaly,this.waypoints.radius,0,2 * Math.PI,false);
-		ctx.stroke();
+		ctx.fillStyle = "rgba(0,0,0,0.1)";
+		ctx.moveTo(this.waypoints.flock.x,this.waypoints.flock.y);
+		ctx.arc(this.waypoints.goalRule.x,this.waypoints.goalRule.y,this.waypoints.radius,0,2 * Math.PI,false);
+		ctx.fill();
 		ctx.beginPath();
-		ctx.moveTo(this.waypoints.goalRule.goalx,this.waypoints.goalRule.goaly);
+		ctx.fillStyle = "rgba(0,0,0,0.0.5)";
+		ctx.moveTo(this.waypoints.goalRule.x,this.waypoints.goalRule.y);
 		var _g = 0;
 		var _g1 = this.waypoints.goals;
 		while(_g < _g1.length) {
 			var goal = _g1[_g];
 			++_g;
-			ctx.strokeStyle = "#AAAAAA";
-			ctx.setLineDash([2,5]);
+			ctx.strokeStyle = "#CCCCCC";
 			ctx.lineTo(goal[0],goal[1]);
 			ctx.stroke();
 			ctx.beginPath();
-			ctx.strokeStyle = "#999999";
-			ctx.setLineDash([]);
+			ctx.strokeStyle = "";
 			ctx.arc(goal[0],goal[1],this.waypoints.radius,0,2 * Math.PI,false);
-			ctx.stroke();
+			ctx.fill();
+			ctx.beginPath();
 			ctx.moveTo(goal[0],goal[1]);
 		}
-		ctx.stroke();
 	}
 	,__class__: boidz.render.canvas.CanvasWaypoints
 };
 boidz.rules = {};
-boidz.rules.AvoidCollisions = function(flock,radius) {
+boidz.rules.AvoidCollisions = function(flock,radius,maxSteer) {
+	if(maxSteer == null) maxSteer = 10;
 	if(radius == null) radius = 5;
 	this.enabled = true;
 	this.flock = flock;
 	this.set_radius(radius);
+	this.maxSteer = maxSteer;
+	this.a = { x : 0.0, y : 0.0};
 };
 boidz.rules.AvoidCollisions.__name__ = ["boidz","rules","AvoidCollisions"];
 boidz.rules.AvoidCollisions.__interfaces__ = [boidz.IFlockRule];
@@ -643,34 +805,35 @@ boidz.rules.AvoidCollisions.prototype = {
 	radius: null
 	,flock: null
 	,enabled: null
+	,maxSteer: null
 	,squareRadius: null
+	,a: null
 	,before: function() {
 		return true;
 	}
 	,modify: function(b) {
-		var ax = 0.0;
-		var ay = 0.0;
 		var dx = 0.0;
 		var dy = 0.0;
 		var count = 0;
+		this.a.x = this.a.y = 0.0;
 		var _g = 0;
 		var _g1 = this.flock.boids;
 		while(_g < _g1.length) {
 			var n = _g1[_g];
 			++_g;
 			if(n == b) continue;
-			dx = b.px - n.px;
-			dy = b.py - n.py;
+			dx = b.x - n.x;
+			dy = b.y - n.y;
 			if(dx * dx + dy * dy > this.squareRadius) continue;
-			ax += n.px;
-			ay += n.py;
+			this.a.x += n.x;
+			this.a.y += n.y;
 			count++;
 		}
 		if(count == 0) return;
-		ax /= count;
-		ay /= count;
-		b.vx -= ax - b.px;
-		b.vy -= ay - b.py;
+		this.a.x /= count;
+		this.a.y /= count;
+		var other = boidz.util.Steer.away(b,this.a,thx.unit.angle._Degree.Degree_Impl_._new(this.maxSteer));
+		b.d = thx.unit.angle._Degree.Degree_Impl_._new(b.d + other);
 	}
 	,get_radius: function() {
 		return this.radius;
@@ -682,79 +845,16 @@ boidz.rules.AvoidCollisions.prototype = {
 	}
 	,__class__: boidz.rules.AvoidCollisions
 };
-boidz.rules.LimitSpeed = function(speedLimit) {
-	if(speedLimit == null) speedLimit = 10.0;
-	this.enabled = true;
-	this.speedLimit = speedLimit;
-};
-boidz.rules.LimitSpeed.__name__ = ["boidz","rules","LimitSpeed"];
-boidz.rules.LimitSpeed.__interfaces__ = [boidz.IFlockRule];
-boidz.rules.LimitSpeed.prototype = {
-	speedLimit: null
-	,enabled: null
-	,before: function() {
-		return true;
-	}
-	,modify: function(b) {
-		var currentSpeed = Math.sqrt(Math.pow(b.vx,2) + Math.pow(b.vy,2));
-		var speedDifference = this.speedLimit / currentSpeed;
-		if(speedDifference < 1) {
-			b.vx *= speedDifference;
-			b.vy *= speedDifference;
-		}
-	}
-	,__class__: boidz.rules.LimitSpeed
-};
-boidz.rules.MatchGroupVelocity = function(flock,ratio) {
-	if(ratio == null) ratio = 0.05;
-	this.enabled = true;
-	this.flock = flock;
-	this.ratio = ratio;
-};
-boidz.rules.MatchGroupVelocity.__name__ = ["boidz","rules","MatchGroupVelocity"];
-boidz.rules.MatchGroupVelocity.__interfaces__ = [boidz.IFlockRule];
-boidz.rules.MatchGroupVelocity.prototype = {
-	flock: null
-	,ratio: null
-	,enabled: null
-	,before: function() {
-		return true;
-	}
-	,modify: function(b) {
-		b.vx = (1 - this.ratio) * b.vx + this.flock.avx * this.ratio;
-		b.vy = (1 - this.ratio) * b.vy + this.flock.avy * this.ratio;
-	}
-	,__class__: boidz.rules.MatchGroupVelocity
-};
-boidz.rules.MoveTowardGoal = function(goalx,goaly,percent) {
-	if(percent == null) percent = 0.02;
-	this.enabled = true;
-	this.goalx = goalx;
-	this.goaly = goaly;
-	this.percent = percent;
-};
-boidz.rules.MoveTowardGoal.__name__ = ["boidz","rules","MoveTowardGoal"];
-boidz.rules.MoveTowardGoal.__interfaces__ = [boidz.IFlockRule];
-boidz.rules.MoveTowardGoal.prototype = {
-	goalx: null
-	,goaly: null
-	,percent: null
-	,enabled: null
-	,before: function() {
-		return true;
-	}
-	,modify: function(b) {
-		b.vx += (this.goalx - b.px) * this.percent;
-		b.vy += (this.goaly - b.py) * this.percent;
-	}
-	,__class__: boidz.rules.MoveTowardGoal
-};
-boidz.rules.RespectBoundaries = function(minx,maxx,miny,maxy) {
+boidz.rules.RespectBoundaries = function(minx,maxx,miny,maxy,offset,maxSteer) {
+	if(maxSteer == null) maxSteer = 10;
+	if(offset == null) offset = 0.0;
 	this.enabled = true;
 	this.minx = minx;
 	this.maxx = maxx;
 	this.miny = miny;
 	this.maxy = maxy;
+	this.offset = offset;
+	this.maxSteer = maxSteer;
 };
 boidz.rules.RespectBoundaries.__name__ = ["boidz","rules","RespectBoundaries"];
 boidz.rules.RespectBoundaries.__interfaces__ = [boidz.IFlockRule];
@@ -763,17 +863,49 @@ boidz.rules.RespectBoundaries.prototype = {
 	,maxx: null
 	,miny: null
 	,maxy: null
+	,offset: null
+	,enabled: null
+	,maxSteer: null
+	,before: function() {
+		return true;
+	}
+	,modify: function(b) {
+		if(b.x < this.minx + this.offset && boidz.util.Steer.facingLeft(b.d) || b.x > this.maxx - this.offset && boidz.util.Steer.facingRight(b.d)) {
+			var other = thx.unit.angle._Degree.Degree_Impl_._new(this.maxSteer * (b.d < 0?-1:1));
+			b.d = thx.unit.angle._Degree.Degree_Impl_._new(b.d + other);
+		}
+		if(b.y < this.miny + this.offset && boidz.util.Steer.facingUp(b.d) || b.y > this.maxy - this.offset && boidz.util.Steer.facingDown(b.d)) {
+			var other1 = thx.unit.angle._Degree.Degree_Impl_._new(this.maxSteer * (b.d < 0?-1:1));
+			b.d = thx.unit.angle._Degree.Degree_Impl_._new(b.d + other1);
+		}
+	}
+	,__class__: boidz.rules.RespectBoundaries
+};
+boidz.rules.SteerTowardGoal = function(x,y,maxSteer) {
+	if(maxSteer == null) maxSteer = 5;
+	this.enabled = true;
+	this.x = x;
+	this.y = y;
+	this.maxSteer = maxSteer;
+};
+boidz.rules.SteerTowardGoal.__name__ = ["boidz","rules","SteerTowardGoal"];
+boidz.rules.SteerTowardGoal.__interfaces__ = [boidz.IFlockRule];
+boidz.rules.SteerTowardGoal.prototype = {
+	x: null
+	,y: null
+	,maxSteer: null
 	,enabled: null
 	,before: function() {
 		return true;
 	}
 	,modify: function(b) {
-		if(b.px < this.minx) b.vx = Math.abs(b.vx); else if(b.px > this.maxx) b.vx = -Math.abs(b.vx);
-		if(b.py < this.miny) b.vy = Math.abs(b.vy); else if(b.py > this.maxy) b.vy = -Math.abs(b.vy);
+		var other = boidz.util.Steer.toward(b,this,thx.unit.angle._Degree.Degree_Impl_._new(this.maxSteer));
+		b.d = thx.unit.angle._Degree.Degree_Impl_._new(b.d + other);
 	}
-	,__class__: boidz.rules.RespectBoundaries
+	,__class__: boidz.rules.SteerTowardGoal
 };
-boidz.rules.Waypoints = function(flock,radius) {
+boidz.rules.Waypoints = function(flock,radius,maxSteer) {
+	if(maxSteer == null) maxSteer = 10;
 	if(radius == null) radius = 10;
 	this.enabled = true;
 	this.flock = flock;
@@ -781,6 +913,7 @@ boidz.rules.Waypoints = function(flock,radius) {
 	this.goals = [];
 	this.onStep = function(coords) {
 	};
+	this.set_maxSteer(maxSteer);
 };
 boidz.rules.Waypoints.__name__ = ["boidz","rules","Waypoints"];
 boidz.rules.Waypoints.__interfaces__ = [boidz.IFlockRule];
@@ -791,25 +924,131 @@ boidz.rules.Waypoints.prototype = {
 	,onStep: null
 	,flock: null
 	,goalRule: null
+	,maxSteer: null
 	,before: function() {
 		if(null != this.goalRule) {
-			var dx = this.goalRule.goalx - this.flock.cx;
-			var dy = this.goalRule.goaly - this.flock.cy;
+			var dx = this.goalRule.x - this.flock.x;
+			var dy = this.goalRule.y - this.flock.y;
 			if(dx * dx + dy * dy <= this.radius * this.radius) {
-				this.onStep([this.goalRule.goalx,this.goalRule.goaly]);
+				this.onStep([this.goalRule.x,this.goalRule.y]);
 				this.goalRule = null;
 			}
 		}
 		if(null == this.goalRule && this.goals.length > 0) {
 			var p = this.goals.shift();
-			this.goalRule = new boidz.rules.MoveTowardGoal(p[0],p[1]);
+			this.goalRule = new boidz.rules.SteerTowardGoal(p[0],p[1],(function($this) {
+				var $r;
+				var value = $this.get_maxSteer();
+				$r = thx.unit.angle._Degree.Degree_Impl_._new(value);
+				return $r;
+			}(this)));
 		}
 		return null != this.goalRule;
 	}
 	,modify: function(b) {
 		this.goalRule.modify(b);
 	}
+	,get_maxSteer: function() {
+		return this.maxSteer;
+	}
+	,set_maxSteer: function(v) {
+		if(null != this.goalRule) this.goalRule.maxSteer = v;
+		return this.maxSteer = v;
+	}
 	,__class__: boidz.rules.Waypoints
+};
+boidz.util = {};
+boidz.util.Steer = function() { };
+boidz.util.Steer.__name__ = ["boidz","util","Steer"];
+boidz.util.Steer.away = function(a,b,max) {
+	var px = a.x - b.x;
+	var py = a.y - b.y;
+	var d = thx.unit.angle._Degree.Degree_Impl_.normalizeDirection((function($this) {
+		var $r;
+		var this1;
+		{
+			var this2;
+			var value = Math.atan2(py,px);
+			this2 = thx.unit.angle._Radian.Radian_Impl_._new(value);
+			this1 = thx.unit.angle._Degree.Degree_Impl_._new(this2 * 57.2957795130823);
+		}
+		$r = thx.unit.angle._Degree.Degree_Impl_._new(this1 - a.d);
+		return $r;
+	}(this)));
+	if(null != max) {
+		var this3;
+		var this4;
+		var value1 = Math.abs(d);
+		this4 = thx.unit.angle._Degree.Degree_Impl_._new(value1);
+		var value2 = Math.min(this4,max);
+		this3 = thx.unit.angle._Degree.Degree_Impl_._new(value2);
+		d = thx.unit.angle._Degree.Degree_Impl_._new(this3 * (d < 0?-1:1));
+	}
+	return d;
+};
+boidz.util.Steer.toward = function(a,b,max) {
+	var px = b.x - a.x;
+	var py = b.y - a.y;
+	var d = thx.unit.angle._Degree.Degree_Impl_.normalizeDirection((function($this) {
+		var $r;
+		var this1;
+		{
+			var this2;
+			var value = Math.atan2(py,px);
+			this2 = thx.unit.angle._Radian.Radian_Impl_._new(value);
+			this1 = thx.unit.angle._Degree.Degree_Impl_._new(this2 * 57.2957795130823);
+		}
+		$r = thx.unit.angle._Degree.Degree_Impl_._new(this1 - a.d);
+		return $r;
+	}(this)));
+	if(null != max) {
+		var this3;
+		var this4;
+		var value1 = Math.abs(d);
+		this4 = thx.unit.angle._Degree.Degree_Impl_._new(value1);
+		var value2 = Math.min(this4,max);
+		this3 = thx.unit.angle._Degree.Degree_Impl_._new(value2);
+		d = thx.unit.angle._Degree.Degree_Impl_._new(this3 * (d < 0?-1:1));
+	}
+	return d;
+};
+boidz.util.Steer.facingRight = function(d) {
+	d = thx.unit.angle._Degree.Degree_Impl_.normalize(d);
+	return (function($this) {
+		var $r;
+		var other = thx.unit.angle._Degree.Degree_Impl_._new(270);
+		$r = d > other;
+		return $r;
+	}(this)) || (function($this) {
+		var $r;
+		var other1 = thx.unit.angle._Degree.Degree_Impl_._new(90);
+		$r = d < other1;
+		return $r;
+	}(this));
+};
+boidz.util.Steer.facingLeft = function(d) {
+	d = thx.unit.angle._Degree.Degree_Impl_.normalize(d);
+	return (function($this) {
+		var $r;
+		var other = thx.unit.angle._Degree.Degree_Impl_._new(270);
+		$r = d < other;
+		return $r;
+	}(this)) && (function($this) {
+		var $r;
+		var other1 = thx.unit.angle._Degree.Degree_Impl_._new(90);
+		$r = d > other1;
+		return $r;
+	}(this));
+};
+boidz.util.Steer.facingUp = function(d) {
+	d = thx.unit.angle._Degree.Degree_Impl_.normalize(d);
+	var other = thx.unit.angle._Degree.Degree_Impl_._new(180);
+	return d > other;
+};
+boidz.util.Steer.facingDown = function(d) {
+	d = thx.unit.angle._Degree.Degree_Impl_.normalize(d);
+	var other = thx.unit.angle._Degree.Degree_Impl_._new(180);
+	return d < other;
 };
 var dots = {};
 dots.Detect = function() { };
@@ -6347,6 +6586,1552 @@ thx.stream.dom.Dom.subscribeToggleVisibility = function(el) {
 		if(on) el.style.display = originalDisplay; else el.style.display = "none";
 	};
 };
+thx.unit = {};
+thx.unit.angle = {};
+thx.unit.angle._BinaryDegree = {};
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_ = function() { };
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.__name__ = ["thx","unit","angle","_BinaryDegree","BinaryDegree_Impl_"];
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.pointToBinaryDegree = function(x,y) {
+	var this1;
+	var value = Math.atan2(y,x);
+	this1 = thx.unit.angle._Radian.Radian_Impl_._new(value);
+	return thx.unit.angle._BinaryDegree.BinaryDegree_Impl_._new(this1 * 40.7436654315252);
+};
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.floatToBinaryDegree = function(value) {
+	return thx.unit.angle._BinaryDegree.BinaryDegree_Impl_._new(value);
+};
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_._new = function(value) {
+	return value;
+};
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.cos = function(this1) {
+	var this2 = thx.unit.angle._Radian.Radian_Impl_._new(this1 * 0.0245436926061703);
+	return Math.cos(this2);
+};
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.sin = function(this1) {
+	var this2 = thx.unit.angle._Radian.Radian_Impl_._new(this1 * 0.0245436926061703);
+	return Math.sin(this2);
+};
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.abs = function(this1) {
+	var value = Math.abs(this1);
+	return thx.unit.angle._BinaryDegree.BinaryDegree_Impl_._new(value);
+};
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.min = function(this1,other) {
+	var value = Math.min(this1,other);
+	return thx.unit.angle._BinaryDegree.BinaryDegree_Impl_._new(value);
+};
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.max = function(this1,other) {
+	var value = Math.max(this1,other);
+	return thx.unit.angle._BinaryDegree.BinaryDegree_Impl_._new(value);
+};
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.normalize = function(this1) {
+	var a = this1 % thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.turn;
+	if(a < 0) {
+		var other = thx.unit.angle._BinaryDegree.BinaryDegree_Impl_._new(a);
+		return thx.unit.angle._BinaryDegree.BinaryDegree_Impl_._new(thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.turn + other);
+	} else return thx.unit.angle._BinaryDegree.BinaryDegree_Impl_._new(a);
+};
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.normalizeDirection = function(this1) {
+	var a = thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.normalize(this1);
+	if((function($this) {
+		var $r;
+		var other = thx.unit.angle._BinaryDegree.BinaryDegree_Impl_._new(180);
+		$r = a > other;
+		return $r;
+	}(this))) return thx.unit.angle._BinaryDegree.BinaryDegree_Impl_._new(a - thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.turn); else return a;
+};
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.negate = function(this1) {
+	return thx.unit.angle._BinaryDegree.BinaryDegree_Impl_._new(-this1);
+};
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.add = function(this1,other) {
+	return thx.unit.angle._BinaryDegree.BinaryDegree_Impl_._new(this1 + other);
+};
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.subtract = function(this1,other) {
+	return thx.unit.angle._BinaryDegree.BinaryDegree_Impl_._new(this1 - other);
+};
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.multiply = function(this1,other) {
+	return thx.unit.angle._BinaryDegree.BinaryDegree_Impl_._new(this1 * other);
+};
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.divide = function(this1,other) {
+	return thx.unit.angle._BinaryDegree.BinaryDegree_Impl_._new(this1 / other);
+};
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.modulo = function(this1,other) {
+	return thx.unit.angle._BinaryDegree.BinaryDegree_Impl_._new(this1 % other);
+};
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.equal = function(this1,other) {
+	return thx.unit.angle._BinaryDegree.BinaryDegree_Impl_._new(this1) == other;
+};
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.nearEquals = function(this1,other) {
+	return Math.abs(this1 - other) <= 10e-10;
+};
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.notEqual = function(this1,other) {
+	return thx.unit.angle._BinaryDegree.BinaryDegree_Impl_._new(this1) != other;
+};
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.less = function(this1,other) {
+	return this1 < other;
+};
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.lessEqual = function(this1,other) {
+	return this1 <= other;
+};
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.more = function(this1,other) {
+	return this1 > other;
+};
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.moreEqual = function(this1,other) {
+	return this1 >= other;
+};
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.toFloat = function(this1) {
+	return this1;
+};
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.toDegree = function(this1) {
+	return thx.unit.angle._Degree.Degree_Impl_._new(this1 * 1.40625);
+};
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.toGrad = function(this1) {
+	return thx.unit.angle._Grad.Grad_Impl_._new(this1 * 1.5625);
+};
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.toHourAngle = function(this1) {
+	return thx.unit.angle._HourAngle.HourAngle_Impl_._new(this1 * 0.09375);
+};
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.toMinuteOfArc = function(this1) {
+	return thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_._new(this1 * 84.375);
+};
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.toPoint = function(this1) {
+	return thx.unit.angle._Point.Point_Impl_._new(this1 * 0.125);
+};
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.toQuadrant = function(this1) {
+	return thx.unit.angle._Quadrant.Quadrant_Impl_._new(this1 * 0.015625);
+};
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.toRadian = function(this1) {
+	return thx.unit.angle._Radian.Radian_Impl_._new(this1 * 0.0245436926061703);
+};
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.toRevolution = function(this1) {
+	return thx.unit.angle._Revolution.Revolution_Impl_._new(this1 * 0.00390625);
+};
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.toSecondOfArc = function(this1) {
+	return thx.unit.angle._SecondOfArc.SecondOfArc_Impl_._new(this1 * 5062.5);
+};
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.toSextant = function(this1) {
+	return thx.unit.angle._Sextant.Sextant_Impl_._new(this1 * 0.0234375);
+};
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.toTurn = function(this1) {
+	return thx.unit.angle._Turn.Turn_Impl_._new(this1 * 0.00390625);
+};
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.toString = function(this1) {
+	return this1 + "binary degree";
+};
+thx.unit.angle._Degree = {};
+thx.unit.angle._Degree.Degree_Impl_ = function() { };
+thx.unit.angle._Degree.Degree_Impl_.__name__ = ["thx","unit","angle","_Degree","Degree_Impl_"];
+thx.unit.angle._Degree.Degree_Impl_.pointToDegree = function(x,y) {
+	var this1;
+	var value = Math.atan2(y,x);
+	this1 = thx.unit.angle._Radian.Radian_Impl_._new(value);
+	return thx.unit.angle._Degree.Degree_Impl_._new(this1 * 57.2957795130823);
+};
+thx.unit.angle._Degree.Degree_Impl_.floatToDegree = function(value) {
+	return thx.unit.angle._Degree.Degree_Impl_._new(value);
+};
+thx.unit.angle._Degree.Degree_Impl_._new = function(value) {
+	return value;
+};
+thx.unit.angle._Degree.Degree_Impl_.cos = function(this1) {
+	var this2 = thx.unit.angle._Radian.Radian_Impl_._new(this1 * 0.0174532925199433);
+	return Math.cos(this2);
+};
+thx.unit.angle._Degree.Degree_Impl_.sin = function(this1) {
+	var this2 = thx.unit.angle._Radian.Radian_Impl_._new(this1 * 0.0174532925199433);
+	return Math.sin(this2);
+};
+thx.unit.angle._Degree.Degree_Impl_.abs = function(this1) {
+	var value = Math.abs(this1);
+	return thx.unit.angle._Degree.Degree_Impl_._new(value);
+};
+thx.unit.angle._Degree.Degree_Impl_.min = function(this1,other) {
+	var value = Math.min(this1,other);
+	return thx.unit.angle._Degree.Degree_Impl_._new(value);
+};
+thx.unit.angle._Degree.Degree_Impl_.max = function(this1,other) {
+	var value = Math.max(this1,other);
+	return thx.unit.angle._Degree.Degree_Impl_._new(value);
+};
+thx.unit.angle._Degree.Degree_Impl_.normalize = function(this1) {
+	var a = this1 % thx.unit.angle._Degree.Degree_Impl_.turn;
+	if(a < 0) {
+		var other = thx.unit.angle._Degree.Degree_Impl_._new(a);
+		return thx.unit.angle._Degree.Degree_Impl_._new(thx.unit.angle._Degree.Degree_Impl_.turn + other);
+	} else return thx.unit.angle._Degree.Degree_Impl_._new(a);
+};
+thx.unit.angle._Degree.Degree_Impl_.normalizeDirection = function(this1) {
+	var a = thx.unit.angle._Degree.Degree_Impl_.normalize(this1);
+	if((function($this) {
+		var $r;
+		var other = thx.unit.angle._Degree.Degree_Impl_._new(180);
+		$r = a > other;
+		return $r;
+	}(this))) return thx.unit.angle._Degree.Degree_Impl_._new(a - thx.unit.angle._Degree.Degree_Impl_.turn); else return a;
+};
+thx.unit.angle._Degree.Degree_Impl_.negate = function(this1) {
+	return thx.unit.angle._Degree.Degree_Impl_._new(-this1);
+};
+thx.unit.angle._Degree.Degree_Impl_.add = function(this1,other) {
+	return thx.unit.angle._Degree.Degree_Impl_._new(this1 + other);
+};
+thx.unit.angle._Degree.Degree_Impl_.subtract = function(this1,other) {
+	return thx.unit.angle._Degree.Degree_Impl_._new(this1 - other);
+};
+thx.unit.angle._Degree.Degree_Impl_.multiply = function(this1,other) {
+	return thx.unit.angle._Degree.Degree_Impl_._new(this1 * other);
+};
+thx.unit.angle._Degree.Degree_Impl_.divide = function(this1,other) {
+	return thx.unit.angle._Degree.Degree_Impl_._new(this1 / other);
+};
+thx.unit.angle._Degree.Degree_Impl_.modulo = function(this1,other) {
+	return thx.unit.angle._Degree.Degree_Impl_._new(this1 % other);
+};
+thx.unit.angle._Degree.Degree_Impl_.equal = function(this1,other) {
+	return thx.unit.angle._Degree.Degree_Impl_._new(this1) == other;
+};
+thx.unit.angle._Degree.Degree_Impl_.nearEquals = function(this1,other) {
+	return Math.abs(this1 - other) <= 10e-10;
+};
+thx.unit.angle._Degree.Degree_Impl_.notEqual = function(this1,other) {
+	return thx.unit.angle._Degree.Degree_Impl_._new(this1) != other;
+};
+thx.unit.angle._Degree.Degree_Impl_.less = function(this1,other) {
+	return this1 < other;
+};
+thx.unit.angle._Degree.Degree_Impl_.lessEqual = function(this1,other) {
+	return this1 <= other;
+};
+thx.unit.angle._Degree.Degree_Impl_.more = function(this1,other) {
+	return this1 > other;
+};
+thx.unit.angle._Degree.Degree_Impl_.moreEqual = function(this1,other) {
+	return this1 >= other;
+};
+thx.unit.angle._Degree.Degree_Impl_.toFloat = function(this1) {
+	return this1;
+};
+thx.unit.angle._Degree.Degree_Impl_.toBinaryDegree = function(this1) {
+	return thx.unit.angle._BinaryDegree.BinaryDegree_Impl_._new(this1 * 0.711111111111111);
+};
+thx.unit.angle._Degree.Degree_Impl_.toGrad = function(this1) {
+	return thx.unit.angle._Grad.Grad_Impl_._new(this1 * 1.11111111111111);
+};
+thx.unit.angle._Degree.Degree_Impl_.toHourAngle = function(this1) {
+	return thx.unit.angle._HourAngle.HourAngle_Impl_._new(this1 * 0.0666666666666667);
+};
+thx.unit.angle._Degree.Degree_Impl_.toMinuteOfArc = function(this1) {
+	return thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_._new(this1 * 60);
+};
+thx.unit.angle._Degree.Degree_Impl_.toPoint = function(this1) {
+	return thx.unit.angle._Point.Point_Impl_._new(this1 * 0.0888888888888889);
+};
+thx.unit.angle._Degree.Degree_Impl_.toQuadrant = function(this1) {
+	return thx.unit.angle._Quadrant.Quadrant_Impl_._new(this1 * 0.0111111111111111);
+};
+thx.unit.angle._Degree.Degree_Impl_.toRadian = function(this1) {
+	return thx.unit.angle._Radian.Radian_Impl_._new(this1 * 0.0174532925199433);
+};
+thx.unit.angle._Degree.Degree_Impl_.toRevolution = function(this1) {
+	return thx.unit.angle._Revolution.Revolution_Impl_._new(this1 * 0.00277777777777778);
+};
+thx.unit.angle._Degree.Degree_Impl_.toSecondOfArc = function(this1) {
+	return thx.unit.angle._SecondOfArc.SecondOfArc_Impl_._new(this1 * 3600);
+};
+thx.unit.angle._Degree.Degree_Impl_.toSextant = function(this1) {
+	return thx.unit.angle._Sextant.Sextant_Impl_._new(this1 * 0.0166666666666667);
+};
+thx.unit.angle._Degree.Degree_Impl_.toTurn = function(this1) {
+	return thx.unit.angle._Turn.Turn_Impl_._new(this1 * 0.00277777777777778);
+};
+thx.unit.angle._Degree.Degree_Impl_.toString = function(this1) {
+	return this1 + "°";
+};
+thx.unit.angle._Grad = {};
+thx.unit.angle._Grad.Grad_Impl_ = function() { };
+thx.unit.angle._Grad.Grad_Impl_.__name__ = ["thx","unit","angle","_Grad","Grad_Impl_"];
+thx.unit.angle._Grad.Grad_Impl_.pointToGrad = function(x,y) {
+	var this1;
+	var value = Math.atan2(y,x);
+	this1 = thx.unit.angle._Radian.Radian_Impl_._new(value);
+	return thx.unit.angle._Grad.Grad_Impl_._new(this1 * 63.6619772367581);
+};
+thx.unit.angle._Grad.Grad_Impl_.floatToGrad = function(value) {
+	return thx.unit.angle._Grad.Grad_Impl_._new(value);
+};
+thx.unit.angle._Grad.Grad_Impl_._new = function(value) {
+	return value;
+};
+thx.unit.angle._Grad.Grad_Impl_.cos = function(this1) {
+	var this2 = thx.unit.angle._Radian.Radian_Impl_._new(this1 * 0.015707963267949);
+	return Math.cos(this2);
+};
+thx.unit.angle._Grad.Grad_Impl_.sin = function(this1) {
+	var this2 = thx.unit.angle._Radian.Radian_Impl_._new(this1 * 0.015707963267949);
+	return Math.sin(this2);
+};
+thx.unit.angle._Grad.Grad_Impl_.abs = function(this1) {
+	var value = Math.abs(this1);
+	return thx.unit.angle._Grad.Grad_Impl_._new(value);
+};
+thx.unit.angle._Grad.Grad_Impl_.min = function(this1,other) {
+	var value = Math.min(this1,other);
+	return thx.unit.angle._Grad.Grad_Impl_._new(value);
+};
+thx.unit.angle._Grad.Grad_Impl_.max = function(this1,other) {
+	var value = Math.max(this1,other);
+	return thx.unit.angle._Grad.Grad_Impl_._new(value);
+};
+thx.unit.angle._Grad.Grad_Impl_.normalize = function(this1) {
+	var a = this1 % thx.unit.angle._Grad.Grad_Impl_.turn;
+	if(a < 0) {
+		var other = thx.unit.angle._Grad.Grad_Impl_._new(a);
+		return thx.unit.angle._Grad.Grad_Impl_._new(thx.unit.angle._Grad.Grad_Impl_.turn + other);
+	} else return thx.unit.angle._Grad.Grad_Impl_._new(a);
+};
+thx.unit.angle._Grad.Grad_Impl_.normalizeDirection = function(this1) {
+	var a = thx.unit.angle._Grad.Grad_Impl_.normalize(this1);
+	if((function($this) {
+		var $r;
+		var other = thx.unit.angle._Grad.Grad_Impl_._new(180);
+		$r = a > other;
+		return $r;
+	}(this))) return thx.unit.angle._Grad.Grad_Impl_._new(a - thx.unit.angle._Grad.Grad_Impl_.turn); else return a;
+};
+thx.unit.angle._Grad.Grad_Impl_.negate = function(this1) {
+	return thx.unit.angle._Grad.Grad_Impl_._new(-this1);
+};
+thx.unit.angle._Grad.Grad_Impl_.add = function(this1,other) {
+	return thx.unit.angle._Grad.Grad_Impl_._new(this1 + other);
+};
+thx.unit.angle._Grad.Grad_Impl_.subtract = function(this1,other) {
+	return thx.unit.angle._Grad.Grad_Impl_._new(this1 - other);
+};
+thx.unit.angle._Grad.Grad_Impl_.multiply = function(this1,other) {
+	return thx.unit.angle._Grad.Grad_Impl_._new(this1 * other);
+};
+thx.unit.angle._Grad.Grad_Impl_.divide = function(this1,other) {
+	return thx.unit.angle._Grad.Grad_Impl_._new(this1 / other);
+};
+thx.unit.angle._Grad.Grad_Impl_.modulo = function(this1,other) {
+	return thx.unit.angle._Grad.Grad_Impl_._new(this1 % other);
+};
+thx.unit.angle._Grad.Grad_Impl_.equal = function(this1,other) {
+	return thx.unit.angle._Grad.Grad_Impl_._new(this1) == other;
+};
+thx.unit.angle._Grad.Grad_Impl_.nearEquals = function(this1,other) {
+	return Math.abs(this1 - other) <= 10e-10;
+};
+thx.unit.angle._Grad.Grad_Impl_.notEqual = function(this1,other) {
+	return thx.unit.angle._Grad.Grad_Impl_._new(this1) != other;
+};
+thx.unit.angle._Grad.Grad_Impl_.less = function(this1,other) {
+	return this1 < other;
+};
+thx.unit.angle._Grad.Grad_Impl_.lessEqual = function(this1,other) {
+	return this1 <= other;
+};
+thx.unit.angle._Grad.Grad_Impl_.more = function(this1,other) {
+	return this1 > other;
+};
+thx.unit.angle._Grad.Grad_Impl_.moreEqual = function(this1,other) {
+	return this1 >= other;
+};
+thx.unit.angle._Grad.Grad_Impl_.toFloat = function(this1) {
+	return this1;
+};
+thx.unit.angle._Grad.Grad_Impl_.toBinaryDegree = function(this1) {
+	return thx.unit.angle._BinaryDegree.BinaryDegree_Impl_._new(this1 * 0.64);
+};
+thx.unit.angle._Grad.Grad_Impl_.toDegree = function(this1) {
+	return thx.unit.angle._Degree.Degree_Impl_._new(this1 * 0.9);
+};
+thx.unit.angle._Grad.Grad_Impl_.toHourAngle = function(this1) {
+	return thx.unit.angle._HourAngle.HourAngle_Impl_._new(this1 * 0.06);
+};
+thx.unit.angle._Grad.Grad_Impl_.toMinuteOfArc = function(this1) {
+	return thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_._new(this1 * 54);
+};
+thx.unit.angle._Grad.Grad_Impl_.toPoint = function(this1) {
+	return thx.unit.angle._Point.Point_Impl_._new(this1 * 0.08);
+};
+thx.unit.angle._Grad.Grad_Impl_.toQuadrant = function(this1) {
+	return thx.unit.angle._Quadrant.Quadrant_Impl_._new(this1 * 0.01);
+};
+thx.unit.angle._Grad.Grad_Impl_.toRadian = function(this1) {
+	return thx.unit.angle._Radian.Radian_Impl_._new(this1 * 0.015707963267949);
+};
+thx.unit.angle._Grad.Grad_Impl_.toRevolution = function(this1) {
+	return thx.unit.angle._Revolution.Revolution_Impl_._new(this1 * 0.0025);
+};
+thx.unit.angle._Grad.Grad_Impl_.toSecondOfArc = function(this1) {
+	return thx.unit.angle._SecondOfArc.SecondOfArc_Impl_._new(this1 * 3240);
+};
+thx.unit.angle._Grad.Grad_Impl_.toSextant = function(this1) {
+	return thx.unit.angle._Sextant.Sextant_Impl_._new(this1 * 0.015);
+};
+thx.unit.angle._Grad.Grad_Impl_.toTurn = function(this1) {
+	return thx.unit.angle._Turn.Turn_Impl_._new(this1 * 0.0025);
+};
+thx.unit.angle._Grad.Grad_Impl_.toString = function(this1) {
+	return this1 + "grad";
+};
+thx.unit.angle._HourAngle = {};
+thx.unit.angle._HourAngle.HourAngle_Impl_ = function() { };
+thx.unit.angle._HourAngle.HourAngle_Impl_.__name__ = ["thx","unit","angle","_HourAngle","HourAngle_Impl_"];
+thx.unit.angle._HourAngle.HourAngle_Impl_.pointToHourAngle = function(x,y) {
+	var this1;
+	var value = Math.atan2(y,x);
+	this1 = thx.unit.angle._Radian.Radian_Impl_._new(value);
+	return thx.unit.angle._HourAngle.HourAngle_Impl_._new(this1 * 3.81971863420549);
+};
+thx.unit.angle._HourAngle.HourAngle_Impl_.floatToHourAngle = function(value) {
+	return thx.unit.angle._HourAngle.HourAngle_Impl_._new(value);
+};
+thx.unit.angle._HourAngle.HourAngle_Impl_._new = function(value) {
+	return value;
+};
+thx.unit.angle._HourAngle.HourAngle_Impl_.cos = function(this1) {
+	var this2 = thx.unit.angle._Radian.Radian_Impl_._new(this1 * 0.261799387799149);
+	return Math.cos(this2);
+};
+thx.unit.angle._HourAngle.HourAngle_Impl_.sin = function(this1) {
+	var this2 = thx.unit.angle._Radian.Radian_Impl_._new(this1 * 0.261799387799149);
+	return Math.sin(this2);
+};
+thx.unit.angle._HourAngle.HourAngle_Impl_.abs = function(this1) {
+	var value = Math.abs(this1);
+	return thx.unit.angle._HourAngle.HourAngle_Impl_._new(value);
+};
+thx.unit.angle._HourAngle.HourAngle_Impl_.min = function(this1,other) {
+	var value = Math.min(this1,other);
+	return thx.unit.angle._HourAngle.HourAngle_Impl_._new(value);
+};
+thx.unit.angle._HourAngle.HourAngle_Impl_.max = function(this1,other) {
+	var value = Math.max(this1,other);
+	return thx.unit.angle._HourAngle.HourAngle_Impl_._new(value);
+};
+thx.unit.angle._HourAngle.HourAngle_Impl_.normalize = function(this1) {
+	var a = this1 % thx.unit.angle._HourAngle.HourAngle_Impl_.turn;
+	if(a < 0) {
+		var other = thx.unit.angle._HourAngle.HourAngle_Impl_._new(a);
+		return thx.unit.angle._HourAngle.HourAngle_Impl_._new(thx.unit.angle._HourAngle.HourAngle_Impl_.turn + other);
+	} else return thx.unit.angle._HourAngle.HourAngle_Impl_._new(a);
+};
+thx.unit.angle._HourAngle.HourAngle_Impl_.normalizeDirection = function(this1) {
+	var a = thx.unit.angle._HourAngle.HourAngle_Impl_.normalize(this1);
+	if((function($this) {
+		var $r;
+		var other = thx.unit.angle._HourAngle.HourAngle_Impl_._new(180);
+		$r = a > other;
+		return $r;
+	}(this))) return thx.unit.angle._HourAngle.HourAngle_Impl_._new(a - thx.unit.angle._HourAngle.HourAngle_Impl_.turn); else return a;
+};
+thx.unit.angle._HourAngle.HourAngle_Impl_.negate = function(this1) {
+	return thx.unit.angle._HourAngle.HourAngle_Impl_._new(-this1);
+};
+thx.unit.angle._HourAngle.HourAngle_Impl_.add = function(this1,other) {
+	return thx.unit.angle._HourAngle.HourAngle_Impl_._new(this1 + other);
+};
+thx.unit.angle._HourAngle.HourAngle_Impl_.subtract = function(this1,other) {
+	return thx.unit.angle._HourAngle.HourAngle_Impl_._new(this1 - other);
+};
+thx.unit.angle._HourAngle.HourAngle_Impl_.multiply = function(this1,other) {
+	return thx.unit.angle._HourAngle.HourAngle_Impl_._new(this1 * other);
+};
+thx.unit.angle._HourAngle.HourAngle_Impl_.divide = function(this1,other) {
+	return thx.unit.angle._HourAngle.HourAngle_Impl_._new(this1 / other);
+};
+thx.unit.angle._HourAngle.HourAngle_Impl_.modulo = function(this1,other) {
+	return thx.unit.angle._HourAngle.HourAngle_Impl_._new(this1 % other);
+};
+thx.unit.angle._HourAngle.HourAngle_Impl_.equal = function(this1,other) {
+	return thx.unit.angle._HourAngle.HourAngle_Impl_._new(this1) == other;
+};
+thx.unit.angle._HourAngle.HourAngle_Impl_.nearEquals = function(this1,other) {
+	return Math.abs(this1 - other) <= 10e-10;
+};
+thx.unit.angle._HourAngle.HourAngle_Impl_.notEqual = function(this1,other) {
+	return thx.unit.angle._HourAngle.HourAngle_Impl_._new(this1) != other;
+};
+thx.unit.angle._HourAngle.HourAngle_Impl_.less = function(this1,other) {
+	return this1 < other;
+};
+thx.unit.angle._HourAngle.HourAngle_Impl_.lessEqual = function(this1,other) {
+	return this1 <= other;
+};
+thx.unit.angle._HourAngle.HourAngle_Impl_.more = function(this1,other) {
+	return this1 > other;
+};
+thx.unit.angle._HourAngle.HourAngle_Impl_.moreEqual = function(this1,other) {
+	return this1 >= other;
+};
+thx.unit.angle._HourAngle.HourAngle_Impl_.toFloat = function(this1) {
+	return this1;
+};
+thx.unit.angle._HourAngle.HourAngle_Impl_.toBinaryDegree = function(this1) {
+	return thx.unit.angle._BinaryDegree.BinaryDegree_Impl_._new(this1 * 10.6666666666667);
+};
+thx.unit.angle._HourAngle.HourAngle_Impl_.toDegree = function(this1) {
+	return thx.unit.angle._Degree.Degree_Impl_._new(this1 * 15);
+};
+thx.unit.angle._HourAngle.HourAngle_Impl_.toGrad = function(this1) {
+	return thx.unit.angle._Grad.Grad_Impl_._new(this1 * 16.6666666666667);
+};
+thx.unit.angle._HourAngle.HourAngle_Impl_.toMinuteOfArc = function(this1) {
+	return thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_._new(this1 * 900);
+};
+thx.unit.angle._HourAngle.HourAngle_Impl_.toPoint = function(this1) {
+	return thx.unit.angle._Point.Point_Impl_._new(this1 * 1.33333333333333);
+};
+thx.unit.angle._HourAngle.HourAngle_Impl_.toQuadrant = function(this1) {
+	return thx.unit.angle._Quadrant.Quadrant_Impl_._new(this1 * 0.166666666666667);
+};
+thx.unit.angle._HourAngle.HourAngle_Impl_.toRadian = function(this1) {
+	return thx.unit.angle._Radian.Radian_Impl_._new(this1 * 0.261799387799149);
+};
+thx.unit.angle._HourAngle.HourAngle_Impl_.toRevolution = function(this1) {
+	return thx.unit.angle._Revolution.Revolution_Impl_._new(this1 * 0.0416666666666667);
+};
+thx.unit.angle._HourAngle.HourAngle_Impl_.toSecondOfArc = function(this1) {
+	return thx.unit.angle._SecondOfArc.SecondOfArc_Impl_._new(this1 * 54000);
+};
+thx.unit.angle._HourAngle.HourAngle_Impl_.toSextant = function(this1) {
+	return thx.unit.angle._Sextant.Sextant_Impl_._new(this1 * 0.25);
+};
+thx.unit.angle._HourAngle.HourAngle_Impl_.toTurn = function(this1) {
+	return thx.unit.angle._Turn.Turn_Impl_._new(this1 * 0.0416666666666667);
+};
+thx.unit.angle._HourAngle.HourAngle_Impl_.toString = function(this1) {
+	return this1 + "hour";
+};
+thx.unit.angle._MinuteOfArc = {};
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_ = function() { };
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.__name__ = ["thx","unit","angle","_MinuteOfArc","MinuteOfArc_Impl_"];
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.pointToMinuteOfArc = function(x,y) {
+	var this1;
+	var value = Math.atan2(y,x);
+	this1 = thx.unit.angle._Radian.Radian_Impl_._new(value);
+	return thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_._new(this1 * 3437.74677078494);
+};
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.floatToMinuteOfArc = function(value) {
+	return thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_._new(value);
+};
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_._new = function(value) {
+	return value;
+};
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.cos = function(this1) {
+	var this2 = thx.unit.angle._Radian.Radian_Impl_._new(this1 * 0.000290888208665722);
+	return Math.cos(this2);
+};
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.sin = function(this1) {
+	var this2 = thx.unit.angle._Radian.Radian_Impl_._new(this1 * 0.000290888208665722);
+	return Math.sin(this2);
+};
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.abs = function(this1) {
+	var value = Math.abs(this1);
+	return thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_._new(value);
+};
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.min = function(this1,other) {
+	var value = Math.min(this1,other);
+	return thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_._new(value);
+};
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.max = function(this1,other) {
+	var value = Math.max(this1,other);
+	return thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_._new(value);
+};
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.normalize = function(this1) {
+	var a = this1 % thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.turn;
+	if(a < 0) {
+		var other = thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_._new(a);
+		return thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_._new(thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.turn + other);
+	} else return thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_._new(a);
+};
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.normalizeDirection = function(this1) {
+	var a = thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.normalize(this1);
+	if((function($this) {
+		var $r;
+		var other = thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_._new(180);
+		$r = a > other;
+		return $r;
+	}(this))) return thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_._new(a - thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.turn); else return a;
+};
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.negate = function(this1) {
+	return thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_._new(-this1);
+};
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.add = function(this1,other) {
+	return thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_._new(this1 + other);
+};
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.subtract = function(this1,other) {
+	return thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_._new(this1 - other);
+};
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.multiply = function(this1,other) {
+	return thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_._new(this1 * other);
+};
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.divide = function(this1,other) {
+	return thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_._new(this1 / other);
+};
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.modulo = function(this1,other) {
+	return thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_._new(this1 % other);
+};
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.equal = function(this1,other) {
+	return thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_._new(this1) == other;
+};
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.nearEquals = function(this1,other) {
+	return Math.abs(this1 - other) <= 10e-10;
+};
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.notEqual = function(this1,other) {
+	return thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_._new(this1) != other;
+};
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.less = function(this1,other) {
+	return this1 < other;
+};
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.lessEqual = function(this1,other) {
+	return this1 <= other;
+};
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.more = function(this1,other) {
+	return this1 > other;
+};
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.moreEqual = function(this1,other) {
+	return this1 >= other;
+};
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.toFloat = function(this1) {
+	return this1;
+};
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.toBinaryDegree = function(this1) {
+	return thx.unit.angle._BinaryDegree.BinaryDegree_Impl_._new(this1 * 0.0118518518518519);
+};
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.toDegree = function(this1) {
+	return thx.unit.angle._Degree.Degree_Impl_._new(this1 * 0.0166666666666667);
+};
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.toGrad = function(this1) {
+	return thx.unit.angle._Grad.Grad_Impl_._new(this1 * 0.0185185185185185);
+};
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.toHourAngle = function(this1) {
+	return thx.unit.angle._HourAngle.HourAngle_Impl_._new(this1 * 0.00111111111111111);
+};
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.toPoint = function(this1) {
+	return thx.unit.angle._Point.Point_Impl_._new(this1 * 0.00148148148148148);
+};
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.toQuadrant = function(this1) {
+	return thx.unit.angle._Quadrant.Quadrant_Impl_._new(this1 * 0.000185185185185185);
+};
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.toRadian = function(this1) {
+	return thx.unit.angle._Radian.Radian_Impl_._new(this1 * 0.000290888208665722);
+};
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.toRevolution = function(this1) {
+	return thx.unit.angle._Revolution.Revolution_Impl_._new(this1 * 4.62962962962963e-05);
+};
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.toSecondOfArc = function(this1) {
+	return thx.unit.angle._SecondOfArc.SecondOfArc_Impl_._new(this1 * 60);
+};
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.toSextant = function(this1) {
+	return thx.unit.angle._Sextant.Sextant_Impl_._new(this1 * 0.000277777777777778);
+};
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.toTurn = function(this1) {
+	return thx.unit.angle._Turn.Turn_Impl_._new(this1 * 4.62962962962963e-05);
+};
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.toString = function(this1) {
+	return this1 + "′";
+};
+thx.unit.angle._Point = {};
+thx.unit.angle._Point.Point_Impl_ = function() { };
+thx.unit.angle._Point.Point_Impl_.__name__ = ["thx","unit","angle","_Point","Point_Impl_"];
+thx.unit.angle._Point.Point_Impl_.pointToPoint = function(x,y) {
+	var this1;
+	var value = Math.atan2(y,x);
+	this1 = thx.unit.angle._Radian.Radian_Impl_._new(value);
+	return thx.unit.angle._Point.Point_Impl_._new(this1 * 5.09295817894065);
+};
+thx.unit.angle._Point.Point_Impl_.floatToPoint = function(value) {
+	return thx.unit.angle._Point.Point_Impl_._new(value);
+};
+thx.unit.angle._Point.Point_Impl_._new = function(value) {
+	return value;
+};
+thx.unit.angle._Point.Point_Impl_.cos = function(this1) {
+	var this2 = thx.unit.angle._Radian.Radian_Impl_._new(this1 * 0.196349540849362);
+	return Math.cos(this2);
+};
+thx.unit.angle._Point.Point_Impl_.sin = function(this1) {
+	var this2 = thx.unit.angle._Radian.Radian_Impl_._new(this1 * 0.196349540849362);
+	return Math.sin(this2);
+};
+thx.unit.angle._Point.Point_Impl_.abs = function(this1) {
+	var value = Math.abs(this1);
+	return thx.unit.angle._Point.Point_Impl_._new(value);
+};
+thx.unit.angle._Point.Point_Impl_.min = function(this1,other) {
+	var value = Math.min(this1,other);
+	return thx.unit.angle._Point.Point_Impl_._new(value);
+};
+thx.unit.angle._Point.Point_Impl_.max = function(this1,other) {
+	var value = Math.max(this1,other);
+	return thx.unit.angle._Point.Point_Impl_._new(value);
+};
+thx.unit.angle._Point.Point_Impl_.normalize = function(this1) {
+	var a = this1 % thx.unit.angle._Point.Point_Impl_.turn;
+	if(a < 0) {
+		var other = thx.unit.angle._Point.Point_Impl_._new(a);
+		return thx.unit.angle._Point.Point_Impl_._new(thx.unit.angle._Point.Point_Impl_.turn + other);
+	} else return thx.unit.angle._Point.Point_Impl_._new(a);
+};
+thx.unit.angle._Point.Point_Impl_.normalizeDirection = function(this1) {
+	var a = thx.unit.angle._Point.Point_Impl_.normalize(this1);
+	if((function($this) {
+		var $r;
+		var other = thx.unit.angle._Point.Point_Impl_._new(180);
+		$r = a > other;
+		return $r;
+	}(this))) return thx.unit.angle._Point.Point_Impl_._new(a - thx.unit.angle._Point.Point_Impl_.turn); else return a;
+};
+thx.unit.angle._Point.Point_Impl_.negate = function(this1) {
+	return thx.unit.angle._Point.Point_Impl_._new(-this1);
+};
+thx.unit.angle._Point.Point_Impl_.add = function(this1,other) {
+	return thx.unit.angle._Point.Point_Impl_._new(this1 + other);
+};
+thx.unit.angle._Point.Point_Impl_.subtract = function(this1,other) {
+	return thx.unit.angle._Point.Point_Impl_._new(this1 - other);
+};
+thx.unit.angle._Point.Point_Impl_.multiply = function(this1,other) {
+	return thx.unit.angle._Point.Point_Impl_._new(this1 * other);
+};
+thx.unit.angle._Point.Point_Impl_.divide = function(this1,other) {
+	return thx.unit.angle._Point.Point_Impl_._new(this1 / other);
+};
+thx.unit.angle._Point.Point_Impl_.modulo = function(this1,other) {
+	return thx.unit.angle._Point.Point_Impl_._new(this1 % other);
+};
+thx.unit.angle._Point.Point_Impl_.equal = function(this1,other) {
+	return thx.unit.angle._Point.Point_Impl_._new(this1) == other;
+};
+thx.unit.angle._Point.Point_Impl_.nearEquals = function(this1,other) {
+	return Math.abs(this1 - other) <= 10e-10;
+};
+thx.unit.angle._Point.Point_Impl_.notEqual = function(this1,other) {
+	return thx.unit.angle._Point.Point_Impl_._new(this1) != other;
+};
+thx.unit.angle._Point.Point_Impl_.less = function(this1,other) {
+	return this1 < other;
+};
+thx.unit.angle._Point.Point_Impl_.lessEqual = function(this1,other) {
+	return this1 <= other;
+};
+thx.unit.angle._Point.Point_Impl_.more = function(this1,other) {
+	return this1 > other;
+};
+thx.unit.angle._Point.Point_Impl_.moreEqual = function(this1,other) {
+	return this1 >= other;
+};
+thx.unit.angle._Point.Point_Impl_.toFloat = function(this1) {
+	return this1;
+};
+thx.unit.angle._Point.Point_Impl_.toBinaryDegree = function(this1) {
+	return thx.unit.angle._BinaryDegree.BinaryDegree_Impl_._new(this1 * 8);
+};
+thx.unit.angle._Point.Point_Impl_.toDegree = function(this1) {
+	return thx.unit.angle._Degree.Degree_Impl_._new(this1 * 11.25);
+};
+thx.unit.angle._Point.Point_Impl_.toGrad = function(this1) {
+	return thx.unit.angle._Grad.Grad_Impl_._new(this1 * 12.5);
+};
+thx.unit.angle._Point.Point_Impl_.toHourAngle = function(this1) {
+	return thx.unit.angle._HourAngle.HourAngle_Impl_._new(this1 * 0.75);
+};
+thx.unit.angle._Point.Point_Impl_.toMinuteOfArc = function(this1) {
+	return thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_._new(this1 * 675);
+};
+thx.unit.angle._Point.Point_Impl_.toQuadrant = function(this1) {
+	return thx.unit.angle._Quadrant.Quadrant_Impl_._new(this1 * 0.125);
+};
+thx.unit.angle._Point.Point_Impl_.toRadian = function(this1) {
+	return thx.unit.angle._Radian.Radian_Impl_._new(this1 * 0.196349540849362);
+};
+thx.unit.angle._Point.Point_Impl_.toRevolution = function(this1) {
+	return thx.unit.angle._Revolution.Revolution_Impl_._new(this1 * 0.03125);
+};
+thx.unit.angle._Point.Point_Impl_.toSecondOfArc = function(this1) {
+	return thx.unit.angle._SecondOfArc.SecondOfArc_Impl_._new(this1 * 40500);
+};
+thx.unit.angle._Point.Point_Impl_.toSextant = function(this1) {
+	return thx.unit.angle._Sextant.Sextant_Impl_._new(this1 * 0.1875);
+};
+thx.unit.angle._Point.Point_Impl_.toTurn = function(this1) {
+	return thx.unit.angle._Turn.Turn_Impl_._new(this1 * 0.03125);
+};
+thx.unit.angle._Point.Point_Impl_.toString = function(this1) {
+	return this1 + "point";
+};
+thx.unit.angle._Quadrant = {};
+thx.unit.angle._Quadrant.Quadrant_Impl_ = function() { };
+thx.unit.angle._Quadrant.Quadrant_Impl_.__name__ = ["thx","unit","angle","_Quadrant","Quadrant_Impl_"];
+thx.unit.angle._Quadrant.Quadrant_Impl_.pointToQuadrant = function(x,y) {
+	var this1;
+	var value = Math.atan2(y,x);
+	this1 = thx.unit.angle._Radian.Radian_Impl_._new(value);
+	return thx.unit.angle._Quadrant.Quadrant_Impl_._new(this1 * 0.636619772367581);
+};
+thx.unit.angle._Quadrant.Quadrant_Impl_.floatToQuadrant = function(value) {
+	return thx.unit.angle._Quadrant.Quadrant_Impl_._new(value);
+};
+thx.unit.angle._Quadrant.Quadrant_Impl_._new = function(value) {
+	return value;
+};
+thx.unit.angle._Quadrant.Quadrant_Impl_.cos = function(this1) {
+	var this2 = thx.unit.angle._Radian.Radian_Impl_._new(this1 * 1.5707963267949);
+	return Math.cos(this2);
+};
+thx.unit.angle._Quadrant.Quadrant_Impl_.sin = function(this1) {
+	var this2 = thx.unit.angle._Radian.Radian_Impl_._new(this1 * 1.5707963267949);
+	return Math.sin(this2);
+};
+thx.unit.angle._Quadrant.Quadrant_Impl_.abs = function(this1) {
+	var value = Math.abs(this1);
+	return thx.unit.angle._Quadrant.Quadrant_Impl_._new(value);
+};
+thx.unit.angle._Quadrant.Quadrant_Impl_.min = function(this1,other) {
+	var value = Math.min(this1,other);
+	return thx.unit.angle._Quadrant.Quadrant_Impl_._new(value);
+};
+thx.unit.angle._Quadrant.Quadrant_Impl_.max = function(this1,other) {
+	var value = Math.max(this1,other);
+	return thx.unit.angle._Quadrant.Quadrant_Impl_._new(value);
+};
+thx.unit.angle._Quadrant.Quadrant_Impl_.normalize = function(this1) {
+	var a = this1 % thx.unit.angle._Quadrant.Quadrant_Impl_.turn;
+	if(a < 0) {
+		var other = thx.unit.angle._Quadrant.Quadrant_Impl_._new(a);
+		return thx.unit.angle._Quadrant.Quadrant_Impl_._new(thx.unit.angle._Quadrant.Quadrant_Impl_.turn + other);
+	} else return thx.unit.angle._Quadrant.Quadrant_Impl_._new(a);
+};
+thx.unit.angle._Quadrant.Quadrant_Impl_.normalizeDirection = function(this1) {
+	var a = thx.unit.angle._Quadrant.Quadrant_Impl_.normalize(this1);
+	if((function($this) {
+		var $r;
+		var other = thx.unit.angle._Quadrant.Quadrant_Impl_._new(180);
+		$r = a > other;
+		return $r;
+	}(this))) return thx.unit.angle._Quadrant.Quadrant_Impl_._new(a - thx.unit.angle._Quadrant.Quadrant_Impl_.turn); else return a;
+};
+thx.unit.angle._Quadrant.Quadrant_Impl_.negate = function(this1) {
+	return thx.unit.angle._Quadrant.Quadrant_Impl_._new(-this1);
+};
+thx.unit.angle._Quadrant.Quadrant_Impl_.add = function(this1,other) {
+	return thx.unit.angle._Quadrant.Quadrant_Impl_._new(this1 + other);
+};
+thx.unit.angle._Quadrant.Quadrant_Impl_.subtract = function(this1,other) {
+	return thx.unit.angle._Quadrant.Quadrant_Impl_._new(this1 - other);
+};
+thx.unit.angle._Quadrant.Quadrant_Impl_.multiply = function(this1,other) {
+	return thx.unit.angle._Quadrant.Quadrant_Impl_._new(this1 * other);
+};
+thx.unit.angle._Quadrant.Quadrant_Impl_.divide = function(this1,other) {
+	return thx.unit.angle._Quadrant.Quadrant_Impl_._new(this1 / other);
+};
+thx.unit.angle._Quadrant.Quadrant_Impl_.modulo = function(this1,other) {
+	return thx.unit.angle._Quadrant.Quadrant_Impl_._new(this1 % other);
+};
+thx.unit.angle._Quadrant.Quadrant_Impl_.equal = function(this1,other) {
+	return thx.unit.angle._Quadrant.Quadrant_Impl_._new(this1) == other;
+};
+thx.unit.angle._Quadrant.Quadrant_Impl_.nearEquals = function(this1,other) {
+	return Math.abs(this1 - other) <= 10e-10;
+};
+thx.unit.angle._Quadrant.Quadrant_Impl_.notEqual = function(this1,other) {
+	return thx.unit.angle._Quadrant.Quadrant_Impl_._new(this1) != other;
+};
+thx.unit.angle._Quadrant.Quadrant_Impl_.less = function(this1,other) {
+	return this1 < other;
+};
+thx.unit.angle._Quadrant.Quadrant_Impl_.lessEqual = function(this1,other) {
+	return this1 <= other;
+};
+thx.unit.angle._Quadrant.Quadrant_Impl_.more = function(this1,other) {
+	return this1 > other;
+};
+thx.unit.angle._Quadrant.Quadrant_Impl_.moreEqual = function(this1,other) {
+	return this1 >= other;
+};
+thx.unit.angle._Quadrant.Quadrant_Impl_.toFloat = function(this1) {
+	return this1;
+};
+thx.unit.angle._Quadrant.Quadrant_Impl_.toBinaryDegree = function(this1) {
+	return thx.unit.angle._BinaryDegree.BinaryDegree_Impl_._new(this1 * 64);
+};
+thx.unit.angle._Quadrant.Quadrant_Impl_.toDegree = function(this1) {
+	return thx.unit.angle._Degree.Degree_Impl_._new(this1 * 90);
+};
+thx.unit.angle._Quadrant.Quadrant_Impl_.toGrad = function(this1) {
+	return thx.unit.angle._Grad.Grad_Impl_._new(this1 * 100);
+};
+thx.unit.angle._Quadrant.Quadrant_Impl_.toHourAngle = function(this1) {
+	return thx.unit.angle._HourAngle.HourAngle_Impl_._new(this1 * 6);
+};
+thx.unit.angle._Quadrant.Quadrant_Impl_.toMinuteOfArc = function(this1) {
+	return thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_._new(this1 * 5400);
+};
+thx.unit.angle._Quadrant.Quadrant_Impl_.toPoint = function(this1) {
+	return thx.unit.angle._Point.Point_Impl_._new(this1 * 8);
+};
+thx.unit.angle._Quadrant.Quadrant_Impl_.toRadian = function(this1) {
+	return thx.unit.angle._Radian.Radian_Impl_._new(this1 * 1.5707963267949);
+};
+thx.unit.angle._Quadrant.Quadrant_Impl_.toRevolution = function(this1) {
+	return thx.unit.angle._Revolution.Revolution_Impl_._new(this1 * 0.25);
+};
+thx.unit.angle._Quadrant.Quadrant_Impl_.toSecondOfArc = function(this1) {
+	return thx.unit.angle._SecondOfArc.SecondOfArc_Impl_._new(this1 * 324000);
+};
+thx.unit.angle._Quadrant.Quadrant_Impl_.toSextant = function(this1) {
+	return thx.unit.angle._Sextant.Sextant_Impl_._new(this1 * 1.5);
+};
+thx.unit.angle._Quadrant.Quadrant_Impl_.toTurn = function(this1) {
+	return thx.unit.angle._Turn.Turn_Impl_._new(this1 * 0.25);
+};
+thx.unit.angle._Quadrant.Quadrant_Impl_.toString = function(this1) {
+	return this1 + "quad.";
+};
+thx.unit.angle._Radian = {};
+thx.unit.angle._Radian.Radian_Impl_ = function() { };
+thx.unit.angle._Radian.Radian_Impl_.__name__ = ["thx","unit","angle","_Radian","Radian_Impl_"];
+thx.unit.angle._Radian.Radian_Impl_.pointToRadian = function(x,y) {
+	var value = Math.atan2(y,x);
+	return thx.unit.angle._Radian.Radian_Impl_._new(value);
+};
+thx.unit.angle._Radian.Radian_Impl_.floatToRadian = function(value) {
+	return thx.unit.angle._Radian.Radian_Impl_._new(value);
+};
+thx.unit.angle._Radian.Radian_Impl_._new = function(value) {
+	return value;
+};
+thx.unit.angle._Radian.Radian_Impl_.cos = function(this1) {
+	return Math.cos(this1);
+};
+thx.unit.angle._Radian.Radian_Impl_.sin = function(this1) {
+	return Math.sin(this1);
+};
+thx.unit.angle._Radian.Radian_Impl_.abs = function(this1) {
+	var value = Math.abs(this1);
+	return thx.unit.angle._Radian.Radian_Impl_._new(value);
+};
+thx.unit.angle._Radian.Radian_Impl_.min = function(this1,other) {
+	var value = Math.min(this1,other);
+	return thx.unit.angle._Radian.Radian_Impl_._new(value);
+};
+thx.unit.angle._Radian.Radian_Impl_.max = function(this1,other) {
+	var value = Math.max(this1,other);
+	return thx.unit.angle._Radian.Radian_Impl_._new(value);
+};
+thx.unit.angle._Radian.Radian_Impl_.normalize = function(this1) {
+	var a = this1 % thx.unit.angle._Radian.Radian_Impl_.turn;
+	if(a < 0) {
+		var other = thx.unit.angle._Radian.Radian_Impl_._new(a);
+		return thx.unit.angle._Radian.Radian_Impl_._new(thx.unit.angle._Radian.Radian_Impl_.turn + other);
+	} else return thx.unit.angle._Radian.Radian_Impl_._new(a);
+};
+thx.unit.angle._Radian.Radian_Impl_.normalizeDirection = function(this1) {
+	var a = thx.unit.angle._Radian.Radian_Impl_.normalize(this1);
+	if((function($this) {
+		var $r;
+		var other = thx.unit.angle._Radian.Radian_Impl_._new(180);
+		$r = a > other;
+		return $r;
+	}(this))) return thx.unit.angle._Radian.Radian_Impl_._new(a - thx.unit.angle._Radian.Radian_Impl_.turn); else return a;
+};
+thx.unit.angle._Radian.Radian_Impl_.negate = function(this1) {
+	return thx.unit.angle._Radian.Radian_Impl_._new(-this1);
+};
+thx.unit.angle._Radian.Radian_Impl_.add = function(this1,other) {
+	return thx.unit.angle._Radian.Radian_Impl_._new(this1 + other);
+};
+thx.unit.angle._Radian.Radian_Impl_.subtract = function(this1,other) {
+	return thx.unit.angle._Radian.Radian_Impl_._new(this1 - other);
+};
+thx.unit.angle._Radian.Radian_Impl_.multiply = function(this1,other) {
+	return thx.unit.angle._Radian.Radian_Impl_._new(this1 * other);
+};
+thx.unit.angle._Radian.Radian_Impl_.divide = function(this1,other) {
+	return thx.unit.angle._Radian.Radian_Impl_._new(this1 / other);
+};
+thx.unit.angle._Radian.Radian_Impl_.modulo = function(this1,other) {
+	return thx.unit.angle._Radian.Radian_Impl_._new(this1 % other);
+};
+thx.unit.angle._Radian.Radian_Impl_.equal = function(this1,other) {
+	return thx.unit.angle._Radian.Radian_Impl_._new(this1) == other;
+};
+thx.unit.angle._Radian.Radian_Impl_.nearEquals = function(this1,other) {
+	return Math.abs(this1 - other) <= 10e-10;
+};
+thx.unit.angle._Radian.Radian_Impl_.notEqual = function(this1,other) {
+	return thx.unit.angle._Radian.Radian_Impl_._new(this1) != other;
+};
+thx.unit.angle._Radian.Radian_Impl_.less = function(this1,other) {
+	return this1 < other;
+};
+thx.unit.angle._Radian.Radian_Impl_.lessEqual = function(this1,other) {
+	return this1 <= other;
+};
+thx.unit.angle._Radian.Radian_Impl_.more = function(this1,other) {
+	return this1 > other;
+};
+thx.unit.angle._Radian.Radian_Impl_.moreEqual = function(this1,other) {
+	return this1 >= other;
+};
+thx.unit.angle._Radian.Radian_Impl_.toFloat = function(this1) {
+	return this1;
+};
+thx.unit.angle._Radian.Radian_Impl_.toBinaryDegree = function(this1) {
+	return thx.unit.angle._BinaryDegree.BinaryDegree_Impl_._new(this1 * 40.7436654315252);
+};
+thx.unit.angle._Radian.Radian_Impl_.toDegree = function(this1) {
+	return thx.unit.angle._Degree.Degree_Impl_._new(this1 * 57.2957795130823);
+};
+thx.unit.angle._Radian.Radian_Impl_.toGrad = function(this1) {
+	return thx.unit.angle._Grad.Grad_Impl_._new(this1 * 63.6619772367581);
+};
+thx.unit.angle._Radian.Radian_Impl_.toHourAngle = function(this1) {
+	return thx.unit.angle._HourAngle.HourAngle_Impl_._new(this1 * 3.81971863420549);
+};
+thx.unit.angle._Radian.Radian_Impl_.toMinuteOfArc = function(this1) {
+	return thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_._new(this1 * 3437.74677078494);
+};
+thx.unit.angle._Radian.Radian_Impl_.toPoint = function(this1) {
+	return thx.unit.angle._Point.Point_Impl_._new(this1 * 5.09295817894065);
+};
+thx.unit.angle._Radian.Radian_Impl_.toQuadrant = function(this1) {
+	return thx.unit.angle._Quadrant.Quadrant_Impl_._new(this1 * 0.636619772367581);
+};
+thx.unit.angle._Radian.Radian_Impl_.toRevolution = function(this1) {
+	return thx.unit.angle._Revolution.Revolution_Impl_._new(this1 * 0.159154943091895);
+};
+thx.unit.angle._Radian.Radian_Impl_.toSecondOfArc = function(this1) {
+	return thx.unit.angle._SecondOfArc.SecondOfArc_Impl_._new(this1 * 206264.806247096);
+};
+thx.unit.angle._Radian.Radian_Impl_.toSextant = function(this1) {
+	return thx.unit.angle._Sextant.Sextant_Impl_._new(this1 * 0.954929658551372);
+};
+thx.unit.angle._Radian.Radian_Impl_.toTurn = function(this1) {
+	return thx.unit.angle._Turn.Turn_Impl_._new(this1 * 0.159154943091895);
+};
+thx.unit.angle._Radian.Radian_Impl_.toString = function(this1) {
+	return this1 + "rad";
+};
+thx.unit.angle._Revolution = {};
+thx.unit.angle._Revolution.Revolution_Impl_ = function() { };
+thx.unit.angle._Revolution.Revolution_Impl_.__name__ = ["thx","unit","angle","_Revolution","Revolution_Impl_"];
+thx.unit.angle._Revolution.Revolution_Impl_.pointToRevolution = function(x,y) {
+	var this1;
+	var value = Math.atan2(y,x);
+	this1 = thx.unit.angle._Radian.Radian_Impl_._new(value);
+	return thx.unit.angle._Revolution.Revolution_Impl_._new(this1 * 0.159154943091895);
+};
+thx.unit.angle._Revolution.Revolution_Impl_.floatToRevolution = function(value) {
+	return thx.unit.angle._Revolution.Revolution_Impl_._new(value);
+};
+thx.unit.angle._Revolution.Revolution_Impl_._new = function(value) {
+	return value;
+};
+thx.unit.angle._Revolution.Revolution_Impl_.cos = function(this1) {
+	var this2 = thx.unit.angle._Radian.Radian_Impl_._new(this1 * 6.28318530717959);
+	return Math.cos(this2);
+};
+thx.unit.angle._Revolution.Revolution_Impl_.sin = function(this1) {
+	var this2 = thx.unit.angle._Radian.Radian_Impl_._new(this1 * 6.28318530717959);
+	return Math.sin(this2);
+};
+thx.unit.angle._Revolution.Revolution_Impl_.abs = function(this1) {
+	var value = Math.abs(this1);
+	return thx.unit.angle._Revolution.Revolution_Impl_._new(value);
+};
+thx.unit.angle._Revolution.Revolution_Impl_.min = function(this1,other) {
+	var value = Math.min(this1,other);
+	return thx.unit.angle._Revolution.Revolution_Impl_._new(value);
+};
+thx.unit.angle._Revolution.Revolution_Impl_.max = function(this1,other) {
+	var value = Math.max(this1,other);
+	return thx.unit.angle._Revolution.Revolution_Impl_._new(value);
+};
+thx.unit.angle._Revolution.Revolution_Impl_.normalize = function(this1) {
+	var a = this1 % thx.unit.angle._Revolution.Revolution_Impl_.turn;
+	if(a < 0) {
+		var other = thx.unit.angle._Revolution.Revolution_Impl_._new(a);
+		return thx.unit.angle._Revolution.Revolution_Impl_._new(thx.unit.angle._Revolution.Revolution_Impl_.turn + other);
+	} else return thx.unit.angle._Revolution.Revolution_Impl_._new(a);
+};
+thx.unit.angle._Revolution.Revolution_Impl_.normalizeDirection = function(this1) {
+	var a = thx.unit.angle._Revolution.Revolution_Impl_.normalize(this1);
+	if((function($this) {
+		var $r;
+		var other = thx.unit.angle._Revolution.Revolution_Impl_._new(180);
+		$r = a > other;
+		return $r;
+	}(this))) return thx.unit.angle._Revolution.Revolution_Impl_._new(a - thx.unit.angle._Revolution.Revolution_Impl_.turn); else return a;
+};
+thx.unit.angle._Revolution.Revolution_Impl_.negate = function(this1) {
+	return thx.unit.angle._Revolution.Revolution_Impl_._new(-this1);
+};
+thx.unit.angle._Revolution.Revolution_Impl_.add = function(this1,other) {
+	return thx.unit.angle._Revolution.Revolution_Impl_._new(this1 + other);
+};
+thx.unit.angle._Revolution.Revolution_Impl_.subtract = function(this1,other) {
+	return thx.unit.angle._Revolution.Revolution_Impl_._new(this1 - other);
+};
+thx.unit.angle._Revolution.Revolution_Impl_.multiply = function(this1,other) {
+	return thx.unit.angle._Revolution.Revolution_Impl_._new(this1 * other);
+};
+thx.unit.angle._Revolution.Revolution_Impl_.divide = function(this1,other) {
+	return thx.unit.angle._Revolution.Revolution_Impl_._new(this1 / other);
+};
+thx.unit.angle._Revolution.Revolution_Impl_.modulo = function(this1,other) {
+	return thx.unit.angle._Revolution.Revolution_Impl_._new(this1 % other);
+};
+thx.unit.angle._Revolution.Revolution_Impl_.equal = function(this1,other) {
+	return thx.unit.angle._Revolution.Revolution_Impl_._new(this1) == other;
+};
+thx.unit.angle._Revolution.Revolution_Impl_.nearEquals = function(this1,other) {
+	return Math.abs(this1 - other) <= 10e-10;
+};
+thx.unit.angle._Revolution.Revolution_Impl_.notEqual = function(this1,other) {
+	return thx.unit.angle._Revolution.Revolution_Impl_._new(this1) != other;
+};
+thx.unit.angle._Revolution.Revolution_Impl_.less = function(this1,other) {
+	return this1 < other;
+};
+thx.unit.angle._Revolution.Revolution_Impl_.lessEqual = function(this1,other) {
+	return this1 <= other;
+};
+thx.unit.angle._Revolution.Revolution_Impl_.more = function(this1,other) {
+	return this1 > other;
+};
+thx.unit.angle._Revolution.Revolution_Impl_.moreEqual = function(this1,other) {
+	return this1 >= other;
+};
+thx.unit.angle._Revolution.Revolution_Impl_.toFloat = function(this1) {
+	return this1;
+};
+thx.unit.angle._Revolution.Revolution_Impl_.toBinaryDegree = function(this1) {
+	return thx.unit.angle._BinaryDegree.BinaryDegree_Impl_._new(this1 * 256);
+};
+thx.unit.angle._Revolution.Revolution_Impl_.toDegree = function(this1) {
+	return thx.unit.angle._Degree.Degree_Impl_._new(this1 * 360);
+};
+thx.unit.angle._Revolution.Revolution_Impl_.toGrad = function(this1) {
+	return thx.unit.angle._Grad.Grad_Impl_._new(this1 * 400);
+};
+thx.unit.angle._Revolution.Revolution_Impl_.toHourAngle = function(this1) {
+	return thx.unit.angle._HourAngle.HourAngle_Impl_._new(this1 * 24);
+};
+thx.unit.angle._Revolution.Revolution_Impl_.toMinuteOfArc = function(this1) {
+	return thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_._new(this1 * 21600);
+};
+thx.unit.angle._Revolution.Revolution_Impl_.toPoint = function(this1) {
+	return thx.unit.angle._Point.Point_Impl_._new(this1 * 32);
+};
+thx.unit.angle._Revolution.Revolution_Impl_.toQuadrant = function(this1) {
+	return thx.unit.angle._Quadrant.Quadrant_Impl_._new(this1 * 4);
+};
+thx.unit.angle._Revolution.Revolution_Impl_.toRadian = function(this1) {
+	return thx.unit.angle._Radian.Radian_Impl_._new(this1 * 6.28318530717959);
+};
+thx.unit.angle._Revolution.Revolution_Impl_.toSecondOfArc = function(this1) {
+	return thx.unit.angle._SecondOfArc.SecondOfArc_Impl_._new(this1 * 1296000);
+};
+thx.unit.angle._Revolution.Revolution_Impl_.toSextant = function(this1) {
+	return thx.unit.angle._Sextant.Sextant_Impl_._new(this1 * 6);
+};
+thx.unit.angle._Revolution.Revolution_Impl_.toTurn = function(this1) {
+	return thx.unit.angle._Turn.Turn_Impl_._new(this1);
+};
+thx.unit.angle._Revolution.Revolution_Impl_.toString = function(this1) {
+	return this1 + "r";
+};
+thx.unit.angle._SecondOfArc = {};
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_ = function() { };
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.__name__ = ["thx","unit","angle","_SecondOfArc","SecondOfArc_Impl_"];
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.pointToSecondOfArc = function(x,y) {
+	var this1;
+	var value = Math.atan2(y,x);
+	this1 = thx.unit.angle._Radian.Radian_Impl_._new(value);
+	return thx.unit.angle._SecondOfArc.SecondOfArc_Impl_._new(this1 * 206264.806247096);
+};
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.floatToSecondOfArc = function(value) {
+	return thx.unit.angle._SecondOfArc.SecondOfArc_Impl_._new(value);
+};
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_._new = function(value) {
+	return value;
+};
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.cos = function(this1) {
+	var this2 = thx.unit.angle._Radian.Radian_Impl_._new(this1 * 4.84813681109536e-06);
+	return Math.cos(this2);
+};
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.sin = function(this1) {
+	var this2 = thx.unit.angle._Radian.Radian_Impl_._new(this1 * 4.84813681109536e-06);
+	return Math.sin(this2);
+};
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.abs = function(this1) {
+	var value = Math.abs(this1);
+	return thx.unit.angle._SecondOfArc.SecondOfArc_Impl_._new(value);
+};
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.min = function(this1,other) {
+	var value = Math.min(this1,other);
+	return thx.unit.angle._SecondOfArc.SecondOfArc_Impl_._new(value);
+};
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.max = function(this1,other) {
+	var value = Math.max(this1,other);
+	return thx.unit.angle._SecondOfArc.SecondOfArc_Impl_._new(value);
+};
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.normalize = function(this1) {
+	var a = this1 % thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.turn;
+	if(a < 0) {
+		var other = thx.unit.angle._SecondOfArc.SecondOfArc_Impl_._new(a);
+		return thx.unit.angle._SecondOfArc.SecondOfArc_Impl_._new(thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.turn + other);
+	} else return thx.unit.angle._SecondOfArc.SecondOfArc_Impl_._new(a);
+};
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.normalizeDirection = function(this1) {
+	var a = thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.normalize(this1);
+	if((function($this) {
+		var $r;
+		var other = thx.unit.angle._SecondOfArc.SecondOfArc_Impl_._new(180);
+		$r = a > other;
+		return $r;
+	}(this))) return thx.unit.angle._SecondOfArc.SecondOfArc_Impl_._new(a - thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.turn); else return a;
+};
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.negate = function(this1) {
+	return thx.unit.angle._SecondOfArc.SecondOfArc_Impl_._new(-this1);
+};
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.add = function(this1,other) {
+	return thx.unit.angle._SecondOfArc.SecondOfArc_Impl_._new(this1 + other);
+};
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.subtract = function(this1,other) {
+	return thx.unit.angle._SecondOfArc.SecondOfArc_Impl_._new(this1 - other);
+};
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.multiply = function(this1,other) {
+	return thx.unit.angle._SecondOfArc.SecondOfArc_Impl_._new(this1 * other);
+};
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.divide = function(this1,other) {
+	return thx.unit.angle._SecondOfArc.SecondOfArc_Impl_._new(this1 / other);
+};
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.modulo = function(this1,other) {
+	return thx.unit.angle._SecondOfArc.SecondOfArc_Impl_._new(this1 % other);
+};
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.equal = function(this1,other) {
+	return thx.unit.angle._SecondOfArc.SecondOfArc_Impl_._new(this1) == other;
+};
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.nearEquals = function(this1,other) {
+	return Math.abs(this1 - other) <= 10e-10;
+};
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.notEqual = function(this1,other) {
+	return thx.unit.angle._SecondOfArc.SecondOfArc_Impl_._new(this1) != other;
+};
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.less = function(this1,other) {
+	return this1 < other;
+};
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.lessEqual = function(this1,other) {
+	return this1 <= other;
+};
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.more = function(this1,other) {
+	return this1 > other;
+};
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.moreEqual = function(this1,other) {
+	return this1 >= other;
+};
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.toFloat = function(this1) {
+	return this1;
+};
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.toBinaryDegree = function(this1) {
+	return thx.unit.angle._BinaryDegree.BinaryDegree_Impl_._new(this1 * 0.000197530864197531);
+};
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.toDegree = function(this1) {
+	return thx.unit.angle._Degree.Degree_Impl_._new(this1 * 0.000277777777777778);
+};
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.toGrad = function(this1) {
+	return thx.unit.angle._Grad.Grad_Impl_._new(this1 * 0.000308641975308642);
+};
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.toHourAngle = function(this1) {
+	return thx.unit.angle._HourAngle.HourAngle_Impl_._new(this1 * 1.85185185185185e-05);
+};
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.toMinuteOfArc = function(this1) {
+	return thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_._new(this1 * 0.0166666666666667);
+};
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.toPoint = function(this1) {
+	return thx.unit.angle._Point.Point_Impl_._new(this1 * 2.46913580246914e-05);
+};
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.toQuadrant = function(this1) {
+	return thx.unit.angle._Quadrant.Quadrant_Impl_._new(this1 * 3.08641975308642e-06);
+};
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.toRadian = function(this1) {
+	return thx.unit.angle._Radian.Radian_Impl_._new(this1 * 4.84813681109536e-06);
+};
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.toRevolution = function(this1) {
+	return thx.unit.angle._Revolution.Revolution_Impl_._new(this1 * 7.71604938271605e-07);
+};
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.toSextant = function(this1) {
+	return thx.unit.angle._Sextant.Sextant_Impl_._new(this1 * 4.62962962962963e-06);
+};
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.toTurn = function(this1) {
+	return thx.unit.angle._Turn.Turn_Impl_._new(this1 * 7.71604938271605e-07);
+};
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.toString = function(this1) {
+	return this1 + "″";
+};
+thx.unit.angle._Sextant = {};
+thx.unit.angle._Sextant.Sextant_Impl_ = function() { };
+thx.unit.angle._Sextant.Sextant_Impl_.__name__ = ["thx","unit","angle","_Sextant","Sextant_Impl_"];
+thx.unit.angle._Sextant.Sextant_Impl_.pointToSextant = function(x,y) {
+	var this1;
+	var value = Math.atan2(y,x);
+	this1 = thx.unit.angle._Radian.Radian_Impl_._new(value);
+	return thx.unit.angle._Sextant.Sextant_Impl_._new(this1 * 0.954929658551372);
+};
+thx.unit.angle._Sextant.Sextant_Impl_.floatToSextant = function(value) {
+	return thx.unit.angle._Sextant.Sextant_Impl_._new(value);
+};
+thx.unit.angle._Sextant.Sextant_Impl_._new = function(value) {
+	return value;
+};
+thx.unit.angle._Sextant.Sextant_Impl_.cos = function(this1) {
+	var this2 = thx.unit.angle._Radian.Radian_Impl_._new(this1 * 1.0471975511966);
+	return Math.cos(this2);
+};
+thx.unit.angle._Sextant.Sextant_Impl_.sin = function(this1) {
+	var this2 = thx.unit.angle._Radian.Radian_Impl_._new(this1 * 1.0471975511966);
+	return Math.sin(this2);
+};
+thx.unit.angle._Sextant.Sextant_Impl_.abs = function(this1) {
+	var value = Math.abs(this1);
+	return thx.unit.angle._Sextant.Sextant_Impl_._new(value);
+};
+thx.unit.angle._Sextant.Sextant_Impl_.min = function(this1,other) {
+	var value = Math.min(this1,other);
+	return thx.unit.angle._Sextant.Sextant_Impl_._new(value);
+};
+thx.unit.angle._Sextant.Sextant_Impl_.max = function(this1,other) {
+	var value = Math.max(this1,other);
+	return thx.unit.angle._Sextant.Sextant_Impl_._new(value);
+};
+thx.unit.angle._Sextant.Sextant_Impl_.normalize = function(this1) {
+	var a = this1 % thx.unit.angle._Sextant.Sextant_Impl_.turn;
+	if(a < 0) {
+		var other = thx.unit.angle._Sextant.Sextant_Impl_._new(a);
+		return thx.unit.angle._Sextant.Sextant_Impl_._new(thx.unit.angle._Sextant.Sextant_Impl_.turn + other);
+	} else return thx.unit.angle._Sextant.Sextant_Impl_._new(a);
+};
+thx.unit.angle._Sextant.Sextant_Impl_.normalizeDirection = function(this1) {
+	var a = thx.unit.angle._Sextant.Sextant_Impl_.normalize(this1);
+	if((function($this) {
+		var $r;
+		var other = thx.unit.angle._Sextant.Sextant_Impl_._new(180);
+		$r = a > other;
+		return $r;
+	}(this))) return thx.unit.angle._Sextant.Sextant_Impl_._new(a - thx.unit.angle._Sextant.Sextant_Impl_.turn); else return a;
+};
+thx.unit.angle._Sextant.Sextant_Impl_.negate = function(this1) {
+	return thx.unit.angle._Sextant.Sextant_Impl_._new(-this1);
+};
+thx.unit.angle._Sextant.Sextant_Impl_.add = function(this1,other) {
+	return thx.unit.angle._Sextant.Sextant_Impl_._new(this1 + other);
+};
+thx.unit.angle._Sextant.Sextant_Impl_.subtract = function(this1,other) {
+	return thx.unit.angle._Sextant.Sextant_Impl_._new(this1 - other);
+};
+thx.unit.angle._Sextant.Sextant_Impl_.multiply = function(this1,other) {
+	return thx.unit.angle._Sextant.Sextant_Impl_._new(this1 * other);
+};
+thx.unit.angle._Sextant.Sextant_Impl_.divide = function(this1,other) {
+	return thx.unit.angle._Sextant.Sextant_Impl_._new(this1 / other);
+};
+thx.unit.angle._Sextant.Sextant_Impl_.modulo = function(this1,other) {
+	return thx.unit.angle._Sextant.Sextant_Impl_._new(this1 % other);
+};
+thx.unit.angle._Sextant.Sextant_Impl_.equal = function(this1,other) {
+	return thx.unit.angle._Sextant.Sextant_Impl_._new(this1) == other;
+};
+thx.unit.angle._Sextant.Sextant_Impl_.nearEquals = function(this1,other) {
+	return Math.abs(this1 - other) <= 10e-10;
+};
+thx.unit.angle._Sextant.Sextant_Impl_.notEqual = function(this1,other) {
+	return thx.unit.angle._Sextant.Sextant_Impl_._new(this1) != other;
+};
+thx.unit.angle._Sextant.Sextant_Impl_.less = function(this1,other) {
+	return this1 < other;
+};
+thx.unit.angle._Sextant.Sextant_Impl_.lessEqual = function(this1,other) {
+	return this1 <= other;
+};
+thx.unit.angle._Sextant.Sextant_Impl_.more = function(this1,other) {
+	return this1 > other;
+};
+thx.unit.angle._Sextant.Sextant_Impl_.moreEqual = function(this1,other) {
+	return this1 >= other;
+};
+thx.unit.angle._Sextant.Sextant_Impl_.toFloat = function(this1) {
+	return this1;
+};
+thx.unit.angle._Sextant.Sextant_Impl_.toBinaryDegree = function(this1) {
+	return thx.unit.angle._BinaryDegree.BinaryDegree_Impl_._new(this1 * 42.6666666666667);
+};
+thx.unit.angle._Sextant.Sextant_Impl_.toDegree = function(this1) {
+	return thx.unit.angle._Degree.Degree_Impl_._new(this1 * 60);
+};
+thx.unit.angle._Sextant.Sextant_Impl_.toGrad = function(this1) {
+	return thx.unit.angle._Grad.Grad_Impl_._new(this1 * 66.6666666666667);
+};
+thx.unit.angle._Sextant.Sextant_Impl_.toHourAngle = function(this1) {
+	return thx.unit.angle._HourAngle.HourAngle_Impl_._new(this1 * 4);
+};
+thx.unit.angle._Sextant.Sextant_Impl_.toMinuteOfArc = function(this1) {
+	return thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_._new(this1 * 3600);
+};
+thx.unit.angle._Sextant.Sextant_Impl_.toPoint = function(this1) {
+	return thx.unit.angle._Point.Point_Impl_._new(this1 * 5.33333333333333);
+};
+thx.unit.angle._Sextant.Sextant_Impl_.toQuadrant = function(this1) {
+	return thx.unit.angle._Quadrant.Quadrant_Impl_._new(this1 * 0.666666666666667);
+};
+thx.unit.angle._Sextant.Sextant_Impl_.toRadian = function(this1) {
+	return thx.unit.angle._Radian.Radian_Impl_._new(this1 * 1.0471975511966);
+};
+thx.unit.angle._Sextant.Sextant_Impl_.toRevolution = function(this1) {
+	return thx.unit.angle._Revolution.Revolution_Impl_._new(this1 * 0.166666666666667);
+};
+thx.unit.angle._Sextant.Sextant_Impl_.toSecondOfArc = function(this1) {
+	return thx.unit.angle._SecondOfArc.SecondOfArc_Impl_._new(this1 * 216000);
+};
+thx.unit.angle._Sextant.Sextant_Impl_.toTurn = function(this1) {
+	return thx.unit.angle._Turn.Turn_Impl_._new(this1 * 0.166666666666667);
+};
+thx.unit.angle._Sextant.Sextant_Impl_.toString = function(this1) {
+	return this1 + "sextant";
+};
+thx.unit.angle._Turn = {};
+thx.unit.angle._Turn.Turn_Impl_ = function() { };
+thx.unit.angle._Turn.Turn_Impl_.__name__ = ["thx","unit","angle","_Turn","Turn_Impl_"];
+thx.unit.angle._Turn.Turn_Impl_.pointToTurn = function(x,y) {
+	var this1;
+	var value = Math.atan2(y,x);
+	this1 = thx.unit.angle._Radian.Radian_Impl_._new(value);
+	return thx.unit.angle._Turn.Turn_Impl_._new(this1 * 0.159154943091895);
+};
+thx.unit.angle._Turn.Turn_Impl_.floatToTurn = function(value) {
+	return thx.unit.angle._Turn.Turn_Impl_._new(value);
+};
+thx.unit.angle._Turn.Turn_Impl_._new = function(value) {
+	return value;
+};
+thx.unit.angle._Turn.Turn_Impl_.cos = function(this1) {
+	var this2 = thx.unit.angle._Radian.Radian_Impl_._new(this1 * 6.28318530717959);
+	return Math.cos(this2);
+};
+thx.unit.angle._Turn.Turn_Impl_.sin = function(this1) {
+	var this2 = thx.unit.angle._Radian.Radian_Impl_._new(this1 * 6.28318530717959);
+	return Math.sin(this2);
+};
+thx.unit.angle._Turn.Turn_Impl_.abs = function(this1) {
+	var value = Math.abs(this1);
+	return thx.unit.angle._Turn.Turn_Impl_._new(value);
+};
+thx.unit.angle._Turn.Turn_Impl_.min = function(this1,other) {
+	var value = Math.min(this1,other);
+	return thx.unit.angle._Turn.Turn_Impl_._new(value);
+};
+thx.unit.angle._Turn.Turn_Impl_.max = function(this1,other) {
+	var value = Math.max(this1,other);
+	return thx.unit.angle._Turn.Turn_Impl_._new(value);
+};
+thx.unit.angle._Turn.Turn_Impl_.normalize = function(this1) {
+	var a = this1 % thx.unit.angle._Turn.Turn_Impl_.turn;
+	if(a < 0) {
+		var other = thx.unit.angle._Turn.Turn_Impl_._new(a);
+		return thx.unit.angle._Turn.Turn_Impl_._new(thx.unit.angle._Turn.Turn_Impl_.turn + other);
+	} else return thx.unit.angle._Turn.Turn_Impl_._new(a);
+};
+thx.unit.angle._Turn.Turn_Impl_.normalizeDirection = function(this1) {
+	var a = thx.unit.angle._Turn.Turn_Impl_.normalize(this1);
+	if((function($this) {
+		var $r;
+		var other = thx.unit.angle._Turn.Turn_Impl_._new(180);
+		$r = a > other;
+		return $r;
+	}(this))) return thx.unit.angle._Turn.Turn_Impl_._new(a - thx.unit.angle._Turn.Turn_Impl_.turn); else return a;
+};
+thx.unit.angle._Turn.Turn_Impl_.negate = function(this1) {
+	return thx.unit.angle._Turn.Turn_Impl_._new(-this1);
+};
+thx.unit.angle._Turn.Turn_Impl_.add = function(this1,other) {
+	return thx.unit.angle._Turn.Turn_Impl_._new(this1 + other);
+};
+thx.unit.angle._Turn.Turn_Impl_.subtract = function(this1,other) {
+	return thx.unit.angle._Turn.Turn_Impl_._new(this1 - other);
+};
+thx.unit.angle._Turn.Turn_Impl_.multiply = function(this1,other) {
+	return thx.unit.angle._Turn.Turn_Impl_._new(this1 * other);
+};
+thx.unit.angle._Turn.Turn_Impl_.divide = function(this1,other) {
+	return thx.unit.angle._Turn.Turn_Impl_._new(this1 / other);
+};
+thx.unit.angle._Turn.Turn_Impl_.modulo = function(this1,other) {
+	return thx.unit.angle._Turn.Turn_Impl_._new(this1 % other);
+};
+thx.unit.angle._Turn.Turn_Impl_.equal = function(this1,other) {
+	return thx.unit.angle._Turn.Turn_Impl_._new(this1) == other;
+};
+thx.unit.angle._Turn.Turn_Impl_.nearEquals = function(this1,other) {
+	return Math.abs(this1 - other) <= 10e-10;
+};
+thx.unit.angle._Turn.Turn_Impl_.notEqual = function(this1,other) {
+	return thx.unit.angle._Turn.Turn_Impl_._new(this1) != other;
+};
+thx.unit.angle._Turn.Turn_Impl_.less = function(this1,other) {
+	return this1 < other;
+};
+thx.unit.angle._Turn.Turn_Impl_.lessEqual = function(this1,other) {
+	return this1 <= other;
+};
+thx.unit.angle._Turn.Turn_Impl_.more = function(this1,other) {
+	return this1 > other;
+};
+thx.unit.angle._Turn.Turn_Impl_.moreEqual = function(this1,other) {
+	return this1 >= other;
+};
+thx.unit.angle._Turn.Turn_Impl_.toFloat = function(this1) {
+	return this1;
+};
+thx.unit.angle._Turn.Turn_Impl_.toBinaryDegree = function(this1) {
+	return thx.unit.angle._BinaryDegree.BinaryDegree_Impl_._new(this1 * 256);
+};
+thx.unit.angle._Turn.Turn_Impl_.toDegree = function(this1) {
+	return thx.unit.angle._Degree.Degree_Impl_._new(this1 * 360);
+};
+thx.unit.angle._Turn.Turn_Impl_.toGrad = function(this1) {
+	return thx.unit.angle._Grad.Grad_Impl_._new(this1 * 400);
+};
+thx.unit.angle._Turn.Turn_Impl_.toHourAngle = function(this1) {
+	return thx.unit.angle._HourAngle.HourAngle_Impl_._new(this1 * 24);
+};
+thx.unit.angle._Turn.Turn_Impl_.toMinuteOfArc = function(this1) {
+	return thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_._new(this1 * 21600);
+};
+thx.unit.angle._Turn.Turn_Impl_.toPoint = function(this1) {
+	return thx.unit.angle._Point.Point_Impl_._new(this1 * 32);
+};
+thx.unit.angle._Turn.Turn_Impl_.toQuadrant = function(this1) {
+	return thx.unit.angle._Quadrant.Quadrant_Impl_._new(this1 * 4);
+};
+thx.unit.angle._Turn.Turn_Impl_.toRadian = function(this1) {
+	return thx.unit.angle._Radian.Radian_Impl_._new(this1 * 6.28318530717959);
+};
+thx.unit.angle._Turn.Turn_Impl_.toRevolution = function(this1) {
+	return thx.unit.angle._Revolution.Revolution_Impl_._new(this1);
+};
+thx.unit.angle._Turn.Turn_Impl_.toSecondOfArc = function(this1) {
+	return thx.unit.angle._SecondOfArc.SecondOfArc_Impl_._new(this1 * 1296000);
+};
+thx.unit.angle._Turn.Turn_Impl_.toSextant = function(this1) {
+	return thx.unit.angle._Sextant.Sextant_Impl_._new(this1 * 6);
+};
+thx.unit.angle._Turn.Turn_Impl_.toString = function(this1) {
+	return this1 + "τ";
+};
 function $iterator(o) { if( o instanceof Array ) return function() { return HxOverrides.iter(o); }; return typeof(o.iterator) == 'function' ? $bind(o,o.iterator) : o.iterator; }
 var $_, $fid = 0;
 function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id__ = $fid++; var f; if( o.hx__closures__ == null ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == null ) { f = function(){ return f.method.apply(f.scope, arguments); }; f.scope = o; f.method = m; o.hx__closures__[m.__id__] = f; } return f; }
@@ -6396,7 +8181,7 @@ if(Array.prototype.filter == null) Array.prototype.filter = function(f1) {
 	}
 	return a1;
 };
-dots.Dom.addCss(".sui-icon-add,.sui-icon-collapse,.sui-icon-down,.sui-icon-expand,.sui-icon-remove,.sui-icon-up{background-repeat:no-repeat}.sui-icon-add{background-image:url(\"data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2264%22%20height%3D%2264%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cpath%20d%3D%22M45%2029H35V19c0-1.657-1.343-3-3-3s-3%201.343-3%203v10H19c-1.657%200-3%201.343-3%203s1.343%203%203%203h10v10c0%201.657%201.343%203%203%203s3-1.343%203-3V35h10c1.657%200%203-1.343%203-3s-1.343-3-3-3zM32%200C14.327%200%200%2014.327%200%2032s14.327%2032%2032%2032%2032-14.327%2032-32S49.673%200%2032%200zm0%2058C17.64%2058%206%2046.36%206%2032S17.64%206%2032%206s26%2011.64%2026%2026-11.64%2026-26%2026z%22%20enable-background%3D%22new%22%2F%3E%3C%2Fsvg%3E\")}.sui-icon-collapse{background-image:url(\"data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2264%22%20height%3D%2264%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cpath%20d%3D%22M52.16%2038.918l-18-18C33.612%2020.352%2032.847%2020%2032%2020h-.014c-.848%200-1.613.352-2.16.918l-18%2018%20.008.007c-.516.54-.834%201.27-.834%202.075%200%201.657%201.343%203%203%203%20.91%200%201.725-.406%202.275-1.046l15.718-15.718L47.917%2043.16c.54.52%201.274.84%202.083.84%201.657%200%203-1.343%203-3%200-.81-.32-1.542-.84-2.082z%22%20enable-background%3D%22new%22%2F%3E%3C%2Fsvg%3E\")}.sui-icon-down{background-image:url(\"data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2264%22%20height%3D%2264%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cpath%20d%3D%22M53%2023c0-1.657-1.343-3-3-3-.81%200-1.542.32-2.082.84L31.992%2036.764%2016.275%2021.046C15.725%2020.406%2014.91%2020%2014%2020c-1.657%200-3%201.343-3%203%200%20.805.318%201.536.835%202.075l-.008.008%2018%2018c.547.565%201.312.917%202.16.917H32c.85%200%201.613-.352%202.16-.918l18-18c.52-.54.84-1.273.84-2.082z%22%20enable-background%3D%22new%22%2F%3E%3C%2Fsvg%3E\")}.sui-icon-expand{background-image:url(\"data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2264%22%20height%3D%2264%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cpath%20d%3D%22M53%2023c0-1.657-1.343-3-3-3-.81%200-1.542.32-2.082.84L31.992%2036.764%2016.275%2021.046C15.725%2020.406%2014.91%2020%2014%2020c-1.657%200-3%201.343-3%203%200%20.805.318%201.536.835%202.075l-.008.008%2018%2018c.547.565%201.312.917%202.16.917H32c.85%200%201.613-.352%202.16-.918l18-18c.52-.54.84-1.273.84-2.082z%22%20enable-background%3D%22new%22%2F%3E%3C%2Fsvg%3E\")}.sui-icon-remove{background-image:url(\"data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2264%22%20height%3D%2264%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cpath%20d%3D%22M45%2029H19c-1.657%200-3%201.343-3%203s1.343%203%203%203h26c1.657%200%203-1.343%203-3s-1.343-3-3-3zM32%200C14.327%200%200%2014.327%200%2032s14.327%2032%2032%2032%2032-14.327%2032-32S49.673%200%2032%200zm0%2058C17.64%2058%206%2046.36%206%2032S17.64%206%2032%206s26%2011.64%2026%2026-11.64%2026-26%2026z%22%20enable-background%3D%22new%22%2F%3E%3C%2Fsvg%3E\")}.sui-icon-up{background-image:url(\"data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2264%22%20height%3D%2264%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cpath%20d%3D%22M52.16%2038.918l-18-18C33.612%2020.352%2032.847%2020%2032%2020h-.014c-.848%200-1.613.352-2.16.918l-18%2018%20.008.007c-.516.54-.834%201.27-.834%202.075%200%201.657%201.343%203%203%203%20.91%200%201.725-.406%202.275-1.046l15.718-15.718L47.917%2043.16c.54.52%201.274.84%202.083.84%201.657%200%203-1.343%203-3%200-.81-.32-1.542-.84-2.082z%22%20enable-background%3D%22new%22%2F%3E%3C%2Fsvg%3E\")}.sui-grid{border-collapse:collapse;}.sui-grid *{box-sizing:border-box}.sui-grid td{border-bottom:1px solid #ddd;margin:0;padding:0}.sui-grid tr:first-child td{border-top:1px solid #ddd}.sui-grid td:first-child{border-left:1px solid #ddd}.sui-grid td:last-child{border-right:1px solid #ddd}.sui-grid td.sui-top,.sui-grid td.sui-left{background-color:#fff}.sui-grid td.sui-bottom,.sui-grid td.sui-right{background-color:#f6f6f6}.sui-bottom-left,.sui-bottom-right,.sui-top-left,.sui-top-right{position:absolute;background-color:#fff}.sui-top-right{top:0;right:0;-webkit-box-shadow:-1px 1px 6px rgba(0,0,0,0.1);-moz-box-shadow:-1px 1px 6px rgba(0,0,0,0.1);box-shadow:-1px 1px 6px rgba(0,0,0,0.1);}.sui-top-right.sui-grid tr:first-child td{border-top:none}.sui-top-right.sui-grid td:last-child{border-right:none}.sui-top-left{top:0;left:0;-webkit-box-shadow:1px 1px 6px rgba(0,0,0,0.1);-moz-box-shadow:1px 1px 6px rgba(0,0,0,0.1);box-shadow:1px 1px 6px rgba(0,0,0,0.1);}.sui-top-left.sui-grid tr:first-child td{border-top:none}.sui-top-left.sui-grid td:last-child{border-left:none}.sui-bottom-right{bottom:0;right:0;-webkit-box-shadow:-1px 1px 6px rgba(0,0,0,0.1);-moz-box-shadow:-1px 1px 6px rgba(0,0,0,0.1);box-shadow:-1px 1px 6px rgba(0,0,0,0.1);}.sui-bottom-right.sui-grid tr:first-child td{border-bottom:none}.sui-bottom-right.sui-grid td:last-child{border-right:none}.sui-bottom-left{bottom:0;left:0;-webkit-box-shadow:1px 1px 6px rgba(0,0,0,0.1);-moz-box-shadow:1px 1px 6px rgba(0,0,0,0.1);box-shadow:1px 1px 6px rgba(0,0,0,0.1);}.sui-bottom-left.sui-grid tr:first-child td{border-bottom:none}.sui-bottom-left.sui-grid td:last-child{border-left:none}.sui-fill{position:absolute;width:100%;max-height:100%;top:0;left:0}.sui-append{width:100%}.sui-control,.sui-folder{-moz-user-select:-moz-none;-khtml-user-select:none;-webkit-user-select:none;-o-user-select:none;user-select:none;font-size:11px;font-family:Helvetica,\"Nimbus Sans L\",\"Liberation Sans\",Arial,sans-serif;line-height:18px;vertical-align:middle;}.sui-control *,.sui-folder *{box-sizing:border-box;margin:0;padding:0}.sui-control button,.sui-folder button{line-height:18px;vertical-align:middle}.sui-control input,.sui-folder input{line-height:18px;vertical-align:middle;border:none;background-color:#f6f6f6;max-width:16em}.sui-control button:hover,.sui-folder button:hover{background-color:#fafafa;border:1px solid #ddd}.sui-control button:focus,.sui-folder button:focus{background-color:#fafafa;border:1px solid #aaa;outline:#eee solid 2px}.sui-control input:focus,.sui-folder input:focus{outline:#eee solid 2px;$outline-offset:-2px;background-color:#fafafa}.sui-control output,.sui-folder output{padding:0 6px;background-color:#fff}.sui-control input[type=\"number\"],.sui-folder input[type=\"number\"],.sui-control input[type=\"date\"],.sui-folder input[type=\"date\"],.sui-control input[type=\"datetime-local\"],.sui-folder input[type=\"datetime-local\"],.sui-control input[type=\"time\"],.sui-folder input[type=\"time\"]{text-align:right}.sui-control input[type=\"number\"],.sui-folder input[type=\"number\"]{font-family:Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New,monospace}.sui-control input,.sui-folder input{padding:0 6px}.sui-control input[type=\"color\"],.sui-folder input[type=\"color\"],.sui-control input[type=\"checkbox\"],.sui-folder input[type=\"checkbox\"]{padding:0;margin:0}.sui-control input[type=\"range\"],.sui-folder input[type=\"range\"]{margin:0 8px;min-height:19px}.sui-control button,.sui-folder button{background-color:#eee;border:1px solid #aaa;border-radius:4px}.sui-control.sui-control-single input,.sui-folder.sui-control-single input,.sui-control.sui-control-single output,.sui-folder.sui-control-single output,.sui-control.sui-control-single button,.sui-folder.sui-control-single button{width:100%}.sui-control.sui-control-single input[type=\"checkbox\"],.sui-folder.sui-control-single input[type=\"checkbox\"]{width:initial}.sui-control.sui-control-double input,.sui-folder.sui-control-double input,.sui-control.sui-control-double output,.sui-folder.sui-control-double output,.sui-control.sui-control-double button,.sui-folder.sui-control-double button{width:50%}.sui-control.sui-control-double .input1,.sui-folder.sui-control-double .input1{width:calc(100% - 7em);max-width:8em}.sui-control.sui-control-double .input2,.sui-folder.sui-control-double .input2{width:7em}.sui-control.sui-control-double .input1[type=\"range\"],.sui-folder.sui-control-double .input1[type=\"range\"]{width:calc(100% - 7em - 16px)}.sui-control.sui-type-bool,.sui-folder.sui-type-bool{text-align:center}.sui-control.sui-invalid,.sui-folder.sui-invalid{border-left:4px solid #d00}.sui-array{list-style:none;}.sui-array .sui-array-item{border-bottom:1px dotted #aaa;position:relative;}.sui-array .sui-array-item .sui-icon,.sui-array .sui-array-item .sui-icon-mini{opacity:.1}.sui-array .sui-array-item .sui-array-add .sui-icon,.sui-array .sui-array-item .sui-array-add .sui-icon-mini{opacity:.2}.sui-array .sui-array-item > *{vertical-align:top}.sui-array .sui-array-item:first-child > .sui-move > .sui-icon-up{visibility:hidden}.sui-array .sui-array-item:last-child{border-bottom:none;}.sui-array .sui-array-item:last-child > .sui-move > .sui-icon-down{visibility:hidden}.sui-array .sui-array-item > div{display:inline-block}.sui-array .sui-array-item .sui-move{position:absolute;width:8px;height:100%;}.sui-array .sui-array-item .sui-move .sui-icon-mini{display:block;position:absolute}.sui-array .sui-array-item .sui-move .sui-icon-up{top:0;left:1px}.sui-array .sui-array-item .sui-move .sui-icon-down{bottom:0;left:1px}.sui-array .sui-array-item .sui-control-container{margin:0 14px 0 10px;width:calc(100% - 24px)}.sui-array .sui-array-item .sui-remove{width:12px;position:absolute;right:1px;top:0}.sui-array .sui-array-item .sui-icon-remove,.sui-array .sui-array-item .sui-icon-up,.sui-array .sui-array-item .sui-icon-down{cursor:pointer}.sui-array .sui-array-item.sui-focus > .sui-move .sui-icon,.sui-array .sui-array-item.sui-focus > .sui-remove .sui-icon,.sui-array .sui-array-item.sui-focus > .sui-move .sui-icon-mini,.sui-array .sui-array-item.sui-focus > .sui-remove .sui-icon-mini{opacity:.4}.sui-array ~ .sui-control{margin-bottom:0}.sui-map{border-collapse:collapse;}.sui-map .sui-map-item > td{border-bottom:1px dotted #aaa;}.sui-map .sui-map-item > td:first-child{border-left:none}.sui-map .sui-map-item:last-child > td{border-bottom:none}.sui-map .sui-map-item .sui-icon{opacity:.1}.sui-map .sui-map-item .sui-array-add .sui-icon{opacity:.2}.sui-map .sui-map-item .sui-remove{width:14px;text-align:right;padding:0 1px}.sui-map .sui-map-item .sui-icon-remove{cursor:pointer}.sui-map .sui-map-item.sui-focus > .sui-remove .sui-icon{opacity:.4}.sui-disabled .sui-icon,.sui-disabled .sui-icon-mini,.sui-disabled .sui-icon:hover,.sui-disabled .sui-icon-mini:hover{opacity:.05 !important;cursor:default}.sui-array-add{text-align:right;}.sui-array-add .sui-icon,.sui-array-add .sui-icon-mini{margin-right:1px;opacity:.2;cursor:pointer}.sui-icon,.sui-icon-mini{display:inline-block;opacity:.4;vertical-align:middle;}.sui-icon:hover,.sui-icon-mini:hover{opacity:.8 !important}.sui-icon{width:12px;height:12px;background-size:12px 12px}.sui-icon-mini{width:8px;height:8px;background-size:8px 8px}.sui-folder{padding:0 6px;font-weight:bold}.sui-collapsible{cursor:pointer}.sui-bottom-left .sui-trigger-toggle,.sui-bottom-right .sui-trigger-toggle{transform:rotate(180deg)}.sui-choice-options > .sui-grid,.sui-grid-inner{width:100%}.sui-choice-options > .sui-grid > tr > td:first-child,.sui-choice-options > .sui-grid > tbody > tr > td:first-child{border-left:none}.sui-choice-options > .sui-grid > tr:last-child > td,.sui-choice-options > .sui-grid > tbody > tr:last-child > td{border-bottom:none}.sui-grid-inner{border-left:6px solid #f6f6f6}.sui-choice-header select{width:100%}");
+dots.Dom.addCss(".sui-icon-add,.sui-icon-collapse,.sui-icon-down,.sui-icon-expand,.sui-icon-remove,.sui-icon-up{background-repeat:no-repeat}.sui-icon-add{background-image:url(\"data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2264%22%20height%3D%2264%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cpath%20d%3D%22M45%2029H35V19c0-1.657-1.343-3-3-3s-3%201.343-3%203v10H19c-1.657%200-3%201.343-3%203s1.343%203%203%203h10v10c0%201.657%201.343%203%203%203s3-1.343%203-3V35h10c1.657%200%203-1.343%203-3s-1.343-3-3-3zM32%200C14.327%200%200%2014.327%200%2032s14.327%2032%2032%2032%2032-14.327%2032-32S49.673%200%2032%200zm0%2058C17.64%2058%206%2046.36%206%2032S17.64%206%2032%206s26%2011.64%2026%2026-11.64%2026-26%2026z%22%20enable-background%3D%22new%22%2F%3E%3C%2Fsvg%3E\")}.sui-icon-collapse{background-image:url(\"data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2264%22%20height%3D%2264%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cpath%20d%3D%22M52.16%2038.918l-18-18C33.612%2020.352%2032.847%2020%2032%2020h-.014c-.848%200-1.613.352-2.16.918l-18%2018%20.008.007c-.516.54-.834%201.27-.834%202.075%200%201.657%201.343%203%203%203%20.91%200%201.725-.406%202.275-1.046l15.718-15.718L47.917%2043.16c.54.52%201.274.84%202.083.84%201.657%200%203-1.343%203-3%200-.81-.32-1.542-.84-2.082z%22%20enable-background%3D%22new%22%2F%3E%3C%2Fsvg%3E\")}.sui-icon-down{background-image:url(\"data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2264%22%20height%3D%2264%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cpath%20d%3D%22M53%2023c0-1.657-1.343-3-3-3-.81%200-1.542.32-2.082.84L31.992%2036.764%2016.275%2021.046C15.725%2020.406%2014.91%2020%2014%2020c-1.657%200-3%201.343-3%203%200%20.805.318%201.536.835%202.075l-.008.008%2018%2018c.547.565%201.312.917%202.16.917H32c.85%200%201.613-.352%202.16-.918l18-18c.52-.54.84-1.273.84-2.082z%22%20enable-background%3D%22new%22%2F%3E%3C%2Fsvg%3E\")}.sui-icon-expand{background-image:url(\"data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2264%22%20height%3D%2264%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cpath%20d%3D%22M53%2023c0-1.657-1.343-3-3-3-.81%200-1.542.32-2.082.84L31.992%2036.764%2016.275%2021.046C15.725%2020.406%2014.91%2020%2014%2020c-1.657%200-3%201.343-3%203%200%20.805.318%201.536.835%202.075l-.008.008%2018%2018c.547.565%201.312.917%202.16.917H32c.85%200%201.613-.352%202.16-.918l18-18c.52-.54.84-1.273.84-2.082z%22%20enable-background%3D%22new%22%2F%3E%3C%2Fsvg%3E\")}.sui-icon-remove{background-image:url(\"data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2264%22%20height%3D%2264%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cpath%20d%3D%22M45%2029H19c-1.657%200-3%201.343-3%203s1.343%203%203%203h26c1.657%200%203-1.343%203-3s-1.343-3-3-3zM32%200C14.327%200%200%2014.327%200%2032s14.327%2032%2032%2032%2032-14.327%2032-32S49.673%200%2032%200zm0%2058C17.64%2058%206%2046.36%206%2032S17.64%206%2032%206s26%2011.64%2026%2026-11.64%2026-26%2026z%22%20enable-background%3D%22new%22%2F%3E%3C%2Fsvg%3E\")}.sui-icon-up{background-image:url(\"data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2264%22%20height%3D%2264%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cpath%20d%3D%22M52.16%2038.918l-18-18C33.612%2020.352%2032.847%2020%2032%2020h-.014c-.848%200-1.613.352-2.16.918l-18%2018%20.008.007c-.516.54-.834%201.27-.834%202.075%200%201.657%201.343%203%203%203%20.91%200%201.725-.406%202.275-1.046l15.718-15.718L47.917%2043.16c.54.52%201.274.84%202.083.84%201.657%200%203-1.343%203-3%200-.81-.32-1.542-.84-2.082z%22%20enable-background%3D%22new%22%2F%3E%3C%2Fsvg%3E\")}.sui-grid{border-collapse:collapse;}.sui-grid *{box-sizing:border-box}.sui-grid td{border-bottom:1px solid #ddd;margin:0;padding:0}.sui-grid tr:first-child td{border-top:1px solid #ddd}.sui-grid td:first-child{border-left:1px solid #ddd}.sui-grid td:last-child{border-right:1px solid #ddd}.sui-grid td.sui-top,.sui-grid td.sui-left{background-color:#fff}.sui-grid td.sui-bottom,.sui-grid td.sui-right{background-color:#f6f6f6}.sui-bottom-left,.sui-bottom-right,.sui-top-left,.sui-top-right{position:absolute;background-color:#fff}.sui-top-right{top:0;right:0;-webkit-box-shadow:-1px 1px 6px rgba(0,0,0,0.1);-moz-box-shadow:-1px 1px 6px rgba(0,0,0,0.1);box-shadow:-1px 1px 6px rgba(0,0,0,0.1);}.sui-top-right.sui-grid tr:first-child td{border-top:none}.sui-top-right.sui-grid td:last-child{border-right:none}.sui-top-left{top:0;left:0;-webkit-box-shadow:1px 1px 6px rgba(0,0,0,0.1);-moz-box-shadow:1px 1px 6px rgba(0,0,0,0.1);box-shadow:1px 1px 6px rgba(0,0,0,0.1);}.sui-top-left.sui-grid tr:first-child td{border-top:none}.sui-top-left.sui-grid td:last-child{border-left:none}.sui-bottom-right{bottom:0;right:0;-webkit-box-shadow:-1px 1px 6px rgba(0,0,0,0.1);-moz-box-shadow:-1px 1px 6px rgba(0,0,0,0.1);box-shadow:-1px 1px 6px rgba(0,0,0,0.1);}.sui-bottom-right.sui-grid tr:first-child td{border-bottom:none}.sui-bottom-right.sui-grid td:last-child{border-right:none}.sui-bottom-left{bottom:0;left:0;-webkit-box-shadow:1px 1px 6px rgba(0,0,0,0.1);-moz-box-shadow:1px 1px 6px rgba(0,0,0,0.1);box-shadow:1px 1px 6px rgba(0,0,0,0.1);}.sui-bottom-left.sui-grid tr:first-child td{border-bottom:none}.sui-bottom-left.sui-grid td:last-child{border-left:none}.sui-fill{position:absolute;width:100%;max-height:100%;top:0;left:0}.sui-append{width:100%}.sui-control,.sui-folder{-moz-user-select:-moz-none;-khtml-user-select:none;-webkit-user-select:none;-o-user-select:none;user-select:none;font-size:11px;font-family:Helvetica,\"Nimbus Sans L\",\"Liberation Sans\",Arial,sans-serif;line-height:18px;vertical-align:middle;}.sui-control *,.sui-folder *{box-sizing:border-box;margin:0;padding:0}.sui-control button,.sui-folder button{line-height:18px;vertical-align:middle}.sui-control input,.sui-folder input{line-height:18px;vertical-align:middle;border:none;background-color:#f6f6f6;max-width:16em}.sui-control button:hover,.sui-folder button:hover{background-color:#fafafa;border:1px solid #ddd}.sui-control button:focus,.sui-folder button:focus{background-color:#fafafa;border:1px solid #aaa;outline:#eee solid 2px}.sui-control input:focus,.sui-folder input:focus{outline:#eee solid 2px;$outline-offset:-2px;background-color:#fafafa}.sui-control output,.sui-folder output{padding:0 6px;background-color:#fff;display:inline-block}.sui-control input[type=\"number\"],.sui-folder input[type=\"number\"],.sui-control input[type=\"date\"],.sui-folder input[type=\"date\"],.sui-control input[type=\"datetime-local\"],.sui-folder input[type=\"datetime-local\"],.sui-control input[type=\"time\"],.sui-folder input[type=\"time\"]{text-align:right}.sui-control input[type=\"number\"],.sui-folder input[type=\"number\"]{font-family:Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New,monospace}.sui-control input,.sui-folder input{padding:0 6px}.sui-control input[type=\"color\"],.sui-folder input[type=\"color\"],.sui-control input[type=\"checkbox\"],.sui-folder input[type=\"checkbox\"]{padding:0;margin:0}.sui-control input[type=\"range\"],.sui-folder input[type=\"range\"]{margin:0 8px;min-height:19px}.sui-control button,.sui-folder button{background-color:#eee;border:1px solid #aaa;border-radius:4px}.sui-control.sui-control-single input,.sui-folder.sui-control-single input,.sui-control.sui-control-single output,.sui-folder.sui-control-single output,.sui-control.sui-control-single button,.sui-folder.sui-control-single button{width:100%}.sui-control.sui-control-single input[type=\"checkbox\"],.sui-folder.sui-control-single input[type=\"checkbox\"]{width:initial}.sui-control.sui-control-double input,.sui-folder.sui-control-double input,.sui-control.sui-control-double output,.sui-folder.sui-control-double output,.sui-control.sui-control-double button,.sui-folder.sui-control-double button{width:50%}.sui-control.sui-control-double .input1,.sui-folder.sui-control-double .input1{width:calc(100% - 7em);max-width:8em}.sui-control.sui-control-double .input2,.sui-folder.sui-control-double .input2{width:7em}.sui-control.sui-control-double .input1[type=\"range\"],.sui-folder.sui-control-double .input1[type=\"range\"]{width:calc(100% - 7em - 16px)}.sui-control.sui-type-bool,.sui-folder.sui-type-bool{text-align:center}.sui-control.sui-invalid,.sui-folder.sui-invalid{border-left:4px solid #d00}.sui-array{list-style:none;}.sui-array .sui-array-item{border-bottom:1px dotted #aaa;position:relative;}.sui-array .sui-array-item .sui-icon,.sui-array .sui-array-item .sui-icon-mini{opacity:.1}.sui-array .sui-array-item .sui-array-add .sui-icon,.sui-array .sui-array-item .sui-array-add .sui-icon-mini{opacity:.2}.sui-array .sui-array-item > *{vertical-align:top}.sui-array .sui-array-item:first-child > .sui-move > .sui-icon-up{visibility:hidden}.sui-array .sui-array-item:last-child{border-bottom:none;}.sui-array .sui-array-item:last-child > .sui-move > .sui-icon-down{visibility:hidden}.sui-array .sui-array-item > div{display:inline-block}.sui-array .sui-array-item .sui-move{position:absolute;width:8px;height:100%;}.sui-array .sui-array-item .sui-move .sui-icon-mini{display:block;position:absolute}.sui-array .sui-array-item .sui-move .sui-icon-up{top:0;left:1px}.sui-array .sui-array-item .sui-move .sui-icon-down{bottom:0;left:1px}.sui-array .sui-array-item .sui-control-container{margin:0 14px 0 10px;width:calc(100% - 24px)}.sui-array .sui-array-item .sui-remove{width:12px;position:absolute;right:1px;top:0}.sui-array .sui-array-item .sui-icon-remove,.sui-array .sui-array-item .sui-icon-up,.sui-array .sui-array-item .sui-icon-down{cursor:pointer}.sui-array .sui-array-item.sui-focus > .sui-move .sui-icon,.sui-array .sui-array-item.sui-focus > .sui-remove .sui-icon,.sui-array .sui-array-item.sui-focus > .sui-move .sui-icon-mini,.sui-array .sui-array-item.sui-focus > .sui-remove .sui-icon-mini{opacity:.4}.sui-array ~ .sui-control{margin-bottom:0}.sui-map{border-collapse:collapse;}.sui-map .sui-map-item > td{border-bottom:1px dotted #aaa;}.sui-map .sui-map-item > td:first-child{border-left:none}.sui-map .sui-map-item:last-child > td{border-bottom:none}.sui-map .sui-map-item .sui-icon{opacity:.1}.sui-map .sui-map-item .sui-array-add .sui-icon{opacity:.2}.sui-map .sui-map-item .sui-remove{width:14px;text-align:right;padding:0 1px}.sui-map .sui-map-item .sui-icon-remove{cursor:pointer}.sui-map .sui-map-item.sui-focus > .sui-remove .sui-icon{opacity:.4}.sui-disabled .sui-icon,.sui-disabled .sui-icon-mini,.sui-disabled .sui-icon:hover,.sui-disabled .sui-icon-mini:hover{opacity:.05 !important;cursor:default}.sui-array-add{text-align:right;}.sui-array-add .sui-icon,.sui-array-add .sui-icon-mini{margin-right:1px;opacity:.2;cursor:pointer}.sui-icon,.sui-icon-mini{display:inline-block;opacity:.4;vertical-align:middle;}.sui-icon:hover,.sui-icon-mini:hover{opacity:.8 !important}.sui-icon{width:12px;height:12px;background-size:12px 12px}.sui-icon-mini{width:8px;height:8px;background-size:8px 8px}.sui-folder{padding:0 6px;font-weight:bold}.sui-collapsible{cursor:pointer}.sui-bottom-left .sui-trigger-toggle,.sui-bottom-right .sui-trigger-toggle{transform:rotate(180deg)}.sui-choice-options > .sui-grid,.sui-grid-inner{width:100%}.sui-choice-options > .sui-grid > tr > td:first-child,.sui-choice-options > .sui-grid > tbody > tr > td:first-child{border-left:none}.sui-choice-options > .sui-grid > tr:last-child > td,.sui-choice-options > .sui-grid > tbody > tr:last-child > td{border-bottom:none}.sui-grid-inner{border-left:6px solid #f6f6f6}.sui-choice-header select{width:100%}");
 
       // Production steps of ECMA-262, Edition 5, 15.4.4.21
       // Reference: http://es5.github.io/#x15.4.4.21
@@ -6490,5 +8275,29 @@ thx.core.Strings.WSG = new EReg("\\s+","g");
 thx.core.Strings.SPLIT_LINES = new EReg("\r\n|\n\r|\n|\r","g");
 thx.core.Timer.FRAME_RATE = Math.round(16.6666666666666679);
 thx.promise._Promise.Promise_Impl_.nil = thx.promise._Promise.Promise_Impl_.value(thx.core.Nil.nil);
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.turn = 256;
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.symbol = "binary degree";
+thx.unit.angle._Degree.Degree_Impl_.turn = 360;
+thx.unit.angle._Degree.Degree_Impl_.symbol = "°";
+thx.unit.angle._Grad.Grad_Impl_.turn = 400;
+thx.unit.angle._Grad.Grad_Impl_.symbol = "grad";
+thx.unit.angle._HourAngle.HourAngle_Impl_.turn = 24;
+thx.unit.angle._HourAngle.HourAngle_Impl_.symbol = "hour";
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.turn = 21600;
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.symbol = "′";
+thx.unit.angle._Point.Point_Impl_.turn = 32;
+thx.unit.angle._Point.Point_Impl_.symbol = "point";
+thx.unit.angle._Quadrant.Quadrant_Impl_.turn = 4;
+thx.unit.angle._Quadrant.Quadrant_Impl_.symbol = "quad.";
+thx.unit.angle._Radian.Radian_Impl_.turn = 6.28318530717959;
+thx.unit.angle._Radian.Radian_Impl_.symbol = "rad";
+thx.unit.angle._Revolution.Revolution_Impl_.turn = 1;
+thx.unit.angle._Revolution.Revolution_Impl_.symbol = "r";
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.turn = 1296000;
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.symbol = "″";
+thx.unit.angle._Sextant.Sextant_Impl_.turn = 6;
+thx.unit.angle._Sextant.Sextant_Impl_.symbol = "sextant";
+thx.unit.angle._Turn.Turn_Impl_.turn = 1;
+thx.unit.angle._Turn.Turn_Impl_.symbol = "τ";
 Canvas.main();
 })();
