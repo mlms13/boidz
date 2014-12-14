@@ -15,8 +15,11 @@ class Display<TRender : IRender> {
   public function render() {
     renderEngine.clear();
     for(renderable in renderables) {
-      if(renderable.enabled)
+      if(renderable.enabled) {
+        renderEngine.beforeEach();
         renderable.render(renderEngine);
+        renderEngine.afterEach();
+      }
     }
   }
 }
