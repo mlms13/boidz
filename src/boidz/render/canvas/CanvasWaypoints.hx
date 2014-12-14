@@ -11,39 +11,40 @@ class CanvasWaypoints implements IRenderable<CanvasRender> {
   }
 
   public function render(render : CanvasRender) {
-    var ctx = render.ctx;
-
     if(null == waypoints.goalRule) return;
 
+    var ctx = render.ctx;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([2]);
+
     ctx.beginPath();
-    ctx.strokeStyle = "#CCCCCC";
-    ctx.setLineDash([2, 5]);
-    ctx.moveTo(waypoints.flock.cx, waypoints.flock.cy);
-    ctx.lineTo(waypoints.goalRule.goalx, waypoints.goalRule.goaly);
+    ctx.strokeStyle = "#999999";
+    ctx.moveTo(waypoints.flock.x, waypoints.flock.y);
+    ctx.lineTo(waypoints.goalRule.x, waypoints.goalRule.y);
     ctx.stroke();
 
     ctx.beginPath();
-    ctx.strokeStyle = "#666666";
-    ctx.setLineDash([]);
-    ctx.arc(waypoints.goalRule.goalx, waypoints.goalRule.goaly, waypoints.radius, 0, 2 * Math.PI, false);
-    ctx.stroke();
+    ctx.fillStyle = "rgba(0,0,0,0.1)";
+    ctx.moveTo(waypoints.flock.x, waypoints.flock.y);
+    ctx.arc(waypoints.goalRule.x, waypoints.goalRule.y, waypoints.radius, 0, 2 * Math.PI, false);
+    ctx.fill();
 
     ctx.beginPath();
-    ctx.moveTo(waypoints.goalRule.goalx, waypoints.goalRule.goaly);
+    ctx.fillStyle = "rgba(0,0,0,0.0.5)";
+    ctx.moveTo(waypoints.goalRule.x, waypoints.goalRule.y);
 
     for(goal in waypoints.goals) {
-      ctx.strokeStyle = "#AAAAAA";
-      ctx.setLineDash([2, 5]);
+      ctx.strokeStyle = "#CCCCCC";
       ctx.lineTo(goal[0], goal[1]);
       ctx.stroke();
 
       ctx.beginPath();
-      ctx.strokeStyle = "#999999";
-      ctx.setLineDash([]);
+      ctx.strokeStyle = "";
       ctx.arc(goal[0], goal[1], waypoints.radius, 0, 2 * Math.PI, false);
-      ctx.stroke();
+      ctx.fill();
+
+      ctx.beginPath();
       ctx.moveTo(goal[0], goal[1]);
     }
-    ctx.stroke();
   }
 }
