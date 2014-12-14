@@ -1,18 +1,21 @@
 package boidz;
 
+import thx.unit.angle.Degree;
+
 class Flock {
   public var boids(default, null) : Array<Boid>;
   public var rules(default, null) : Array<IFlockRule>;
-  public var cx : Float;
-  public var cy : Float;
-  public var avx : Float;
-  public var avy : Float;
+  public var x : Float;
+  public var y : Float;
+  public var v : Float;
+  public var d : Degree;
 
   public var step : Float = 0.05;
 
   public function new() {
-    cx  = cy  = 0;
-    avx = avy = 0;
+    x  = y  = 0;
+    v = 0;
+    d = 0;
     boids = [];
     rules = [];
   }
@@ -41,27 +44,30 @@ class Flock {
 
     for (boid in boids) {
       // update boid position given new velocity
-      boid.px += boid.vx;
-      boid.py += boid.vy;
+      boid.x += boid.v * boid.d.cos();
+      boid.y += boid.v * boid.d.sin();
     }
   }
 
   function setFlockAverages() {
     // init
-    cx  = cy  = 0;
-    avx = avy = 0;
+    x  = y  = 0;
+    v = 0;
+    d = 0;
 
     // update
     for (boid in boids) {
-      cx += boid.px;
-      cy += boid.py;
-      avx += boid.vx;
-      avy += boid.vy;
+      x += boid.x;
+      y += boid.y;
+      v += boid.v;
+      d += boid.d;
     }
 
-    cx = cx / boids.length;
-    cy = cy / boids.length;
-    avx = avx / boids.length;
-    avy = avy / boids.length;
+    var l = boids.length;
+
+    x = x / l;
+    y = y / l;
+    v = v / l;
+    d = d / l;
   }
 }
