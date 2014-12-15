@@ -4,6 +4,7 @@
 -main Canvas
 -lib sui
 -lib dots
+-lib thx.color
 -lib thx.core
 -lib thx.stream
 -lib thx.stream.dom
