@@ -86,7 +86,7 @@ class Canvas {
       frameRate.set('$average/s ($min -> $max)');
     }, 2000);
     canvas.addEventListener("click", function(e) {
-      waypoints.goals.push([e.clientX, e.clientY]);
+      waypoints.goals.push({ x : e.clientX, y : e.clientY });
     }, false);
 
     // UI

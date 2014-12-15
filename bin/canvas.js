@@ -69,7 +69,7 @@ Canvas.main = function() {
 		frameRate.set("" + average + "/s (" + min + " -> " + max + ")");
 	},2000);
 	canvas.addEventListener("click",function(e) {
-		waypoints.goals.push([e.clientX,e.clientY]);
+		waypoints.goals.push({ x : e.clientX, y : e.clientY});
 	},false);
 	var sui1 = new sui.Sui();
 	var ui = sui1.folder("flock");
@@ -496,22 +496,23 @@ boidz.Boid.prototype = {
 };
 boidz.Display = function(render) {
 	this.renderEngine = render;
-	this.renderables = [];
+	this.renderables = new haxe.ds.ObjectMap();
 };
 boidz.Display.__name__ = ["boidz","Display"];
 boidz.Display.prototype = {
 	renderables: null
 	,renderEngine: null
 	,addRenderable: function(renderable) {
-		this.renderables.push(renderable);
+		this.renderables.set(renderable,true);
+	}
+	,removeRenderable: function(renderable) {
+		this.renderables.remove(renderable);
 	}
 	,render: function() {
 		this.renderEngine.clear();
-		var _g = 0;
-		var _g1 = this.renderables;
-		while(_g < _g1.length) {
-			var renderable = _g1[_g];
-			++_g;
+		var $it0 = this.renderables.keys();
+		while( $it0.hasNext() ) {
+			var renderable = $it0.next();
 			if(renderable.enabled) {
 				this.renderEngine.beforeEach();
 				renderable.render(this.renderEngine);
@@ -565,14 +566,14 @@ boidz.Flock.prototype = {
 			++_g4;
 			boid1.x += boid1.v * (function($this) {
 				var $r;
-				var this1 = thx.unit.angle._Radian.Radian_Impl_._new(boid1.d * 0.0174532925199433);
-				$r = Math.cos(this1);
+				var this2 = thx.unit.angle._Radian.Radian_Impl_._new(boid1.d * 0.0174532925199433);
+				$r = Math.cos(this2);
 				return $r;
 			}(this));
 			boid1.y += boid1.v * (function($this) {
 				var $r;
-				var this2 = thx.unit.angle._Radian.Radian_Impl_._new(boid1.d * 0.0174532925199433);
-				$r = Math.sin(this2);
+				var this21 = thx.unit.angle._Radian.Radian_Impl_._new(boid1.d * 0.0174532925199433);
+				$r = Math.sin(this21);
 				return $r;
 			}(this));
 		}
@@ -777,14 +778,14 @@ boidz.render.canvas.CanvasWaypoints.prototype = {
 			var goal = _g1[_g];
 			++_g;
 			ctx.strokeStyle = "#CCCCCC";
-			ctx.lineTo(goal[0],goal[1]);
+			ctx.lineTo(goal.x,goal.y);
 			ctx.stroke();
 			ctx.beginPath();
 			ctx.strokeStyle = "";
-			ctx.arc(goal[0],goal[1],this.waypoints.radius,0,2 * Math.PI,false);
+			ctx.arc(goal.x,goal.y,this.waypoints.radius,0,2 * Math.PI,false);
 			ctx.fill();
 			ctx.beginPath();
-			ctx.moveTo(goal[0],goal[1]);
+			ctx.moveTo(goal.x,goal.y);
 		}
 	}
 	,__class__: boidz.render.canvas.CanvasWaypoints
@@ -911,7 +912,7 @@ boidz.rules.Waypoints = function(flock,radius,maxSteer) {
 	this.flock = flock;
 	this.radius = radius;
 	this.goals = [];
-	this.onStep = function(coords) {
+	this.onStep = function(x,y) {
 	};
 	this.set_maxSteer(maxSteer);
 };
@@ -930,13 +931,13 @@ boidz.rules.Waypoints.prototype = {
 			var dx = this.goalRule.x - this.flock.x;
 			var dy = this.goalRule.y - this.flock.y;
 			if(dx * dx + dy * dy <= this.radius * this.radius) {
-				this.onStep([this.goalRule.x,this.goalRule.y]);
+				this.onStep(this.goalRule.x,this.goalRule.y);
 				this.goalRule = null;
 			}
 		}
 		if(null == this.goalRule && this.goals.length > 0) {
 			var p = this.goals.shift();
-			this.goalRule = new boidz.rules.SteerTowardGoal(p[0],p[1],(function($this) {
+			this.goalRule = new boidz.rules.SteerTowardGoal(p.x,p.y,(function($this) {
 				var $r;
 				var value = $this.get_maxSteer();
 				$r = thx.unit.angle._Degree.Degree_Impl_._new(value);
@@ -1476,6 +1477,13 @@ haxe.ds.ObjectMap.prototype = {
 	}
 	,exists: function(key) {
 		return this.h.__keys__[key.__id__] != null;
+	}
+	,remove: function(key) {
+		var id = key.__id__;
+		if(this.h.__keys__[id] == null) return false;
+		delete(this.h[id]);
+		delete(this.h.__keys__[id]);
+		return true;
 	}
 	,keys: function() {
 		var a = [];

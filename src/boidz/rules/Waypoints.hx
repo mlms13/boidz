@@ -4,10 +4,10 @@ import thx.unit.angle.Degree;
 import boidz.IFlockRule;
 
 class Waypoints implements IFlockRule {
-  public var goals : Array<Array<Float>>;
+  public var goals : Array<Point>;
   public var enabled : Bool = true;
   public var radius : Float;
-  public var onStep : Array<Float> -> Void;
+  public var onStep : Float -> Float -> Void;
   public var flock : Flock;
   public var goalRule(default, null) : SteerTowardGoal;
   @:isVar public var maxSteer(get, set) : Float;
@@ -16,7 +16,7 @@ class Waypoints implements IFlockRule {
     this.flock = flock;
     this.radius = radius;
     this.goals = [];
-    this.onStep = function(coords : Array<Float>) {};
+    this.onStep = function(x : Float, y : Float) {};
     this.maxSteer = maxSteer;
   }
 
@@ -26,14 +26,14 @@ class Waypoints implements IFlockRule {
           dy = goalRule.y - flock.y;
 
       if((dx * dx) + (dy * dy) <= radius * radius) {
-        onStep([goalRule.x, goalRule.y]);
+        onStep(goalRule.x, goalRule.y);
         goalRule = null;
       }
     }
 
     if(null == goalRule && goals.length > 0) {
       var p = goals.shift();
-      goalRule = new SteerTowardGoal(p[0], p[1], maxSteer);
+      goalRule = new SteerTowardGoal(p.x, p.y, maxSteer);
     }
 
     return null != goalRule;
