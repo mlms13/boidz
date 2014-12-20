@@ -14,7 +14,9 @@ class RespectBoundaries implements IFlockRule {
   public var offset : Float;
   public var enabled : Bool = true;
   public var maxSteer : Float;
-  public function new(minx : Float, maxx : Float, miny : Float, maxy : Float, ?offset : Float = 0.0, ?maxSteer : Degree = 10) {
+  public function new(minx : Float, maxx : Float, miny : Float, maxy : Float, ?offset : Float = 0.0, ?maxSteer : Degree) {
+    if(null == maxSteer)
+      maxSteer = 10;
     this.minx = minx;
     this.maxx = maxx;
     this.miny = miny;

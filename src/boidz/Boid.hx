@@ -8,7 +8,9 @@ class Boid {
   public var v : Float;
   public var d : Degree;
 
-  public function new (x : Float, y : Float, ?v = 0.0, ?d : Degree = 0.0) {
+  public function new (x : Float, y : Float, ?v = 0.0, ?d : Degree) {
+    if(null == d)
+      d = 0.0;
     this.x = x;
     this.y = y;
     this.v = v;

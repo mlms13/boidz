@@ -16,7 +16,9 @@ class CanvasFlock implements IRenderable<CanvasRender> {
   var rgba : String;
 
   var map : Map<Boid, Array<Point>>;
-  public function new(flock : Flock, ?boidColor : RGB = "#000000") {
+  public function new(flock : Flock, ?boidColor : RGB) {
+    if(null == boidColor)
+      boidColor = "#000000";
     this.flock = flock;
     this.map = new Map();
 
