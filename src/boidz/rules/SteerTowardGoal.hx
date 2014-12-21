@@ -11,7 +11,7 @@ class SteerTowardGoal implements IFlockRule {
   public var enabled : Bool = true;
 
   public function new(x : Float, y : Float, ?maxSteer : Degree) {
-    if(maxSteer == null)
+    if(null == maxSteer)
       maxSteer = 5.0;
     this.x = x;
     this.y = y;

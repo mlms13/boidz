@@ -9,7 +9,7 @@ class Boid {
   public var d : Degree;
 
   public function new (x : Float, y : Float, ?v = 0.0, ?d : Degree) {
-    if(d == null)
+    if(null == d)
       d = 0.0;
     this.x = x;
     this.y = y;

@@ -25,7 +25,6 @@ class CanvasWaypoints implements IRenderable<CanvasRender> {
 
     ctx.beginPath();
     ctx.fillStyle = "rgba(0,0,0,0.1)";
-    ctx.moveTo(waypoints.flock.x, waypoints.flock.y);
     ctx.arc(waypoints.goalRule.x, waypoints.goalRule.y, waypoints.radius, 0, 2 * Math.PI, false);
     ctx.fill();
 
@@ -35,16 +34,16 @@ class CanvasWaypoints implements IRenderable<CanvasRender> {
 
     for(goal in waypoints.goals) {
       ctx.strokeStyle = "#CCCCCC";
-      ctx.lineTo(goal[0], goal[1]);
+      ctx.lineTo(goal.x, goal.y);
       ctx.stroke();
 
       ctx.beginPath();
       ctx.strokeStyle = "";
-      ctx.arc(goal[0], goal[1], waypoints.radius, 0, 2 * Math.PI, false);
+      ctx.arc(goal.x, goal.y, waypoints.radius, 0, 2 * Math.PI, false);
       ctx.fill();
 
       ctx.beginPath();
-      ctx.moveTo(goal[0], goal[1]);
+      ctx.moveTo(goal.x, goal.y);
     }
   }
 }

@@ -392,6 +392,16 @@ StringTools.lpad = function(s,c,l) {
 StringTools.replace = function(s,sub,by) {
 	return s.split(sub).join(by);
 };
+StringTools.hex = function(n,digits) {
+	var s = "";
+	var hexChars = "0123456789ABCDEF";
+	do {
+		s = hexChars.charAt(n & 15) + s;
+		n >>>= 4;
+	} while(n > 0);
+	if(digits != null) while(s.length < digits) s = "0" + s;
+	return s;
+};
 var ValueType = { __ename__ : ["ValueType"], __constructs__ : ["TNull","TInt","TFloat","TBool","TObject","TFunction","TClass","TEnum","TUnknown"] };
 ValueType.TNull = ["TNull",0];
 ValueType.TNull.__enum__ = ValueType;
@@ -463,7 +473,7 @@ Type["typeof"] = function(v) {
 var boidz = {};
 boidz.Boid = function(x,y,v,d) {
 	if(v == null) v = 0.0;
-	if(thx.unit.angle._Degree.Degree_Impl_._new(d) == null) d = thx.unit.angle._Degree.Degree_Impl_._new(0.0);
+	if(null == d) d = thx.unit.angle._Degree.Degree_Impl_._new(0.0);
 	this.x = x;
 	this.y = y;
 	this.v = v;
@@ -479,22 +489,23 @@ boidz.Boid.prototype = {
 };
 boidz.Display = function(render) {
 	this.renderEngine = render;
-	this.renderables = [];
+	this.renderables = new haxe.ds.ObjectMap();
 };
 boidz.Display.__name__ = ["boidz","Display"];
 boidz.Display.prototype = {
 	renderables: null
 	,renderEngine: null
 	,addRenderable: function(renderable) {
-		this.renderables.push(renderable);
+		this.renderables.set(renderable,true);
+	}
+	,removeRenderable: function(renderable) {
+		this.renderables.remove(renderable);
 	}
 	,render: function() {
 		this.renderEngine.clear();
-		var _g = 0;
-		var _g1 = this.renderables;
-		while(_g < _g1.length) {
-			var renderable = _g1[_g];
-			++_g;
+		var $it0 = this.renderables.keys();
+		while( $it0.hasNext() ) {
+			var renderable = $it0.next();
 			if(renderable.enabled) {
 				this.renderEngine.beforeEach();
 				renderable.render(this.renderEngine);
@@ -548,14 +559,14 @@ boidz.Flock.prototype = {
 			++_g4;
 			boid1.x += boid1.v * (function($this) {
 				var $r;
-				var this1 = thx.unit.angle._Radian.Radian_Impl_._new(boid1.d * 0.0174532925199433);
-				$r = Math.cos(this1);
+				var this2 = thx.unit.angle._Radian.Radian_Impl_._new(boid1.d * 0.0174532925199433);
+				$r = Math.cos(this2);
 				return $r;
 			}(this));
 			boid1.y += boid1.v * (function($this) {
 				var $r;
-				var this2 = thx.unit.angle._Radian.Radian_Impl_._new(boid1.d * 0.0174532925199433);
-				$r = Math.sin(this2);
+				var this21 = thx.unit.angle._Radian.Radian_Impl_._new(boid1.d * 0.0174532925199433);
+				$r = Math.sin(this21);
 				return $r;
 			}(this));
 		}
@@ -632,13 +643,17 @@ boidz.render.canvas.CanvasBoundaries.prototype = {
 	}
 	,__class__: boidz.render.canvas.CanvasBoundaries
 };
-boidz.render.canvas.CanvasFlock = function(flock) {
+boidz.render.canvas.CanvasFlock = function(flock,boidColor) {
 	this.trailLength = 20;
 	this.renderTrail = true;
 	this.renderCentroid = true;
 	this.enabled = true;
+	if(null == boidColor) boidColor = thx.color._RGB.RGB_Impl_.fromString("#000000");
 	this.flock = flock;
 	this.map = new haxe.ds.ObjectMap();
+	this.rgb = "" + "#" + StringTools.hex(boidColor >> 16 & 255,2) + StringTools.hex(boidColor >> 8 & 255,2) + StringTools.hex(boidColor & 255,2);
+	var this1 = thx.color._RGBA.RGBA_Impl_.toRGBXA(419430400 | (boidColor >> 16 & 255 & 255) << 16 | (boidColor >> 8 & 255 & 255) << 8 | boidColor & 255 & 255);
+	this.rgba = "rgba(" + this1[0] * 100 + "%," + this1[1] * 100 + "%," + this1[2] * 100 + "%," + this1[3] + ")";
 };
 boidz.render.canvas.CanvasFlock.__name__ = ["boidz","render","canvas","CanvasFlock"];
 boidz.render.canvas.CanvasFlock.__interfaces__ = [boidz.IRenderable];
@@ -648,6 +663,8 @@ boidz.render.canvas.CanvasFlock.prototype = {
 	,renderCentroid: null
 	,renderTrail: null
 	,trailLength: null
+	,rgb: null
+	,rgba: null
 	,map: null
 	,getTrail: function(b) {
 		var c = this.map.h[b.__id__];
@@ -668,7 +685,7 @@ boidz.render.canvas.CanvasFlock.prototype = {
 		ctx.setLineDash([]);
 		if(this.renderTrail) {
 			ctx.beginPath();
-			ctx.strokeStyle = "rgba(140,120,70,0.15)";
+			ctx.strokeStyle = this.rgba;
 			var c;
 			var _g = 0;
 			var _g1 = this.flock.boids;
@@ -693,7 +710,7 @@ boidz.render.canvas.CanvasFlock.prototype = {
 			var b1 = _g11[_g4];
 			++_g4;
 			ctx.beginPath();
-			ctx.fillStyle = "#000000";
+			ctx.fillStyle = this.rgb;
 			ctx.arc(b1.x,b1.y,1,0,2 * Math.PI,false);
 			ctx.fill();
 		}
@@ -767,7 +784,7 @@ boidz.rules = {};
 boidz.rules.AvoidCollisions = function(flock,radius,maxSteer) {
 	if(radius == null) radius = 5;
 	this.enabled = true;
-	if(thx.unit.angle._Degree.Degree_Impl_._new(maxSteer) == null) maxSteer = thx.unit.angle._Degree.Degree_Impl_._new(10.0);
+	if(null == maxSteer) maxSteer = thx.unit.angle._Degree.Degree_Impl_._new(10.0);
 	this.flock = flock;
 	this.set_radius(radius);
 	this.maxSteer = maxSteer;
@@ -939,7 +956,7 @@ boidz.rules.RespectBoundaries.prototype = {
 };
 boidz.rules.SteerTowardGoal = function(x,y,maxSteer) {
 	this.enabled = true;
-	if(thx.unit.angle._Degree.Degree_Impl_._new(maxSteer) == null) maxSteer = thx.unit.angle._Degree.Degree_Impl_._new(5.0);
+	if(null == maxSteer) maxSteer = thx.unit.angle._Degree.Degree_Impl_._new(5.0);
 	this.x = x;
 	this.y = y;
 	this.maxSteer = maxSteer;
@@ -1335,6 +1352,13 @@ haxe.ds.ObjectMap.prototype = {
 	}
 	,exists: function(key) {
 		return this.h.__keys__[key.__id__] != null;
+	}
+	,remove: function(key) {
+		var id = key.__id__;
+		if(this.h.__keys__[id] == null) return false;
+		delete(this.h[id]);
+		delete(this.h.__keys__[id]);
+		return true;
 	}
 	,keys: function() {
 		var a = [];
@@ -3055,6 +3079,1675 @@ sui.macro = {};
 sui.macro.Embed = function() { };
 sui.macro.Embed.__name__ = ["sui","macro","Embed"];
 var thx = {};
+thx.color = {};
+thx.color._CMYK = {};
+thx.color._CMYK.CMYK_Impl_ = {};
+thx.color._CMYK.CMYK_Impl_.__name__ = ["thx","color","_CMYK","CMYK_Impl_"];
+thx.color._CMYK.CMYK_Impl_.fromString = function(color) {
+	var info = thx.color.parse.ColorParser.parseColor(color);
+	if(null == info) return null;
+	try {
+		var _g = info.name;
+		switch(_g) {
+		case "cmyk":
+			var channels = thx.color.parse.ColorParser.getFloatChannels(info.channels,4);
+			return channels;
+		default:
+			return null;
+		}
+	} catch( e ) {
+		return null;
+	}
+};
+thx.color._CMYK.CMYK_Impl_.fromFloats = function(cyan,magenta,yellow,black) {
+	return [cyan < 0?0:cyan > 1?1:cyan,magenta < 0?0:magenta > 1?1:magenta,yellow < 0?0:yellow > 1?1:yellow,black < 0?0:black > 1?1:black];
+};
+thx.color._CMYK.CMYK_Impl_._new = function(channels) {
+	return channels;
+};
+thx.color._CMYK.CMYK_Impl_.toGrey = function(this1) {
+	var this2;
+	var channels = [thx.core.Floats.normalize(1 - this1[0] - this1[3]),thx.core.Floats.normalize(1 - this1[1] - this1[3]),thx.core.Floats.normalize(1 - this1[2] - this1[3])];
+	this2 = channels;
+	var grey = this2[0] * .2126 + this2[1] * .7152 + this2[2] * .0722;
+	var this3;
+	if(grey < 0) this3 = 0; else if(grey > 1) this3 = 1; else this3 = grey;
+	return this3;
+};
+thx.color._CMYK.CMYK_Impl_.toHSL = function(this1) {
+	return thx.color._RGBX.RGBX_Impl_.toHSL((function($this) {
+		var $r;
+		var channels = [thx.core.Floats.normalize(1 - this1[0] - this1[3]),thx.core.Floats.normalize(1 - this1[1] - this1[3]),thx.core.Floats.normalize(1 - this1[2] - this1[3])];
+		$r = channels;
+		return $r;
+	}(this)));
+};
+thx.color._CMYK.CMYK_Impl_.toHSV = function(this1) {
+	return thx.color._RGBX.RGBX_Impl_.toHSV((function($this) {
+		var $r;
+		var channels = [thx.core.Floats.normalize(1 - this1[0] - this1[3]),thx.core.Floats.normalize(1 - this1[1] - this1[3]),thx.core.Floats.normalize(1 - this1[2] - this1[3])];
+		$r = channels;
+		return $r;
+	}(this)));
+};
+thx.color._CMYK.CMYK_Impl_.toRGB = function(this1) {
+	var this2;
+	var channels = [thx.core.Floats.normalize(1 - this1[0] - this1[3]),thx.core.Floats.normalize(1 - this1[1] - this1[3]),thx.core.Floats.normalize(1 - this1[2] - this1[3])];
+	this2 = channels;
+	return thx.color._RGB.RGB_Impl_.fromFloats(this2[0],this2[1],this2[2]);
+};
+thx.color._CMYK.CMYK_Impl_.toRGBX = function(this1) {
+	var channels = [thx.core.Floats.normalize(1 - this1[0] - this1[3]),thx.core.Floats.normalize(1 - this1[1] - this1[3]),thx.core.Floats.normalize(1 - this1[2] - this1[3])];
+	return channels;
+};
+thx.color._CMYK.CMYK_Impl_.toRGBXA = function(this1) {
+	var this2;
+	var channels = [thx.core.Floats.normalize(1 - this1[0] - this1[3]),thx.core.Floats.normalize(1 - this1[1] - this1[3]),thx.core.Floats.normalize(1 - this1[2] - this1[3])];
+	this2 = channels;
+	var channels1 = this2.concat([1.0]);
+	return channels1;
+};
+thx.color._CMYK.CMYK_Impl_.toString = function(this1) {
+	return "cmyk(" + this1[0] + "," + this1[1] + "," + this1[2] + "," + this1[3] + ")";
+};
+thx.color._CMYK.CMYK_Impl_.equals = function(this1,other) {
+	return this1[0] == other[0] && this1[1] == other[1] && this1[2] == other[2] && this1[3] == other[3];
+};
+thx.color._CMYK.CMYK_Impl_.darker = function(this1,t) {
+	var channels = [this1[0],this1[1],this1[2],thx.core.Floats.interpolate(t,this1[3],1)];
+	return channels;
+};
+thx.color._CMYK.CMYK_Impl_.lighter = function(this1,t) {
+	var channels = [this1[0],this1[1],this1[2],thx.core.Floats.interpolate(t,this1[3],0)];
+	return channels;
+};
+thx.color._CMYK.CMYK_Impl_.interpolate = function(this1,other,t) {
+	var channels = [thx.core.Floats.interpolate(t,this1[0],other[0]),thx.core.Floats.interpolate(t,this1[1],other[1]),thx.core.Floats.interpolate(t,this1[2],other[2]),thx.core.Floats.interpolate(t,this1[3],other[3])];
+	return channels;
+};
+thx.color._CMYK.CMYK_Impl_.get_black = function(this1) {
+	return this1[3];
+};
+thx.color._CMYK.CMYK_Impl_.get_cyan = function(this1) {
+	return this1[0];
+};
+thx.color._CMYK.CMYK_Impl_.get_magenta = function(this1) {
+	return this1[1];
+};
+thx.color._CMYK.CMYK_Impl_.get_yellow = function(this1) {
+	return this1[2];
+};
+thx.color._Grey = {};
+thx.color._Grey.Grey_Impl_ = {};
+thx.color._Grey.Grey_Impl_.__name__ = ["thx","color","_Grey","Grey_Impl_"];
+thx.color._Grey.Grey_Impl_.fromString = function(color) {
+	var info = thx.color.parse.ColorParser.parseColor(color);
+	if(null == info) return null;
+	try {
+		var _g = info.name;
+		switch(_g) {
+		case "grey":case "gray":
+			var grey = thx.color.parse.ColorParser.getFloatChannels(info.channels,1)[0];
+			var this1;
+			if(grey < 0) this1 = 0; else if(grey > 1) this1 = 1; else this1 = grey;
+			return this1;
+		default:
+			return null;
+		}
+	} catch( e ) {
+		return null;
+	}
+};
+thx.color._Grey.Grey_Impl_._new = function(grey) {
+	var this1;
+	if(grey < 0) this1 = 0; else if(grey > 1) this1 = 1; else this1 = grey;
+	return this1;
+};
+thx.color._Grey.Grey_Impl_.toCMYK = function(this1) {
+	return thx.color._RGBX.RGBX_Impl_.toCMYK([this1,this1,this1]);
+};
+thx.color._Grey.Grey_Impl_.toHSL = function(this1) {
+	return thx.color._RGBX.RGBX_Impl_.toHSL([this1,this1,this1]);
+};
+thx.color._Grey.Grey_Impl_.toHSV = function(this1) {
+	return thx.color._RGBX.RGBX_Impl_.toHSV([this1,this1,this1]);
+};
+thx.color._Grey.Grey_Impl_.toRGB = function(this1) {
+	var this_0 = this1;
+	var this_1 = this1;
+	var this_2 = this1;
+	return thx.color._RGB.RGB_Impl_.fromFloats(this_0,this_1,this_2);
+};
+thx.color._Grey.Grey_Impl_.toRGBX = function(this1) {
+	return [this1,this1,this1];
+};
+thx.color._Grey.Grey_Impl_.toRGBXA = function(this1) {
+	var channels = [this1,this1,this1].concat([1.0]);
+	return channels;
+};
+thx.color._Grey.Grey_Impl_.equals = function(this1,other) {
+	return this1 == other;
+};
+thx.color._Grey.Grey_Impl_.contrast = function(this1) {
+	if(this1 > 0.5) return thx.color._Grey.Grey_Impl_.black; else return thx.color._Grey.Grey_Impl_.white;
+};
+thx.color._Grey.Grey_Impl_.darker = function(color,t) {
+	var grey = thx.core.Floats.interpolate(t,color,0);
+	var this1;
+	if(grey < 0) this1 = 0; else if(grey > 1) this1 = 1; else this1 = grey;
+	return this1;
+};
+thx.color._Grey.Grey_Impl_.lighter = function(color,t) {
+	var grey = thx.core.Floats.interpolate(t,color,1);
+	var this1;
+	if(grey < 0) this1 = 0; else if(grey > 1) this1 = 1; else this1 = grey;
+	return this1;
+};
+thx.color._Grey.Grey_Impl_.interpolate = function(a,b,t) {
+	var grey = thx.core.Floats.interpolate(t,a,b);
+	var this1;
+	if(grey < 0) this1 = 0; else if(grey > 1) this1 = 1; else this1 = grey;
+	return this1;
+};
+thx.color._Grey.Grey_Impl_.get_grey = function(this1) {
+	return this1;
+};
+thx.color._Grey.Grey_Impl_.toString = function(this1) {
+	return "grey(" + this1 * 100 + "%)";
+};
+thx.color._HSL = {};
+thx.color._HSL.HSL_Impl_ = {};
+thx.color._HSL.HSL_Impl_.__name__ = ["thx","color","_HSL","HSL_Impl_"];
+thx.color._HSL.HSL_Impl_.fromString = function(color) {
+	var info = thx.color.parse.ColorParser.parseColor(color);
+	if(null == info) return null;
+	try {
+		var _g = info.name;
+		switch(_g) {
+		case "hsl":
+			var channels = thx.color.parse.ColorParser.getFloatChannels(info.channels,3);
+			return channels;
+		default:
+			return null;
+		}
+	} catch( e ) {
+		return null;
+	}
+};
+thx.color._HSL.HSL_Impl_.fromFloats = function(hue,saturation,lightness) {
+	return [hue,saturation,lightness];
+};
+thx.color._HSL.HSL_Impl_._new = function(channels) {
+	return channels;
+};
+thx.color._HSL.HSL_Impl_.toCMYK = function(this1) {
+	return thx.color._RGBX.RGBX_Impl_.toCMYK((function($this) {
+		var $r;
+		var channels = [thx.color._HSL.HSL_Impl_._c(this1[0] + 120,this1[1],this1[2]),thx.color._HSL.HSL_Impl_._c(this1[0],this1[1],this1[2]),thx.color._HSL.HSL_Impl_._c(this1[0] - 120,this1[1],this1[2])];
+		$r = channels;
+		return $r;
+	}(this)));
+};
+thx.color._HSL.HSL_Impl_.toGrey = function(this1) {
+	var this2;
+	var channels = [thx.color._HSL.HSL_Impl_._c(this1[0] + 120,this1[1],this1[2]),thx.color._HSL.HSL_Impl_._c(this1[0],this1[1],this1[2]),thx.color._HSL.HSL_Impl_._c(this1[0] - 120,this1[1],this1[2])];
+	this2 = channels;
+	var grey = this2[0] * .2126 + this2[1] * .7152 + this2[2] * .0722;
+	var this3;
+	if(grey < 0) this3 = 0; else if(grey > 1) this3 = 1; else this3 = grey;
+	return this3;
+};
+thx.color._HSL.HSL_Impl_.toHSV = function(this1) {
+	return thx.color._RGBX.RGBX_Impl_.toHSV((function($this) {
+		var $r;
+		var channels = [thx.color._HSL.HSL_Impl_._c(this1[0] + 120,this1[1],this1[2]),thx.color._HSL.HSL_Impl_._c(this1[0],this1[1],this1[2]),thx.color._HSL.HSL_Impl_._c(this1[0] - 120,this1[1],this1[2])];
+		$r = channels;
+		return $r;
+	}(this)));
+};
+thx.color._HSL.HSL_Impl_.toRGB = function(this1) {
+	var this2;
+	var channels = [thx.color._HSL.HSL_Impl_._c(this1[0] + 120,this1[1],this1[2]),thx.color._HSL.HSL_Impl_._c(this1[0],this1[1],this1[2]),thx.color._HSL.HSL_Impl_._c(this1[0] - 120,this1[1],this1[2])];
+	this2 = channels;
+	return thx.color._RGB.RGB_Impl_.fromFloats(this2[0],this2[1],this2[2]);
+};
+thx.color._HSL.HSL_Impl_.toRGBX = function(this1) {
+	var channels = [thx.color._HSL.HSL_Impl_._c(this1[0] + 120,this1[1],this1[2]),thx.color._HSL.HSL_Impl_._c(this1[0],this1[1],this1[2]),thx.color._HSL.HSL_Impl_._c(this1[0] - 120,this1[1],this1[2])];
+	return channels;
+};
+thx.color._HSL.HSL_Impl_.toRGBXA = function(this1) {
+	var this2;
+	var channels = [thx.color._HSL.HSL_Impl_._c(this1[0] + 120,this1[1],this1[2]),thx.color._HSL.HSL_Impl_._c(this1[0],this1[1],this1[2]),thx.color._HSL.HSL_Impl_._c(this1[0] - 120,this1[1],this1[2])];
+	this2 = channels;
+	var channels1 = this2.concat([1.0]);
+	return channels1;
+};
+thx.color._HSL.HSL_Impl_.toHSLA = function(this1) {
+	var channels = this1.concat([1.0]);
+	return channels;
+};
+thx.color._HSL.HSL_Impl_.withAlpha = function(this1,alpha) {
+	var channels = this1.concat([alpha]);
+	return channels;
+};
+thx.color._HSL.HSL_Impl_.toCSS3 = function(this1) {
+	return "hsl(" + this1[0] + "," + this1[1] * 100 + "%," + this1[2] * 100 + "%)";
+};
+thx.color._HSL.HSL_Impl_.toString = function(this1) {
+	return "hsl(" + this1[0] + "," + this1[1] * 100 + "%," + this1[2] * 100 + "%)";
+};
+thx.color._HSL.HSL_Impl_.equals = function(this1,other) {
+	return this1[0] == other[0] && this1[1] == other[1] && this1[2] == other[2];
+};
+thx.color._HSL.HSL_Impl_.darker = function(this1,t) {
+	var channels = [this1[0],this1[1],thx.core.Floats.interpolate(t,this1[2],0)];
+	return channels;
+};
+thx.color._HSL.HSL_Impl_.lighter = function(this1,t) {
+	var channels = [this1[0],this1[1],thx.core.Floats.interpolate(t,this1[2],1)];
+	return channels;
+};
+thx.color._HSL.HSL_Impl_.interpolate = function(this1,other,t) {
+	var channels = [thx.core.Floats.interpolate(t,this1[0],other[0]),thx.core.Floats.interpolate(t,this1[1],other[1]),thx.core.Floats.interpolate(t,this1[2],other[2])];
+	return channels;
+};
+thx.color._HSL.HSL_Impl_.get_hue = function(this1) {
+	return this1[0];
+};
+thx.color._HSL.HSL_Impl_.get_huef = function(this1) {
+	return this1[0];
+};
+thx.color._HSL.HSL_Impl_.get_saturation = function(this1) {
+	return this1[1];
+};
+thx.color._HSL.HSL_Impl_.get_lightness = function(this1) {
+	return this1[2];
+};
+thx.color._HSL.HSL_Impl_._c = function(d,s,l) {
+	var m2;
+	if(l <= 0.5) m2 = l * (1 + s); else m2 = l + s - l * s;
+	var m1 = 2 * l - m2;
+	d = thx.core.Floats.wrapCircular(d,360);
+	if(d < 60) return m1 + (m2 - m1) * d / 60; else if(d < 180) return m2; else if(d < 240) return m1 + (m2 - m1) * (240 - d) / 60; else return m1;
+};
+thx.color._HSLA = {};
+thx.color._HSLA.HSLA_Impl_ = {};
+thx.color._HSLA.HSLA_Impl_.__name__ = ["thx","color","_HSLA","HSLA_Impl_"];
+thx.color._HSLA.HSLA_Impl_.fromString = function(color) {
+	var info = thx.color.parse.ColorParser.parseColor(color);
+	if(null == info) return null;
+	try {
+		var _g = info.name;
+		switch(_g) {
+		case "hsl":
+			var this1;
+			var channels = thx.color.parse.ColorParser.getFloatChannels(info.channels,3);
+			this1 = channels;
+			var channels1 = this1.concat([1.0]);
+			return channels1;
+		case "hsla":
+			var channels2 = thx.color.parse.ColorParser.getFloatChannels(info.channels,4);
+			return channels2;
+		default:
+			return null;
+		}
+	} catch( e ) {
+		return null;
+	}
+};
+thx.color._HSLA.HSLA_Impl_.fromFloats = function(hue,saturation,lightness,alpha) {
+	return [hue,saturation,lightness,alpha];
+};
+thx.color._HSLA.HSLA_Impl_._new = function(channels) {
+	return channels;
+};
+thx.color._HSLA.HSLA_Impl_.toHSL = function(this1) {
+	var channels = this1.slice(0,3);
+	return channels;
+};
+thx.color._HSLA.HSLA_Impl_.toHSVA = function(this1) {
+	return thx.color._RGBXA.RGBXA_Impl_.toHSVA((function($this) {
+		var $r;
+		var channels = [thx.color._HSLA.HSLA_Impl_._c(this1[0] + 120,this1[1],this1[2]),thx.color._HSLA.HSLA_Impl_._c(this1[0],this1[1],this1[2]),thx.color._HSLA.HSLA_Impl_._c(this1[0] - 120,this1[1],this1[2]),this1[3]];
+		$r = channels;
+		return $r;
+	}(this)));
+};
+thx.color._HSLA.HSLA_Impl_.toRGB = function(this1) {
+	var this2;
+	var channels = [thx.color._HSLA.HSLA_Impl_._c(this1[0] + 120,this1[1],this1[2]),thx.color._HSLA.HSLA_Impl_._c(this1[0],this1[1],this1[2]),thx.color._HSLA.HSLA_Impl_._c(this1[0] - 120,this1[1],this1[2]),this1[3]];
+	this2 = channels;
+	var this3;
+	var channels1 = this2.slice(0,3);
+	this3 = channels1;
+	return thx.color._RGB.RGB_Impl_.fromFloats(this3[0],this3[1],this3[2]);
+};
+thx.color._HSLA.HSLA_Impl_.toRGBXA = function(this1) {
+	var channels = [thx.color._HSLA.HSLA_Impl_._c(this1[0] + 120,this1[1],this1[2]),thx.color._HSLA.HSLA_Impl_._c(this1[0],this1[1],this1[2]),thx.color._HSLA.HSLA_Impl_._c(this1[0] - 120,this1[1],this1[2]),this1[3]];
+	return channels;
+};
+thx.color._HSLA.HSLA_Impl_.toCSS3 = function(this1) {
+	return "hsla(" + this1[0] + "," + this1[1] * 100 + "%," + this1[2] * 100 + "%," + this1[3] + ")";
+};
+thx.color._HSLA.HSLA_Impl_.toString = function(this1) {
+	return "hsla(" + this1[0] + "," + this1[1] * 100 + "%," + this1[2] * 100 + "%," + this1[3] + ")";
+};
+thx.color._HSLA.HSLA_Impl_.equals = function(this1,other) {
+	return this1[0] == other[0] && this1[1] == other[1] && this1[2] == other[2] && this1[3] == other[3];
+};
+thx.color._HSLA.HSLA_Impl_.darker = function(this1,t) {
+	var channels = [this1[0],this1[1],thx.core.Floats.interpolate(t,this1[2],0),this1[3]];
+	return channels;
+};
+thx.color._HSLA.HSLA_Impl_.lighter = function(this1,t) {
+	var channels = [this1[0],this1[1],thx.core.Floats.interpolate(t,this1[2],1),this1[3]];
+	return channels;
+};
+thx.color._HSLA.HSLA_Impl_.transparent = function(this1,t) {
+	var channels = [this1[0],this1[1],this1[2],thx.core.Floats.interpolate(t,this1[3],0)];
+	return channels;
+};
+thx.color._HSLA.HSLA_Impl_.opaque = function(this1,t) {
+	var channels = [this1[0],this1[1],this1[2],thx.core.Floats.interpolate(t,this1[3],1)];
+	return channels;
+};
+thx.color._HSLA.HSLA_Impl_.interpolate = function(this1,other,t) {
+	var channels = [thx.core.Floats.interpolate(t,this1[0],other[0]),thx.core.Floats.interpolate(t,this1[1],other[1]),thx.core.Floats.interpolate(t,this1[2],other[2]),thx.core.Floats.interpolate(t,this1[3],other[3])];
+	return channels;
+};
+thx.color._HSLA.HSLA_Impl_.get_hue = function(this1) {
+	return this1[0];
+};
+thx.color._HSLA.HSLA_Impl_.get_huef = function(this1) {
+	return this1[0];
+};
+thx.color._HSLA.HSLA_Impl_.get_saturation = function(this1) {
+	return this1[1];
+};
+thx.color._HSLA.HSLA_Impl_.get_lightness = function(this1) {
+	return this1[2];
+};
+thx.color._HSLA.HSLA_Impl_.get_alpha = function(this1) {
+	return this1[3];
+};
+thx.color._HSLA.HSLA_Impl_._c = function(d,s,l) {
+	var m2;
+	if(l <= 0.5) m2 = l * (1 + s); else m2 = l + s - l * s;
+	var m1 = 2 * l - m2;
+	d = thx.core.Floats.wrapCircular(d,360);
+	if(d < 60) return m1 + (m2 - m1) * d / 60; else if(d < 180) return m2; else if(d < 240) return m1 + (m2 - m1) * (240 - d) / 60; else return m1;
+};
+thx.color._HSV = {};
+thx.color._HSV.HSV_Impl_ = {};
+thx.color._HSV.HSV_Impl_.__name__ = ["thx","color","_HSV","HSV_Impl_"];
+thx.color._HSV.HSV_Impl_.fromString = function(color) {
+	var info = thx.color.parse.ColorParser.parseColor(color);
+	if(null == info) return null;
+	try {
+		var _g = info.name;
+		switch(_g) {
+		case "hsv":
+			var channels = thx.color.parse.ColorParser.getFloatChannels(info.channels,3);
+			return channels;
+		default:
+			return null;
+		}
+	} catch( e ) {
+		return null;
+	}
+};
+thx.color._HSV.HSV_Impl_.fromFloats = function(hue,saturation,value) {
+	return [hue,saturation,value];
+};
+thx.color._HSV.HSV_Impl_._new = function(channels) {
+	return channels;
+};
+thx.color._HSV.HSV_Impl_.toCMYK = function(this1) {
+	return thx.color._RGBX.RGBX_Impl_.toCMYK(this1[1] == 0?[this1[2],this1[2],this1[2]]:(function($this) {
+		var $r;
+		var r;
+		var g;
+		var b;
+		var i;
+		var f;
+		var p;
+		var q;
+		var t;
+		var h = this1[0] / 60;
+		i = Math.floor(h);
+		f = h - i;
+		p = this1[2] * (1 - this1[1]);
+		q = this1[2] * (1 - f * this1[1]);
+		t = this1[2] * (1 - (1 - f) * this1[1]);
+		switch(i) {
+		case 0:
+			r = this1[2];
+			g = t;
+			b = p;
+			break;
+		case 1:
+			r = q;
+			g = this1[2];
+			b = p;
+			break;
+		case 2:
+			r = p;
+			g = this1[2];
+			b = t;
+			break;
+		case 3:
+			r = p;
+			g = q;
+			b = this1[2];
+			break;
+		case 4:
+			r = t;
+			g = p;
+			b = this1[2];
+			break;
+		default:
+			r = this1[2];
+			g = p;
+			b = q;
+		}
+		$r = [r,g,b];
+		return $r;
+	}(this)));
+};
+thx.color._HSV.HSV_Impl_.toGrey = function(this1) {
+	var this2;
+	if(this1[1] == 0) this2 = [this1[2],this1[2],this1[2]]; else {
+		var r;
+		var g;
+		var b;
+		var i;
+		var f;
+		var p;
+		var q;
+		var t;
+		var h = this1[0] / 60;
+		i = Math.floor(h);
+		f = h - i;
+		p = this1[2] * (1 - this1[1]);
+		q = this1[2] * (1 - f * this1[1]);
+		t = this1[2] * (1 - (1 - f) * this1[1]);
+		switch(i) {
+		case 0:
+			r = this1[2];
+			g = t;
+			b = p;
+			break;
+		case 1:
+			r = q;
+			g = this1[2];
+			b = p;
+			break;
+		case 2:
+			r = p;
+			g = this1[2];
+			b = t;
+			break;
+		case 3:
+			r = p;
+			g = q;
+			b = this1[2];
+			break;
+		case 4:
+			r = t;
+			g = p;
+			b = this1[2];
+			break;
+		default:
+			r = this1[2];
+			g = p;
+			b = q;
+		}
+		this2 = [r,g,b];
+	}
+	var grey = this2[0] * .2126 + this2[1] * .7152 + this2[2] * .0722;
+	var this3;
+	if(grey < 0) this3 = 0; else if(grey > 1) this3 = 1; else this3 = grey;
+	return this3;
+};
+thx.color._HSV.HSV_Impl_.toHSL = function(this1) {
+	return thx.color._RGBX.RGBX_Impl_.toHSL(this1[1] == 0?[this1[2],this1[2],this1[2]]:(function($this) {
+		var $r;
+		var r;
+		var g;
+		var b;
+		var i;
+		var f;
+		var p;
+		var q;
+		var t;
+		var h = this1[0] / 60;
+		i = Math.floor(h);
+		f = h - i;
+		p = this1[2] * (1 - this1[1]);
+		q = this1[2] * (1 - f * this1[1]);
+		t = this1[2] * (1 - (1 - f) * this1[1]);
+		switch(i) {
+		case 0:
+			r = this1[2];
+			g = t;
+			b = p;
+			break;
+		case 1:
+			r = q;
+			g = this1[2];
+			b = p;
+			break;
+		case 2:
+			r = p;
+			g = this1[2];
+			b = t;
+			break;
+		case 3:
+			r = p;
+			g = q;
+			b = this1[2];
+			break;
+		case 4:
+			r = t;
+			g = p;
+			b = this1[2];
+			break;
+		default:
+			r = this1[2];
+			g = p;
+			b = q;
+		}
+		$r = [r,g,b];
+		return $r;
+	}(this)));
+};
+thx.color._HSV.HSV_Impl_.toRGB = function(this1) {
+	var this2;
+	if(this1[1] == 0) this2 = [this1[2],this1[2],this1[2]]; else {
+		var r;
+		var g;
+		var b;
+		var i;
+		var f;
+		var p;
+		var q;
+		var t;
+		var h = this1[0] / 60;
+		i = Math.floor(h);
+		f = h - i;
+		p = this1[2] * (1 - this1[1]);
+		q = this1[2] * (1 - f * this1[1]);
+		t = this1[2] * (1 - (1 - f) * this1[1]);
+		switch(i) {
+		case 0:
+			r = this1[2];
+			g = t;
+			b = p;
+			break;
+		case 1:
+			r = q;
+			g = this1[2];
+			b = p;
+			break;
+		case 2:
+			r = p;
+			g = this1[2];
+			b = t;
+			break;
+		case 3:
+			r = p;
+			g = q;
+			b = this1[2];
+			break;
+		case 4:
+			r = t;
+			g = p;
+			b = this1[2];
+			break;
+		default:
+			r = this1[2];
+			g = p;
+			b = q;
+		}
+		this2 = [r,g,b];
+	}
+	return thx.color._RGB.RGB_Impl_.fromFloats(this2[0],this2[1],this2[2]);
+};
+thx.color._HSV.HSV_Impl_.toRGBX = function(this1) {
+	if(this1[1] == 0) return [this1[2],this1[2],this1[2]];
+	var r;
+	var g;
+	var b;
+	var i;
+	var f;
+	var p;
+	var q;
+	var t;
+	var h = this1[0] / 60;
+	i = Math.floor(h);
+	f = h - i;
+	p = this1[2] * (1 - this1[1]);
+	q = this1[2] * (1 - f * this1[1]);
+	t = this1[2] * (1 - (1 - f) * this1[1]);
+	switch(i) {
+	case 0:
+		r = this1[2];
+		g = t;
+		b = p;
+		break;
+	case 1:
+		r = q;
+		g = this1[2];
+		b = p;
+		break;
+	case 2:
+		r = p;
+		g = this1[2];
+		b = t;
+		break;
+	case 3:
+		r = p;
+		g = q;
+		b = this1[2];
+		break;
+	case 4:
+		r = t;
+		g = p;
+		b = this1[2];
+		break;
+	default:
+		r = this1[2];
+		g = p;
+		b = q;
+	}
+	return [r,g,b];
+};
+thx.color._HSV.HSV_Impl_.toRGBXA = function(this1) {
+	var this2;
+	if(this1[1] == 0) this2 = [this1[2],this1[2],this1[2]]; else {
+		var r;
+		var g;
+		var b;
+		var i;
+		var f;
+		var p;
+		var q;
+		var t;
+		var h = this1[0] / 60;
+		i = Math.floor(h);
+		f = h - i;
+		p = this1[2] * (1 - this1[1]);
+		q = this1[2] * (1 - f * this1[1]);
+		t = this1[2] * (1 - (1 - f) * this1[1]);
+		switch(i) {
+		case 0:
+			r = this1[2];
+			g = t;
+			b = p;
+			break;
+		case 1:
+			r = q;
+			g = this1[2];
+			b = p;
+			break;
+		case 2:
+			r = p;
+			g = this1[2];
+			b = t;
+			break;
+		case 3:
+			r = p;
+			g = q;
+			b = this1[2];
+			break;
+		case 4:
+			r = t;
+			g = p;
+			b = this1[2];
+			break;
+		default:
+			r = this1[2];
+			g = p;
+			b = q;
+		}
+		this2 = [r,g,b];
+	}
+	var channels = this2.concat([1.0]);
+	return channels;
+};
+thx.color._HSV.HSV_Impl_.toHSVA = function(this1) {
+	var channels = this1.concat([1.0]);
+	return channels;
+};
+thx.color._HSV.HSV_Impl_.withAlpha = function(this1,alpha) {
+	var channels = this1.concat([alpha]);
+	return channels;
+};
+thx.color._HSV.HSV_Impl_.toString = function(this1) {
+	return "hsv(" + this1[0] + "," + this1[1] * 100 + "%," + this1[2] * 100 + "%)";
+};
+thx.color._HSV.HSV_Impl_.equals = function(this1,other) {
+	return this1[0] == other[0] && this1[1] == other[1] && this1[2] == other[2];
+};
+thx.color._HSV.HSV_Impl_.darker = function(this1,t) {
+	var channels = [this1[0],this1[1],thx.core.Floats.interpolate(t,this1[2],0)];
+	return channels;
+};
+thx.color._HSV.HSV_Impl_.lighter = function(this1,t) {
+	var channels = [this1[0],this1[1],thx.core.Floats.interpolate(t,this1[2],1)];
+	return channels;
+};
+thx.color._HSV.HSV_Impl_.interpolate = function(this1,other,t) {
+	var channels = [thx.core.Floats.interpolate(t,this1[0],other[0]),thx.core.Floats.interpolate(t,this1[1],other[1]),thx.core.Floats.interpolate(t,this1[2],other[2])];
+	return channels;
+};
+thx.color._HSV.HSV_Impl_.get_hue = function(this1) {
+	return this1[0];
+};
+thx.color._HSV.HSV_Impl_.get_huef = function(this1) {
+	return this1[0];
+};
+thx.color._HSV.HSV_Impl_.get_saturation = function(this1) {
+	return this1[1];
+};
+thx.color._HSV.HSV_Impl_.get_value = function(this1) {
+	return this1[2];
+};
+thx.color._HSVA = {};
+thx.color._HSVA.HSVA_Impl_ = {};
+thx.color._HSVA.HSVA_Impl_.__name__ = ["thx","color","_HSVA","HSVA_Impl_"];
+thx.color._HSVA.HSVA_Impl_.fromString = function(color) {
+	var info = thx.color.parse.ColorParser.parseColor(color);
+	if(null == info) return null;
+	try {
+		var _g = info.name;
+		switch(_g) {
+		case "hsv":
+			var this1;
+			var channels = thx.color.parse.ColorParser.getFloatChannels(info.channels,3);
+			this1 = channels;
+			var channels1 = this1.concat([1.0]);
+			return channels1;
+		case "hsva":
+			var channels2 = thx.color.parse.ColorParser.getFloatChannels(info.channels,4);
+			return channels2;
+		default:
+			return null;
+		}
+	} catch( e ) {
+		return null;
+	}
+};
+thx.color._HSVA.HSVA_Impl_.fromFloats = function(hue,saturation,value,alpha) {
+	return [hue,saturation,value,alpha];
+};
+thx.color._HSVA.HSVA_Impl_._new = function(channels) {
+	return channels;
+};
+thx.color._HSVA.HSVA_Impl_.toHSV = function(this1) {
+	var channels = this1.slice(0,3);
+	return channels;
+};
+thx.color._HSVA.HSVA_Impl_.toHSLA = function(this1) {
+	return thx.color._RGBXA.RGBXA_Impl_.toHSLA(this1[1] == 0?[this1[2],this1[2],this1[2],this1[3]]:(function($this) {
+		var $r;
+		var r;
+		var g;
+		var b;
+		var i;
+		var f;
+		var p;
+		var q;
+		var t;
+		var h = this1[0] / 60;
+		i = Math.floor(h);
+		f = h - i;
+		p = this1[2] * (1 - this1[1]);
+		q = this1[2] * (1 - f * this1[1]);
+		t = this1[2] * (1 - (1 - f) * this1[1]);
+		switch(i) {
+		case 0:
+			r = this1[2];
+			g = t;
+			b = p;
+			break;
+		case 1:
+			r = q;
+			g = this1[2];
+			b = p;
+			break;
+		case 2:
+			r = p;
+			g = this1[2];
+			b = t;
+			break;
+		case 3:
+			r = p;
+			g = q;
+			b = this1[2];
+			break;
+		case 4:
+			r = t;
+			g = p;
+			b = this1[2];
+			break;
+		default:
+			r = this1[2];
+			g = p;
+			b = q;
+		}
+		$r = [r,g,b,this1[3]];
+		return $r;
+	}(this)));
+};
+thx.color._HSVA.HSVA_Impl_.toRGB = function(this1) {
+	var this2;
+	if(this1[1] == 0) this2 = [this1[2],this1[2],this1[2],this1[3]]; else {
+		var r;
+		var g;
+		var b;
+		var i;
+		var f;
+		var p;
+		var q;
+		var t;
+		var h = this1[0] / 60;
+		i = Math.floor(h);
+		f = h - i;
+		p = this1[2] * (1 - this1[1]);
+		q = this1[2] * (1 - f * this1[1]);
+		t = this1[2] * (1 - (1 - f) * this1[1]);
+		switch(i) {
+		case 0:
+			r = this1[2];
+			g = t;
+			b = p;
+			break;
+		case 1:
+			r = q;
+			g = this1[2];
+			b = p;
+			break;
+		case 2:
+			r = p;
+			g = this1[2];
+			b = t;
+			break;
+		case 3:
+			r = p;
+			g = q;
+			b = this1[2];
+			break;
+		case 4:
+			r = t;
+			g = p;
+			b = this1[2];
+			break;
+		default:
+			r = this1[2];
+			g = p;
+			b = q;
+		}
+		this2 = [r,g,b,this1[3]];
+	}
+	var this3;
+	var channels = this2.slice(0,3);
+	this3 = channels;
+	return thx.color._RGB.RGB_Impl_.fromFloats(this3[0],this3[1],this3[2]);
+};
+thx.color._HSVA.HSVA_Impl_.toRGBXA = function(this1) {
+	if(this1[1] == 0) return [this1[2],this1[2],this1[2],this1[3]];
+	var r;
+	var g;
+	var b;
+	var i;
+	var f;
+	var p;
+	var q;
+	var t;
+	var h = this1[0] / 60;
+	i = Math.floor(h);
+	f = h - i;
+	p = this1[2] * (1 - this1[1]);
+	q = this1[2] * (1 - f * this1[1]);
+	t = this1[2] * (1 - (1 - f) * this1[1]);
+	switch(i) {
+	case 0:
+		r = this1[2];
+		g = t;
+		b = p;
+		break;
+	case 1:
+		r = q;
+		g = this1[2];
+		b = p;
+		break;
+	case 2:
+		r = p;
+		g = this1[2];
+		b = t;
+		break;
+	case 3:
+		r = p;
+		g = q;
+		b = this1[2];
+		break;
+	case 4:
+		r = t;
+		g = p;
+		b = this1[2];
+		break;
+	default:
+		r = this1[2];
+		g = p;
+		b = q;
+	}
+	return [r,g,b,this1[3]];
+};
+thx.color._HSVA.HSVA_Impl_.toString = function(this1) {
+	return "hsva(" + this1[0] + "," + this1[1] * 100 + "%," + this1[2] * 100 + "%," + this1[3] + ")";
+};
+thx.color._HSVA.HSVA_Impl_.equals = function(this1,other) {
+	return this1[0] == other[0] && this1[1] == other[1] && this1[2] == other[2] && this1[3] == other[3];
+};
+thx.color._HSVA.HSVA_Impl_.darker = function(this1,t) {
+	var channels = [this1[0],this1[1],thx.core.Floats.interpolate(t,this1[2],0),this1[3]];
+	return channels;
+};
+thx.color._HSVA.HSVA_Impl_.lighter = function(this1,t) {
+	var channels = [this1[0],this1[1],thx.core.Floats.interpolate(t,this1[2],1),this1[3]];
+	return channels;
+};
+thx.color._HSVA.HSVA_Impl_.transparent = function(this1,t) {
+	var channels = [this1[0],this1[1],this1[2],thx.core.Floats.interpolate(t,this1[3],0)];
+	return channels;
+};
+thx.color._HSVA.HSVA_Impl_.opaque = function(this1,t) {
+	var channels = [this1[0],this1[1],this1[2],thx.core.Floats.interpolate(t,this1[3],1)];
+	return channels;
+};
+thx.color._HSVA.HSVA_Impl_.interpolate = function(this1,other,t) {
+	var channels = [thx.core.Floats.interpolate(t,this1[0],other[0]),thx.core.Floats.interpolate(t,this1[1],other[1]),thx.core.Floats.interpolate(t,this1[2],other[2]),thx.core.Floats.interpolate(t,this1[3],other[3])];
+	return channels;
+};
+thx.color._HSVA.HSVA_Impl_.get_hue = function(this1) {
+	return this1[0];
+};
+thx.color._HSVA.HSVA_Impl_.get_huef = function(this1) {
+	return this1[0];
+};
+thx.color._HSVA.HSVA_Impl_.get_saturation = function(this1) {
+	return this1[1];
+};
+thx.color._HSVA.HSVA_Impl_.get_value = function(this1) {
+	return this1[2];
+};
+thx.color._HSVA.HSVA_Impl_.get_alpha = function(this1) {
+	return this1[3];
+};
+thx.color._RGB = {};
+thx.color._RGB.RGB_Impl_ = {};
+thx.color._RGB.RGB_Impl_.__name__ = ["thx","color","_RGB","RGB_Impl_"];
+thx.color._RGB.RGB_Impl_.fromString = function(color) {
+	var info = thx.color.parse.ColorParser.parseHex(color);
+	if(null == info) info = thx.color.parse.ColorParser.parseColor(color);
+	if(null == info) return null;
+	try {
+		var _g = info.name;
+		switch(_g) {
+		case "rgb":
+			var arr = thx.color.parse.ColorParser.getInt8Channels(info.channels,3);
+			return (arr[0] & 255) << 16 | (arr[1] & 255) << 8 | arr[2] & 255;
+		default:
+			return null;
+		}
+	} catch( e ) {
+		return null;
+	}
+};
+thx.color._RGB.RGB_Impl_.fromFloats = function(red,green,blue) {
+	var red1 = Math.round((red < 0?0:red > 1?1:red) * 255);
+	var green1 = Math.round((green < 0?0:green > 1?1:green) * 255);
+	var blue1 = Math.round((blue < 0?0:blue > 1?1:blue) * 255);
+	return (red1 & 255) << 16 | (green1 & 255) << 8 | blue1 & 255;
+};
+thx.color._RGB.RGB_Impl_.fromArray = function(arr) {
+	return (arr[0] & 255) << 16 | (arr[1] & 255) << 8 | arr[2] & 255;
+};
+thx.color._RGB.RGB_Impl_.fromInts = function(red,green,blue) {
+	return (red & 255) << 16 | (green & 255) << 8 | blue & 255;
+};
+thx.color._RGB.RGB_Impl_._new = function(rgb) {
+	return rgb;
+};
+thx.color._RGB.RGB_Impl_.toCMYK = function(this1) {
+	return thx.color._RGBX.RGBX_Impl_.toCMYK(thx.color._RGB.RGB_Impl_.toRGBX(this1));
+};
+thx.color._RGB.RGB_Impl_.toGrey = function(this1) {
+	var this2 = thx.color._RGB.RGB_Impl_.toRGBX(this1);
+	var grey = this2[0] * .2126 + this2[1] * .7152 + this2[2] * .0722;
+	var this3;
+	if(grey < 0) this3 = 0; else if(grey > 1) this3 = 1; else this3 = grey;
+	return this3;
+};
+thx.color._RGB.RGB_Impl_.toHSL = function(this1) {
+	return thx.color._RGBX.RGBX_Impl_.toHSL(thx.color._RGB.RGB_Impl_.toRGBX(this1));
+};
+thx.color._RGB.RGB_Impl_.toHSV = function(this1) {
+	return thx.color._RGBX.RGBX_Impl_.toHSV(thx.color._RGB.RGB_Impl_.toRGBX(this1));
+};
+thx.color._RGB.RGB_Impl_.toRGBX = function(this1) {
+	return [(this1 >> 16 & 255) / 255,(this1 >> 8 & 255) / 255,(this1 & 255) / 255];
+};
+thx.color._RGB.RGB_Impl_.toRGBA = function(this1) {
+	var this2 = thx.color._RGBA.RGBA_Impl_.toRGBXA(-16777216 | (this1 >> 16 & 255 & 255) << 16 | (this1 >> 8 & 255 & 255) << 8 | this1 & 255 & 255);
+	return thx.color._RGBA.RGBA_Impl_.fromFloats(this2[0],this2[1],this2[2],this2[3]);
+};
+thx.color._RGB.RGB_Impl_.toRGBXA = function(this1) {
+	return thx.color._RGBA.RGBA_Impl_.toRGBXA((function($this) {
+		var $r;
+		var this2 = thx.color._RGBA.RGBA_Impl_.toRGBXA(-16777216 | (this1 >> 16 & 255 & 255) << 16 | (this1 >> 8 & 255 & 255) << 8 | this1 & 255 & 255);
+		$r = thx.color._RGBA.RGBA_Impl_.fromFloats(this2[0],this2[1],this2[2],this2[3]);
+		return $r;
+	}(this)));
+};
+thx.color._RGB.RGB_Impl_.withAlpha = function(this1,alpha) {
+	return thx.color._RGBA.RGBA_Impl_.toRGBXA((alpha & 255) << 24 | (this1 >> 16 & 255 & 255) << 16 | (this1 >> 8 & 255 & 255) << 8 | this1 & 255 & 255);
+};
+thx.color._RGB.RGB_Impl_.toCSS3 = function(this1) {
+	return "rgb(" + (this1 >> 16 & 255) + "," + (this1 >> 8 & 255) + "," + (this1 & 255) + ")";
+};
+thx.color._RGB.RGB_Impl_.toString = function(this1) {
+	return "" + "#" + StringTools.hex(this1 >> 16 & 255,2) + StringTools.hex(this1 >> 8 & 255,2) + StringTools.hex(this1 & 255,2);
+};
+thx.color._RGB.RGB_Impl_.toHex = function(this1,prefix) {
+	if(prefix == null) prefix = "#";
+	return "" + prefix + StringTools.hex(this1 >> 16 & 255,2) + StringTools.hex(this1 >> 8 & 255,2) + StringTools.hex(this1 & 255,2);
+};
+thx.color._RGB.RGB_Impl_.equals = function(this1,other) {
+	return (this1 >> 16 & 255) == (other >> 16 & 255) && (this1 >> 8 & 255) == (other >> 8 & 255) && (this1 & 255) == (other & 255);
+};
+thx.color._RGB.RGB_Impl_.darker = function(this1,t) {
+	var this2 = thx.color._RGBX.RGBX_Impl_.darker(thx.color._RGB.RGB_Impl_.toRGBX(this1),t);
+	return thx.color._RGB.RGB_Impl_.fromFloats(this2[0],this2[1],this2[2]);
+};
+thx.color._RGB.RGB_Impl_.lighter = function(this1,t) {
+	var this2 = thx.color._RGBX.RGBX_Impl_.lighter(thx.color._RGB.RGB_Impl_.toRGBX(this1),t);
+	return thx.color._RGB.RGB_Impl_.fromFloats(this2[0],this2[1],this2[2]);
+};
+thx.color._RGB.RGB_Impl_.interpolate = function(this1,other,t) {
+	var this2 = thx.color._RGBX.RGBX_Impl_.interpolate(thx.color._RGB.RGB_Impl_.toRGBX(this1),thx.color._RGB.RGB_Impl_.toRGBX(other),t);
+	return thx.color._RGB.RGB_Impl_.fromFloats(this2[0],this2[1],this2[2]);
+};
+thx.color._RGB.RGB_Impl_.get_red = function(this1) {
+	return this1 >> 16 & 255;
+};
+thx.color._RGB.RGB_Impl_.get_green = function(this1) {
+	return this1 >> 8 & 255;
+};
+thx.color._RGB.RGB_Impl_.get_blue = function(this1) {
+	return this1 & 255;
+};
+thx.color._RGBA = {};
+thx.color._RGBA.RGBA_Impl_ = {};
+thx.color._RGBA.RGBA_Impl_.__name__ = ["thx","color","_RGBA","RGBA_Impl_"];
+thx.color._RGBA.RGBA_Impl_.fromString = function(color) {
+	var info = thx.color.parse.ColorParser.parseHex(color);
+	if(null == info) info = thx.color.parse.ColorParser.parseColor(color);
+	if(null == info) return null;
+	try {
+		var _g = info.name;
+		switch(_g) {
+		case "rgb":
+			var this1;
+			var arr = thx.color.parse.ColorParser.getInt8Channels(info.channels,3);
+			this1 = (arr[0] & 255) << 16 | (arr[1] & 255) << 8 | arr[2] & 255;
+			var this2 = thx.color._RGBA.RGBA_Impl_.toRGBXA(-16777216 | (this1 >> 16 & 255 & 255) << 16 | (this1 >> 8 & 255 & 255) << 8 | this1 & 255 & 255);
+			return thx.color._RGBA.RGBA_Impl_.fromFloats(this2[0],this2[1],this2[2],this2[3]);
+		case "rgba":
+			var arr_0 = thx.color.parse.ColorParser.getInt8Channel(info.channels[0]);
+			var arr_1 = thx.color.parse.ColorParser.getInt8Channel(info.channels[1]);
+			var arr_2 = thx.color.parse.ColorParser.getInt8Channel(info.channels[2]);
+			var arr_3 = Math.round(thx.color.parse.ColorParser.getFloatChannel(info.channels[3]) * 255);
+			return (arr_3 & 255) << 24 | (arr_0 & 255) << 16 | (arr_1 & 255) << 8 | arr_2 & 255;
+		default:
+			return null;
+		}
+	} catch( e ) {
+		return null;
+	}
+};
+thx.color._RGBA.RGBA_Impl_.fromArray = function(arr) {
+	return (arr[3] & 255) << 24 | (arr[0] & 255) << 16 | (arr[1] & 255) << 8 | arr[2] & 255;
+};
+thx.color._RGBA.RGBA_Impl_.fromFloats = function(red,green,blue,alpha) {
+	var red1 = Math.round((red < 0?0:red > 1?1:red) * 255);
+	var green1 = Math.round((green < 0?0:green > 1?1:green) * 255);
+	var blue1 = Math.round((blue < 0?0:blue > 1?1:blue) * 255);
+	var alpha1 = Math.round((alpha < 0?0:alpha > 1?1:alpha) * 255);
+	return (alpha1 & 255) << 24 | (red1 & 255) << 16 | (green1 & 255) << 8 | blue1 & 255;
+};
+thx.color._RGBA.RGBA_Impl_.fromInts = function(red,green,blue,alpha) {
+	return (alpha & 255) << 24 | (red & 255) << 16 | (green & 255) << 8 | blue & 255;
+};
+thx.color._RGBA.RGBA_Impl_.fromInt = function(rgba) {
+	return rgba;
+};
+thx.color._RGBA.RGBA_Impl_._new = function(rgba) {
+	return rgba;
+};
+thx.color._RGBA.RGBA_Impl_.toHSLA = function(this1) {
+	return thx.color._RGBXA.RGBXA_Impl_.toHSLA(thx.color._RGBA.RGBA_Impl_.toRGBXA(this1));
+};
+thx.color._RGBA.RGBA_Impl_.toHSVA = function(this1) {
+	return thx.color._RGBXA.RGBXA_Impl_.toHSVA(thx.color._RGBA.RGBA_Impl_.toRGBXA(this1));
+};
+thx.color._RGBA.RGBA_Impl_.toRGB = function(this1) {
+	return (this1 >> 16 & 255 & 255) << 16 | (this1 >> 8 & 255 & 255) << 8 | this1 & 255 & 255;
+};
+thx.color._RGBA.RGBA_Impl_.toRGBX = function(this1) {
+	return [(this1 >> 16 & 255) / 255,(this1 >> 8 & 255) / 255,(this1 & 255) / 255];
+};
+thx.color._RGBA.RGBA_Impl_.toRGBXA = function(this1) {
+	return [(this1 >> 16 & 255) / 255,(this1 >> 8 & 255) / 255,(this1 & 255) / 255,(this1 >> 24 & 255) / 255];
+};
+thx.color._RGBA.RGBA_Impl_.toCSS3 = function(this1) {
+	return "rgba(" + (this1 >> 16 & 255) + "," + (this1 >> 8 & 255) + "," + (this1 & 255) + "," + (this1 >> 24 & 255) / 255 + ")";
+};
+thx.color._RGBA.RGBA_Impl_.toString = function(this1) {
+	return "rgba(" + (this1 >> 16 & 255) + "," + (this1 >> 8 & 255) + "," + (this1 & 255) + "," + (this1 >> 24 & 255) / 255 + ")";
+};
+thx.color._RGBA.RGBA_Impl_.toHex = function(this1,prefix) {
+	if(prefix == null) prefix = "#";
+	return "" + prefix + StringTools.hex(this1 >> 24 & 255,2) + StringTools.hex(this1 >> 16 & 255,2) + StringTools.hex(this1 >> 8 & 255,2) + StringTools.hex(this1 & 255,2);
+};
+thx.color._RGBA.RGBA_Impl_.equals = function(this1,other) {
+	return (this1 >> 16 & 255) == (other >> 16 & 255) && (this1 >> 24 & 255) == (other >> 24 & 255) && (this1 >> 8 & 255) == (other >> 8 & 255) && (this1 & 255) == (other & 255);
+};
+thx.color._RGBA.RGBA_Impl_.darker = function(this1,t) {
+	var this2 = thx.color._RGBXA.RGBXA_Impl_.darker(thx.color._RGBA.RGBA_Impl_.toRGBXA(this1),t);
+	return thx.color._RGBA.RGBA_Impl_.fromFloats(this2[0],this2[1],this2[2],this2[3]);
+};
+thx.color._RGBA.RGBA_Impl_.lighter = function(this1,t) {
+	var this2 = thx.color._RGBXA.RGBXA_Impl_.lighter(thx.color._RGBA.RGBA_Impl_.toRGBXA(this1),t);
+	return thx.color._RGBA.RGBA_Impl_.fromFloats(this2[0],this2[1],this2[2],this2[3]);
+};
+thx.color._RGBA.RGBA_Impl_.transparent = function(this1,t) {
+	var this2 = thx.color._RGBXA.RGBXA_Impl_.transparent(thx.color._RGBA.RGBA_Impl_.toRGBXA(this1),t);
+	return thx.color._RGBA.RGBA_Impl_.fromFloats(this2[0],this2[1],this2[2],this2[3]);
+};
+thx.color._RGBA.RGBA_Impl_.opaque = function(this1,t) {
+	var this2 = thx.color._RGBXA.RGBXA_Impl_.opaque(thx.color._RGBA.RGBA_Impl_.toRGBXA(this1),t);
+	return thx.color._RGBA.RGBA_Impl_.fromFloats(this2[0],this2[1],this2[2],this2[3]);
+};
+thx.color._RGBA.RGBA_Impl_.interpolate = function(this1,other,t) {
+	var this2 = thx.color._RGBXA.RGBXA_Impl_.interpolate(thx.color._RGBA.RGBA_Impl_.toRGBXA(this1),thx.color._RGBA.RGBA_Impl_.toRGBXA(other),t);
+	return thx.color._RGBA.RGBA_Impl_.fromFloats(this2[0],this2[1],this2[2],this2[3]);
+};
+thx.color._RGBA.RGBA_Impl_.get_alpha = function(this1) {
+	return this1 >> 24 & 255;
+};
+thx.color._RGBA.RGBA_Impl_.get_red = function(this1) {
+	return this1 >> 16 & 255;
+};
+thx.color._RGBA.RGBA_Impl_.get_green = function(this1) {
+	return this1 >> 8 & 255;
+};
+thx.color._RGBA.RGBA_Impl_.get_blue = function(this1) {
+	return this1 & 255;
+};
+thx.color._RGBX = {};
+thx.color._RGBX.RGBX_Impl_ = {};
+thx.color._RGBX.RGBX_Impl_.__name__ = ["thx","color","_RGBX","RGBX_Impl_"];
+thx.color._RGBX.RGBX_Impl_.fromString = function(color) {
+	var info = thx.color.parse.ColorParser.parseHex(color);
+	if(null == info) info = thx.color.parse.ColorParser.parseColor(color);
+	if(null == info) return null;
+	try {
+		var _g = info.name;
+		switch(_g) {
+		case "rgb":
+			return thx.color._RGBX.RGBX_Impl_.fromArray(thx.color.parse.ColorParser.getFloatChannels(info.channels,3));
+		default:
+			return null;
+		}
+	} catch( e ) {
+		return null;
+	}
+};
+thx.color._RGBX.RGBX_Impl_.fromArray = function(values) {
+	var channels = values.map(function(v) {
+		if(v < 0) return 0; else if(v > 1) return 1; else return v;
+	}).concat([0,0,0]).slice(0,3);
+	return channels;
+};
+thx.color._RGBX.RGBX_Impl_.fromInts = function(red,green,blue) {
+	return [red / 255,green / 255,blue / 255];
+};
+thx.color._RGBX.RGBX_Impl_.fromFloats = function(red,green,blue) {
+	return [red,green,blue];
+};
+thx.color._RGBX.RGBX_Impl_._new = function(channels) {
+	return channels;
+};
+thx.color._RGBX.RGBX_Impl_.toCSS3 = function(this1) {
+	return "rgb(" + this1[0] * 100 + "%," + this1[1] * 100 + "%," + this1[2] * 100 + "%)";
+};
+thx.color._RGBX.RGBX_Impl_.toString = function(this1) {
+	return "rgb(" + this1[0] * 100 + "%," + this1[1] * 100 + "%," + this1[2] * 100 + "%)";
+};
+thx.color._RGBX.RGBX_Impl_.toHex = function(this1,prefix) {
+	if(prefix == null) prefix = "#";
+	return "" + prefix + StringTools.hex(Math.round(this1[0] * 255),2) + StringTools.hex(Math.round(this1[1] * 255),2) + StringTools.hex(Math.round(this1[2] * 255),2);
+};
+thx.color._RGBX.RGBX_Impl_.toCMYK = function(this1) {
+	var c = 0.0;
+	var y = 0.0;
+	var m = 0.0;
+	var k;
+	if(this1[0] + this1[1] + this1[2] == 0) k = 1.0; else {
+		c = 1 - this1[0];
+		m = 1 - this1[1];
+		y = 1 - this1[2];
+		k = Math.min(Math.min(c,m),y);
+		c = (c - k) / (1 - k);
+		m = (m - k) / (1 - k);
+		y = (y - k) / (1 - k);
+	}
+	return [c,m,y,k];
+};
+thx.color._RGBX.RGBX_Impl_.toGrey = function(this1) {
+	var grey = this1[0] * .2126 + this1[1] * .7152 + this1[2] * .0722;
+	var this2;
+	if(grey < 0) this2 = 0; else if(grey > 1) this2 = 1; else this2 = grey;
+	return this2;
+};
+thx.color._RGBX.RGBX_Impl_.toPerceivedGrey = function(this1) {
+	var grey = this1[0] * .299 + this1[1] * .587 + this1[2] * .114;
+	var this2;
+	if(grey < 0) this2 = 0; else if(grey > 1) this2 = 1; else this2 = grey;
+	return this2;
+};
+thx.color._RGBX.RGBX_Impl_.toPerceivedAccurateGrey = function(this1) {
+	var grey = Math.pow(this1[0],2) * .241 + Math.pow(this1[1],2) * .691 + Math.pow(this1[2],2) * .068;
+	var this2;
+	if(grey < 0) this2 = 0; else if(grey > 1) this2 = 1; else this2 = grey;
+	return this2;
+};
+thx.color._RGBX.RGBX_Impl_.toHSL = function(this1) {
+	var min = Math.min(Math.min(this1[0],this1[1]),this1[2]);
+	var max = Math.max(Math.max(this1[0],this1[1]),this1[2]);
+	var delta = max - min;
+	var h;
+	var s;
+	var l = (max + min) / 2;
+	if(delta == 0.0) s = h = 0.0; else {
+		if(l < 0.5) s = delta / (max + min); else s = delta / (2 - max - min);
+		if(this1[0] == max) h = (this1[1] - this1[2]) / delta + (this1[1] < Math.round(this1[2] * 255)?6:0); else if(this1[1] == max) h = (this1[2] - this1[0]) / delta + 2; else h = (this1[0] - this1[1]) / delta + 4;
+		h *= 60;
+	}
+	return [h,s,l];
+};
+thx.color._RGBX.RGBX_Impl_.toHSV = function(this1) {
+	var min = Math.min(Math.min(this1[0],this1[1]),this1[2]);
+	var max = Math.max(Math.max(this1[0],this1[1]),this1[2]);
+	var delta = max - min;
+	var h;
+	var s;
+	var v = max;
+	if(delta != 0) s = delta / max; else {
+		s = 0;
+		h = -1;
+		return [h,s,v];
+	}
+	if(this1[0] == max) h = (this1[1] - this1[2]) / delta; else if(this1[1] == max) h = 2 + (this1[2] - this1[0]) / delta; else h = 4 + (this1[0] - this1[1]) / delta;
+	h *= 60;
+	if(h < 0) h += 360;
+	return [h,s,v];
+};
+thx.color._RGBX.RGBX_Impl_.toRGBXA = function(this1) {
+	var channels = this1.concat([1.0]);
+	return channels;
+};
+thx.color._RGBX.RGBX_Impl_.withAlpha = function(this1,alpha) {
+	var channels = this1.concat([alpha]);
+	return channels;
+};
+thx.color._RGBX.RGBX_Impl_.toRGB = function(this1) {
+	return thx.color._RGB.RGB_Impl_.fromFloats(this1[0],this1[1],this1[2]);
+};
+thx.color._RGBX.RGBX_Impl_.equals = function(this1,other) {
+	return Math.abs(this1[0] - other[0]) <= 10e-10 && Math.abs(this1[1] - other[1]) <= 10e-10 && Math.abs(this1[2] - other[2]) <= 10e-10;
+};
+thx.color._RGBX.RGBX_Impl_.darker = function(this1,t) {
+	var channels = [thx.core.Ints.interpolate(t,this1[0],0),thx.core.Ints.interpolate(t,this1[1],0),thx.core.Ints.interpolate(t,this1[2],0)];
+	return channels;
+};
+thx.color._RGBX.RGBX_Impl_.lighter = function(this1,t) {
+	var channels = [thx.core.Ints.interpolate(t,this1[0],1),thx.core.Ints.interpolate(t,this1[1],1),thx.core.Ints.interpolate(t,this1[2],1)];
+	return channels;
+};
+thx.color._RGBX.RGBX_Impl_.interpolate = function(this1,other,t) {
+	var channels = [thx.core.Ints.interpolate(t,this1[0],other[0]),thx.core.Ints.interpolate(t,this1[1],other[1]),thx.core.Ints.interpolate(t,this1[2],other[2])];
+	return channels;
+};
+thx.color._RGBX.RGBX_Impl_.get_red = function(this1) {
+	return Math.round(this1[0] * 255);
+};
+thx.color._RGBX.RGBX_Impl_.get_green = function(this1) {
+	return Math.round(this1[1] * 255);
+};
+thx.color._RGBX.RGBX_Impl_.get_blue = function(this1) {
+	return Math.round(this1[2] * 255);
+};
+thx.color._RGBX.RGBX_Impl_.get_redf = function(this1) {
+	return this1[0];
+};
+thx.color._RGBX.RGBX_Impl_.get_greenf = function(this1) {
+	return this1[1];
+};
+thx.color._RGBX.RGBX_Impl_.get_bluef = function(this1) {
+	return this1[2];
+};
+thx.color._RGBXA = {};
+thx.color._RGBXA.RGBXA_Impl_ = {};
+thx.color._RGBXA.RGBXA_Impl_.__name__ = ["thx","color","_RGBXA","RGBXA_Impl_"];
+thx.color._RGBXA.RGBXA_Impl_.parse = function(color) {
+	var info = thx.color.parse.ColorParser.parseHex(color);
+	if(null == info) info = thx.color.parse.ColorParser.parseColor(color);
+	if(null == info) return null;
+	try {
+		var _g = info.name;
+		switch(_g) {
+		case "rgb":
+			var this1 = thx.color._RGBX.RGBX_Impl_.fromArray(thx.color.parse.ColorParser.getFloatChannels(info.channels,3));
+			var channels = this1.concat([1.0]);
+			return channels;
+		case "rgba":
+			return thx.color._RGBXA.RGBXA_Impl_.fromArray(thx.color.parse.ColorParser.getFloatChannels(info.channels,4));
+		default:
+			return null;
+		}
+	} catch( e ) {
+		return null;
+	}
+};
+thx.color._RGBXA.RGBXA_Impl_.fromArray = function(values) {
+	var channels = values.map(function(v) {
+		if(v < 0) return 0; else if(v > 1) return 1; else return v;
+	}).concat([0,0,0,0]).slice(0,4);
+	return channels;
+};
+thx.color._RGBXA.RGBXA_Impl_.fromInts = function(red,green,blue,alpha) {
+	return [red / 255,green / 255,blue / 255,alpha / 255];
+};
+thx.color._RGBXA.RGBXA_Impl_.fromFloats = function(red,green,blue,alpha) {
+	return [red,green,blue,alpha];
+};
+thx.color._RGBXA.RGBXA_Impl_._new = function(channels) {
+	return channels;
+};
+thx.color._RGBXA.RGBXA_Impl_.toCSS3 = function(this1) {
+	return "rgba(" + this1[0] * 100 + "%," + this1[1] * 100 + "%," + this1[2] * 100 + "%," + this1[3] + ")";
+};
+thx.color._RGBXA.RGBXA_Impl_.toString = function(this1) {
+	return "rgba(" + this1[0] * 100 + "%," + this1[1] * 100 + "%," + this1[2] * 100 + "%," + this1[3] + ")";
+};
+thx.color._RGBXA.RGBXA_Impl_.toHex = function(this1,prefix) {
+	if(prefix == null) prefix = "#";
+	return "" + prefix + StringTools.hex(Math.round(this1[3] * 255),2) + StringTools.hex(Math.round(this1[0] * 255),2) + StringTools.hex(Math.round(this1[1] * 255),2) + StringTools.hex(Math.round(this1[2] * 255),2);
+};
+thx.color._RGBXA.RGBXA_Impl_.toHSLA = function(this1) {
+	var this2 = thx.color._RGBX.RGBX_Impl_.toHSL((function($this) {
+		var $r;
+		var channels = this1.slice(0,3);
+		$r = channels;
+		return $r;
+	}(this)));
+	var alpha = Math.round(this1[3] * 255);
+	var channels1 = this2.concat([alpha]);
+	return channels1;
+};
+thx.color._RGBXA.RGBXA_Impl_.toHSVA = function(this1) {
+	var this2 = thx.color._RGBX.RGBX_Impl_.toHSV((function($this) {
+		var $r;
+		var channels = this1.slice(0,3);
+		$r = channels;
+		return $r;
+	}(this)));
+	var alpha = Math.round(this1[3] * 255);
+	var channels1 = this2.concat([alpha]);
+	return channels1;
+};
+thx.color._RGBXA.RGBXA_Impl_.toRGB = function(this1) {
+	var this2;
+	var channels = this1.slice(0,3);
+	this2 = channels;
+	return thx.color._RGB.RGB_Impl_.fromFloats(this2[0],this2[1],this2[2]);
+};
+thx.color._RGBXA.RGBXA_Impl_.toRGBX = function(this1) {
+	var channels = this1.slice(0,3);
+	return channels;
+};
+thx.color._RGBXA.RGBXA_Impl_.toRGBA = function(this1) {
+	return thx.color._RGBA.RGBA_Impl_.fromFloats(this1[0],this1[1],this1[2],this1[3]);
+};
+thx.color._RGBXA.RGBXA_Impl_.equals = function(this1,other) {
+	return Math.abs(this1[0] - other[0]) <= 10e-10 && Math.abs(this1[1] - other[1]) <= 10e-10 && Math.abs(this1[2] - other[2]) <= 10e-10 && Math.abs(this1[3] - other[3]) <= 10e-10;
+};
+thx.color._RGBXA.RGBXA_Impl_.darker = function(this1,t) {
+	var this2 = thx.color._RGBX.RGBX_Impl_.darker((function($this) {
+		var $r;
+		var channels = this1.slice(0,3);
+		$r = channels;
+		return $r;
+	}(this)),t);
+	var alpha = Math.round(this1[3] * 255);
+	var channels1 = this2.concat([alpha]);
+	return channels1;
+};
+thx.color._RGBXA.RGBXA_Impl_.lighter = function(this1,t) {
+	var this2 = thx.color._RGBX.RGBX_Impl_.lighter((function($this) {
+		var $r;
+		var channels = this1.slice(0,3);
+		$r = channels;
+		return $r;
+	}(this)),t);
+	var alpha = Math.round(this1[3] * 255);
+	var channels1 = this2.concat([alpha]);
+	return channels1;
+};
+thx.color._RGBXA.RGBXA_Impl_.transparent = function(this1,t) {
+	var channels = [this1[0],this1[1],this1[2],thx.core.Ints.interpolate(t,this1[3],0)];
+	return channels;
+};
+thx.color._RGBXA.RGBXA_Impl_.opaque = function(this1,t) {
+	var channels = [this1[0],this1[1],this1[2],thx.core.Ints.interpolate(t,this1[3],1)];
+	return channels;
+};
+thx.color._RGBXA.RGBXA_Impl_.interpolate = function(this1,other,t) {
+	var channels = [thx.core.Ints.interpolate(t,this1[0],other[0]),thx.core.Ints.interpolate(t,this1[1],other[1]),thx.core.Ints.interpolate(t,this1[2],other[2]),thx.core.Ints.interpolate(t,this1[3],other[3])];
+	return channels;
+};
+thx.color._RGBXA.RGBXA_Impl_.get_red = function(this1) {
+	return Math.round(this1[0] * 255);
+};
+thx.color._RGBXA.RGBXA_Impl_.get_green = function(this1) {
+	return Math.round(this1[1] * 255);
+};
+thx.color._RGBXA.RGBXA_Impl_.get_blue = function(this1) {
+	return Math.round(this1[2] * 255);
+};
+thx.color._RGBXA.RGBXA_Impl_.get_alpha = function(this1) {
+	return Math.round(this1[3] * 255);
+};
+thx.color._RGBXA.RGBXA_Impl_.get_redf = function(this1) {
+	return this1[0];
+};
+thx.color._RGBXA.RGBXA_Impl_.get_greenf = function(this1) {
+	return this1[1];
+};
+thx.color._RGBXA.RGBXA_Impl_.get_bluef = function(this1) {
+	return this1[2];
+};
+thx.color._RGBXA.RGBXA_Impl_.get_alphaf = function(this1) {
+	return this1[3];
+};
+thx.color.parse = {};
+thx.color.parse.ColorParser = function() {
+	this.pattern_color = new EReg("^\\s*([^(]+)\\s*\\(([^)]*)\\)\\s*$","i");
+	this.pattern_channel = new EReg("^\\s*(\\d*.\\d+|\\d+)(%|deg|rad)?\\s*$","i");
+};
+thx.color.parse.ColorParser.__name__ = ["thx","color","parse","ColorParser"];
+thx.color.parse.ColorParser.parseColor = function(s) {
+	return thx.color.parse.ColorParser.parser.processColor(s);
+};
+thx.color.parse.ColorParser.parseHex = function(s) {
+	return thx.color.parse.ColorParser.parser.processHex(s);
+};
+thx.color.parse.ColorParser.parseChannel = function(s) {
+	return thx.color.parse.ColorParser.parser.processChannel(s);
+};
+thx.color.parse.ColorParser.getFloatChannels = function(channels,length) {
+	if(length != channels.length) throw "invalid number of channels, expected " + length + " but it is " + channels.length;
+	return channels.map(thx.color.parse.ColorParser.getFloatChannel);
+};
+thx.color.parse.ColorParser.getInt8Channels = function(channels,length) {
+	if(length != channels.length) throw "invalid number of channels, expected " + length + " but it is " + channels.length;
+	return channels.map(thx.color.parse.ColorParser.getInt8Channel);
+};
+thx.color.parse.ColorParser.getFloatChannel = function(channel) {
+	switch(channel[1]) {
+	case 5:
+		var v = channel[2];
+		if(v) return 1; else return 0;
+		break;
+	case 1:
+		var v1 = channel[2];
+		return v1;
+	case 4:
+		var v2 = channel[2];
+		return v2;
+	case 2:
+		var v3 = channel[2];
+		return v3;
+	case 3:
+		var v4 = channel[2];
+		return v4 / 255;
+	case 0:
+		var v5 = channel[2];
+		return v5 / 100;
+	}
+};
+thx.color.parse.ColorParser.getInt8Channel = function(channel) {
+	switch(channel[1]) {
+	case 5:
+		var v = channel[2];
+		if(v) return 1; else return 0;
+		break;
+	case 3:
+		var v1 = channel[2];
+		return v1;
+	case 0:
+		var v2 = channel[2];
+		return Math.round(255 * v2 / 100);
+	default:
+		throw "unable to extract a valid int8 value";
+	}
+};
+thx.color.parse.ColorParser.prototype = {
+	pattern_color: null
+	,pattern_channel: null
+	,processHex: function(s) {
+		if(!thx.color.parse.ColorParser.isPureHex.match(s)) {
+			if(HxOverrides.substr(s,0,1) == "#") {
+				if(s.length == 4) s = s.charAt(1) + s.charAt(1) + s.charAt(2) + s.charAt(2) + s.charAt(3) + s.charAt(3); else if(s.length == 5) s = s.charAt(1) + s.charAt(1) + s.charAt(2) + s.charAt(2) + s.charAt(3) + s.charAt(3) + s.charAt(4) + s.charAt(4); else s = HxOverrides.substr(s,1,null);
+			} else if(HxOverrides.substr(s,0,2) == "0x") s = HxOverrides.substr(s,2,null); else return null;
+		}
+		var channels = [];
+		while(s.length > 0) {
+			channels.push(thx.color.parse.ChannelInfo.CIInt8(Std.parseInt("0x" + HxOverrides.substr(s,0,2))));
+			s = HxOverrides.substr(s,2,null);
+		}
+		if(channels.length == 4) return new thx.color.parse.ColorInfo("rgba",channels.slice(1).concat([channels[0]])); else return new thx.color.parse.ColorInfo("rgb",channels);
+	}
+	,processColor: function(s) {
+		if(!this.pattern_color.match(s)) return null;
+		var name = this.pattern_color.matched(1);
+		if(null == name) return null;
+		name = name.toLowerCase();
+		var m2 = this.pattern_color.matched(2);
+		var s_channels;
+		if(null == m2) s_channels = []; else s_channels = m2.split(",");
+		var channels = [];
+		var channel;
+		var _g = 0;
+		while(_g < s_channels.length) {
+			var s_channel = s_channels[_g];
+			++_g;
+			channel = this.processChannel(s_channel);
+			if(null == channel) return null;
+			channels.push(channel);
+		}
+		return new thx.color.parse.ColorInfo(name,channels);
+	}
+	,processChannel: function(s) {
+		if(!this.pattern_channel.match(s)) return null;
+		var value = this.pattern_channel.matched(1);
+		var unit = this.pattern_channel.matched(2);
+		if(unit == null) unit = "";
+		try {
+			switch(unit) {
+			case "%":
+				if(thx.core.Floats.canParse(value)) return thx.color.parse.ChannelInfo.CIPercent(thx.core.Floats.parse(value)); else return null;
+				break;
+			case "deg":
+				if(thx.core.Floats.canParse(value)) return thx.color.parse.ChannelInfo.CIDegree(thx.core.Floats.parse(value)); else return null;
+				break;
+			case "DEG":
+				if(thx.core.Floats.canParse(value)) return thx.color.parse.ChannelInfo.CIDegree(thx.core.Floats.parse(value)); else return null;
+				break;
+			case "rad":
+				if(thx.core.Floats.canParse(value)) return thx.color.parse.ChannelInfo.CIDegree(thx.core.Floats.parse(value) * 180 / Math.PI); else return null;
+				break;
+			case "RAD":
+				if(thx.core.Floats.canParse(value)) return thx.color.parse.ChannelInfo.CIDegree(thx.core.Floats.parse(value) * 180 / Math.PI); else return null;
+				break;
+			case "":
+				if(thx.core.Ints.canParse(value)) {
+					var i = thx.core.Ints.parse(value);
+					if(i == 0) return thx.color.parse.ChannelInfo.CIBool(false); else if(i == 1) return thx.color.parse.ChannelInfo.CIBool(true); else if(i < 256) return thx.color.parse.ChannelInfo.CIInt8(i); else return thx.color.parse.ChannelInfo.CIInt(i);
+				} else if(thx.core.Floats.canParse(value)) return thx.color.parse.ChannelInfo.CIFloat(thx.core.Floats.parse(value)); else return null;
+				break;
+			default:
+				return null;
+			}
+		} catch( e ) {
+			return null;
+		}
+	}
+	,__class__: thx.color.parse.ColorParser
+};
+thx.color.parse.ColorInfo = function(name,channels) {
+	this.name = name;
+	this.channels = channels;
+};
+thx.color.parse.ColorInfo.__name__ = ["thx","color","parse","ColorInfo"];
+thx.color.parse.ColorInfo.prototype = {
+	name: null
+	,channels: null
+	,toString: function() {
+		return "" + this.name + ", channels: " + Std.string(this.channels);
+	}
+	,__class__: thx.color.parse.ColorInfo
+};
+thx.color.parse.ChannelInfo = { __ename__ : ["thx","color","parse","ChannelInfo"], __constructs__ : ["CIPercent","CIFloat","CIDegree","CIInt8","CIInt","CIBool"] };
+thx.color.parse.ChannelInfo.CIPercent = function(value) { var $x = ["CIPercent",0,value]; $x.__enum__ = thx.color.parse.ChannelInfo; return $x; };
+thx.color.parse.ChannelInfo.CIFloat = function(value) { var $x = ["CIFloat",1,value]; $x.__enum__ = thx.color.parse.ChannelInfo; return $x; };
+thx.color.parse.ChannelInfo.CIDegree = function(value) { var $x = ["CIDegree",2,value]; $x.__enum__ = thx.color.parse.ChannelInfo; return $x; };
+thx.color.parse.ChannelInfo.CIInt8 = function(value) { var $x = ["CIInt8",3,value]; $x.__enum__ = thx.color.parse.ChannelInfo; return $x; };
+thx.color.parse.ChannelInfo.CIInt = function(value) { var $x = ["CIInt",4,value]; $x.__enum__ = thx.color.parse.ChannelInfo; return $x; };
+thx.color.parse.ChannelInfo.CIBool = function(value) { var $x = ["CIBool",5,value]; $x.__enum__ = thx.color.parse.ChannelInfo; return $x; };
 thx.core = {};
 thx.core.Arrays = function() { };
 thx.core.Arrays.__name__ = ["thx","core","Arrays"];
@@ -8150,6 +9843,22 @@ haxe.ds.ObjectMap.count = 0;
 js.Boot.__toStr = {}.toString;
 sui.controls.ColorControl.PATTERN = new EReg("^[#][0-9a-f]{6}$","i");
 sui.controls.DataList.nid = 0;
+thx.color._Grey.Grey_Impl_.black = (function($this) {
+	var $r;
+	var this1;
+	this1 = 0;
+	$r = this1;
+	return $r;
+}(this));
+thx.color._Grey.Grey_Impl_.white = (function($this) {
+	var $r;
+	var this1;
+	this1 = 1;
+	$r = this1;
+	return $r;
+}(this));
+thx.color.parse.ColorParser.parser = new thx.color.parse.ColorParser();
+thx.color.parse.ColorParser.isPureHex = new EReg("^([0-9a-f]{2}){3,4}$","i");
 thx.core.Floats.TOLERANCE = 10e-5;
 thx.core.Floats.EPSILON = 10e-10;
 thx.core.Floats.pattern_parse = new EReg("^(\\+|-)?\\d+(\\.\\d+)?(e-?\\d+)?$","");

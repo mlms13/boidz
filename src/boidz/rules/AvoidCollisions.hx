@@ -14,7 +14,7 @@ class AvoidCollisions implements IFlockRule {
   var a : Point;
 
   public function new(flock : Flock, ?radius : Float = 5, ?maxSteer : Degree) {
-    if(maxSteer == null)
+    if(null == maxSteer)
       maxSteer = 10.0;
     this.flock = flock;
     this.radius = radius;
