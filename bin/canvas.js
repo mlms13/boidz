@@ -1,5 +1,5 @@
 (function () { "use strict";
-var $estr = function() { return js.Boot.__string_rec(this,''); };
+var console = (1,eval)('this').console || {log:function(){}};
 function $extend(from, fields) {
 	function Inherit() {} Inherit.prototype = from; var proto = new Inherit();
 	for (var name in fields) proto[name] = fields[name];
@@ -15,14 +15,14 @@ Canvas.main = function() {
 	var display = new boidz.Display(render);
 	var avoidCollisions = new boidz.rules.AvoidCollisions(flock,3,thx.unit.angle._Degree.Degree_Impl_._new(25));
 	var respectBoundaries = new boidz.rules.RespectBoundaries(0,Canvas.width,0,Canvas.height,50,thx.unit.angle._Degree.Degree_Impl_._new(25));
-	var waypoints = new boidz.rules.Waypoints(flock,10);
+	var waypoints = new boidz.rules.IndividualWaypoints(flock,10);
 	var velocity = 3.0;
 	flock.addRule(waypoints);
 	flock.addRule(avoidCollisions);
 	flock.addRule(respectBoundaries);
 	Canvas.addBoids(flock,1000,velocity,respectBoundaries.offset);
 	var canvasBoundaries = new boidz.render.canvas.CanvasBoundaries(respectBoundaries);
-	var canvasWaypoints = new boidz.render.canvas.CanvasWaypoints(waypoints);
+	var canvasWaypoints = new boidz.render.canvas.CanvasIndividualWaypoints(waypoints);
 	var canvasFlock = new boidz.render.canvas.CanvasFlock(flock);
 	display.addRenderable(canvasBoundaries);
 	display.addRenderable(canvasWaypoints);
@@ -70,7 +70,7 @@ Canvas.main = function() {
 		frameRate.set("" + average + "/s (" + min + " -> " + max + ")");
 	},2000);
 	canvas.addEventListener("click",function(e) {
-		waypoints.goals.push({ x : e.clientX, y : e.clientY});
+		waypoints.addGoal(e.clientX,e.clientY);
 	},false);
 	var sui1 = new sui.Sui();
 	var ui = sui1.folder("flock");
@@ -295,15 +295,6 @@ Lambda.has = function(it,elt) {
 	}
 	return false;
 };
-var IMap = function() { };
-IMap.__name__ = ["IMap"];
-IMap.prototype = {
-	get: null
-	,set: null
-	,exists: null
-	,keys: null
-	,__class__: IMap
-};
 Math.__name__ = ["Math"];
 var Reflect = function() { };
 Reflect.__name__ = ["Reflect"];
@@ -330,16 +321,10 @@ Reflect.fields = function(o) {
 Reflect.isFunction = function(f) {
 	return typeof(f) == "function" && !(f.__name__ || f.__ename__);
 };
-Reflect.compare = function(a,b) {
-	if(a == b) return 0; else if(a > b) return 1; else return -1;
-};
 Reflect.isObject = function(v) {
 	if(v == null) return false;
 	var t = typeof(v);
 	return t == "string" || t == "object" && v.__enum__ == null || t == "function" && (v.__name__ || v.__ename__) != null;
-};
-Reflect.isEnumValue = function(v) {
-	return v != null && v.__enum__ != null;
 };
 var Std = function() { };
 Std.__name__ = ["Std"];
@@ -351,9 +336,6 @@ Std.parseInt = function(x) {
 	if(v == 0 && (HxOverrides.cca(x,1) == 120 || HxOverrides.cca(x,1) == 88)) v = parseInt(x);
 	if(isNaN(v)) return null;
 	return v;
-};
-Std.parseFloat = function(x) {
-	return parseFloat(x);
 };
 Std.random = function(x) {
 	if(x <= 0) return 0; else return Math.floor(Math.random() * x);
@@ -422,39 +404,33 @@ StringTools.hex = function(n,digits) {
 };
 var ValueType = { __ename__ : ["ValueType"], __constructs__ : ["TNull","TInt","TFloat","TBool","TObject","TFunction","TClass","TEnum","TUnknown"] };
 ValueType.TNull = ["TNull",0];
-ValueType.TNull.toString = $estr;
 ValueType.TNull.__enum__ = ValueType;
 ValueType.TInt = ["TInt",1];
-ValueType.TInt.toString = $estr;
 ValueType.TInt.__enum__ = ValueType;
 ValueType.TFloat = ["TFloat",2];
-ValueType.TFloat.toString = $estr;
 ValueType.TFloat.__enum__ = ValueType;
 ValueType.TBool = ["TBool",3];
-ValueType.TBool.toString = $estr;
 ValueType.TBool.__enum__ = ValueType;
 ValueType.TObject = ["TObject",4];
-ValueType.TObject.toString = $estr;
 ValueType.TObject.__enum__ = ValueType;
 ValueType.TFunction = ["TFunction",5];
-ValueType.TFunction.toString = $estr;
 ValueType.TFunction.__enum__ = ValueType;
-ValueType.TClass = function(c) { var $x = ["TClass",6,c]; $x.__enum__ = ValueType; $x.toString = $estr; return $x; };
-ValueType.TEnum = function(e) { var $x = ["TEnum",7,e]; $x.__enum__ = ValueType; $x.toString = $estr; return $x; };
+ValueType.TClass = function(c) { var $x = ["TClass",6,c]; $x.__enum__ = ValueType; return $x; };
+ValueType.TEnum = function(e) { var $x = ["TEnum",7,e]; $x.__enum__ = ValueType; return $x; };
 ValueType.TUnknown = ["TUnknown",8];
-ValueType.TUnknown.toString = $estr;
 ValueType.TUnknown.__enum__ = ValueType;
 var Type = function() { };
 Type.__name__ = ["Type"];
 Type.getClass = function(o) {
 	if(o == null) return null;
-	if((o instanceof Array) && o.__enum__ == null) return Array; else return o.__class__;
+	return js.Boot.getClass(o);
 };
 Type.getSuperClass = function(c) {
 	return c.__super__;
 };
 Type.getClassName = function(c) {
 	var a = c.__name__;
+	if(a == null) return null;
 	return a.join(".");
 };
 Type.getEnumName = function(e) {
@@ -482,8 +458,7 @@ Type["typeof"] = function(v) {
 		if(v == null) return ValueType.TNull;
 		var e = v.__enum__;
 		if(e != null) return ValueType.TEnum(e);
-		var c;
-		if((v instanceof Array) && v.__enum__ == null) c = Array; else c = v.__class__;
+		var c = js.Boot.getClass(v);
 		if(c != null) return ValueType.TClass(c);
 		return ValueType.TObject;
 	case "function":
@@ -497,8 +472,8 @@ Type["typeof"] = function(v) {
 };
 var boidz = {};
 boidz.Boid = function(x,y,v,d) {
-	if(d == null) d = 0.0;
 	if(v == null) v = 0.0;
+	if(null == d) d = thx.unit.angle._Degree.Degree_Impl_._new(0.0);
 	this.x = x;
 	this.y = y;
 	this.v = v;
@@ -584,14 +559,14 @@ boidz.Flock.prototype = {
 			++_g4;
 			boid1.x += boid1.v * (function($this) {
 				var $r;
-				var this1 = thx.unit.angle._Radian.Radian_Impl_._new(boid1.d * 0.0174532925199433);
-				$r = Math.cos(this1);
+				var this2 = thx.unit.angle._Radian.Radian_Impl_._new(boid1.d * 0.0174532925199433);
+				$r = Math.cos(this2);
 				return $r;
 			}(this));
 			boid1.y += boid1.v * (function($this) {
 				var $r;
-				var this2 = thx.unit.angle._Radian.Radian_Impl_._new(boid1.d * 0.0174532925199433);
-				$r = Math.sin(this2);
+				var this21 = thx.unit.angle._Radian.Radian_Impl_._new(boid1.d * 0.0174532925199433);
+				$r = Math.sin(this21);
 				return $r;
 			}(this));
 		}
@@ -669,11 +644,11 @@ boidz.render.canvas.CanvasBoundaries.prototype = {
 	,__class__: boidz.render.canvas.CanvasBoundaries
 };
 boidz.render.canvas.CanvasFlock = function(flock,boidColor) {
-	if(boidColor == null) boidColor = "#000000";
 	this.trailLength = 20;
 	this.renderTrail = true;
 	this.renderCentroid = true;
 	this.enabled = true;
+	if(null == boidColor) boidColor = thx.color._RGB.RGB_Impl_.fromString("#000000");
 	this.flock = flock;
 	this.map = new haxe.ds.ObjectMap();
 	this.rgb = "" + "#" + StringTools.hex(boidColor >> 16 & 255,2) + StringTools.hex(boidColor >> 8 & 255,2) + StringTools.hex(boidColor & 255,2);
@@ -748,6 +723,40 @@ boidz.render.canvas.CanvasFlock.prototype = {
 	}
 	,__class__: boidz.render.canvas.CanvasFlock
 };
+boidz.render.canvas.CanvasIndividualWaypoints = function(waypoints) {
+	this.enabled = true;
+	this.waypoints = waypoints;
+};
+boidz.render.canvas.CanvasIndividualWaypoints.__name__ = ["boidz","render","canvas","CanvasIndividualWaypoints"];
+boidz.render.canvas.CanvasIndividualWaypoints.__interfaces__ = [boidz.IRenderable];
+boidz.render.canvas.CanvasIndividualWaypoints.prototype = {
+	waypoints: null
+	,enabled: null
+	,render: function(render) {
+		var ctx = render.ctx;
+		ctx.lineWidth = 1;
+		ctx.setLineDash([2]);
+		ctx.fillStyle = "rgba(0,0,0,0.2)";
+		var _g1 = this.waypoints.current;
+		var _g = this.waypoints.goals.length;
+		while(_g1 < _g) {
+			var i = _g1++;
+			var goal = this.waypoints.goals[i];
+			ctx.strokeStyle = "#CCCCCC";
+			if(i > this.waypoints.current) {
+				ctx.lineTo(goal.x,goal.y);
+				ctx.stroke();
+			}
+			ctx.beginPath();
+			ctx.strokeStyle = "";
+			ctx.arc(goal.x,goal.y,this.waypoints.radius,0,2 * Math.PI,false);
+			ctx.fill();
+			ctx.beginPath();
+			ctx.moveTo(goal.x,goal.y);
+		}
+	}
+	,__class__: boidz.render.canvas.CanvasIndividualWaypoints
+};
 boidz.render.canvas.CanvasRender = function(canvas) {
 	this.canvas = canvas;
 	this.ctx = canvas.getContext("2d");
@@ -769,56 +778,11 @@ boidz.render.canvas.CanvasRender.prototype = {
 	}
 	,__class__: boidz.render.canvas.CanvasRender
 };
-boidz.render.canvas.CanvasWaypoints = function(waypoints) {
-	this.enabled = true;
-	this.waypoints = waypoints;
-};
-boidz.render.canvas.CanvasWaypoints.__name__ = ["boidz","render","canvas","CanvasWaypoints"];
-boidz.render.canvas.CanvasWaypoints.__interfaces__ = [boidz.IRenderable];
-boidz.render.canvas.CanvasWaypoints.prototype = {
-	waypoints: null
-	,enabled: null
-	,render: function(render) {
-		if(null == this.waypoints.goalRule) return;
-		var ctx = render.ctx;
-		ctx.lineWidth = 1;
-		ctx.setLineDash([2]);
-		ctx.beginPath();
-		ctx.strokeStyle = "#999999";
-		ctx.moveTo(this.waypoints.flock.x,this.waypoints.flock.y);
-		ctx.lineTo(this.waypoints.goalRule.x,this.waypoints.goalRule.y);
-		ctx.stroke();
-		ctx.beginPath();
-		ctx.fillStyle = "rgba(0,0,0,0.1)";
-		ctx.moveTo(this.waypoints.flock.x,this.waypoints.flock.y);
-		ctx.arc(this.waypoints.goalRule.x,this.waypoints.goalRule.y,this.waypoints.radius,0,2 * Math.PI,false);
-		ctx.fill();
-		ctx.beginPath();
-		ctx.fillStyle = "rgba(0,0,0,0.0.5)";
-		ctx.moveTo(this.waypoints.goalRule.x,this.waypoints.goalRule.y);
-		var _g = 0;
-		var _g1 = this.waypoints.goals;
-		while(_g < _g1.length) {
-			var goal = _g1[_g];
-			++_g;
-			ctx.strokeStyle = "#CCCCCC";
-			ctx.lineTo(goal.x,goal.y);
-			ctx.stroke();
-			ctx.beginPath();
-			ctx.strokeStyle = "";
-			ctx.arc(goal.x,goal.y,this.waypoints.radius,0,2 * Math.PI,false);
-			ctx.fill();
-			ctx.beginPath();
-			ctx.moveTo(goal.x,goal.y);
-		}
-	}
-	,__class__: boidz.render.canvas.CanvasWaypoints
-};
 boidz.rules = {};
 boidz.rules.AvoidCollisions = function(flock,radius,maxSteer) {
-	if(maxSteer == null) maxSteer = 10;
 	if(radius == null) radius = 5;
 	this.enabled = true;
+	if(null == maxSteer) maxSteer = thx.unit.angle._Degree.Degree_Impl_._new(10.0);
 	this.flock = flock;
 	this.set_radius(radius);
 	this.maxSteer = maxSteer;
@@ -870,10 +834,92 @@ boidz.rules.AvoidCollisions.prototype = {
 	}
 	,__class__: boidz.rules.AvoidCollisions
 };
+boidz.rules.IndividualWaypoints = function(flock,radius,maxSteer) {
+	if(radius == null) radius = 10;
+	this.current = 0;
+	this.enabled = true;
+	if(null == maxSteer) maxSteer = thx.unit.angle._Degree.Degree_Impl_._new(15.0);
+	this.flock = flock;
+	this.radius = radius;
+	this.goals = [];
+	this.onStep = function(coords) {
+	};
+	this.onBoidStep = function(b,coords1) {
+	};
+	this.set_maxSteer(maxSteer);
+	this.goalRule = new boidz.rules.SteerTowardGoal(0,0,maxSteer);
+	this.map = new haxe.ds.ObjectMap();
+};
+boidz.rules.IndividualWaypoints.__name__ = ["boidz","rules","IndividualWaypoints"];
+boidz.rules.IndividualWaypoints.__interfaces__ = [boidz.IFlockRule];
+boidz.rules.IndividualWaypoints.prototype = {
+	goals: null
+	,enabled: null
+	,radius: null
+	,onStep: null
+	,onBoidStep: null
+	,flock: null
+	,maxSteer: null
+	,goalRule: null
+	,map: null
+	,current: null
+	,addGoal: function(x,y) {
+		this.goals.push({ x : x, y : y});
+	}
+	,before: function() {
+		if(this.goals.length == 0) return false;
+		var counter = 0;
+		var _g = 0;
+		var _g1 = this.flock.boids;
+		while(_g < _g1.length) {
+			var boid = _g1[_g];
+			++_g;
+			var pos = this.map.h[boid.__id__];
+			if(null == pos) {
+				pos = this.current;
+				this.map.set(boid,pos);
+				counter++;
+			} else if(pos == this.current) counter++;
+			var p = this.goals[pos];
+			if(null == p) continue;
+			var dx = p.x - boid.x;
+			var dy = p.y - boid.y;
+			if(dx * dx + dy * dy <= this.radius * this.radius) {
+				this.onBoidStep(boid,p);
+				if(pos == this.current) counter--;
+				pos += 1;
+				this.map.set(boid,pos);
+			}
+		}
+		if(counter == 0) this.current++;
+		return this.goals.length > 0;
+	}
+	,modify: function(b) {
+		var pos = this.map.h[b.__id__];
+		if(pos < this.goals.length) {
+			var p = this.goals[pos];
+			this.goalRule.x = p.x;
+			this.goalRule.y = p.y;
+			this.goalRule.modify(b);
+		}
+	}
+	,updateGoalRuleForBoid: function(b) {
+		this.goalRule.x = 100;
+		this.goalRule.y = 200;
+	}
+	,get_maxSteer: function() {
+		return this.maxSteer;
+	}
+	,set_maxSteer: function(v) {
+		if(null != this.goalRule) this.goalRule.maxSteer = v;
+		return this.maxSteer = v;
+	}
+	,__class__: boidz.rules.IndividualWaypoints
+};
 boidz.rules.RespectBoundaries = function(minx,maxx,miny,maxy,offset,maxSteer) {
-	if(maxSteer == null) maxSteer = 10;
 	if(offset == null) offset = 0.0;
 	this.enabled = true;
+	if(null == maxSteer) maxSteer = thx.unit.angle._Degree.Degree_Impl_._new(10);
 	this.minx = minx;
 	this.maxx = maxx;
 	this.miny = miny;
@@ -907,8 +953,8 @@ boidz.rules.RespectBoundaries.prototype = {
 	,__class__: boidz.rules.RespectBoundaries
 };
 boidz.rules.SteerTowardGoal = function(x,y,maxSteer) {
-	if(maxSteer == null) maxSteer = 5;
 	this.enabled = true;
+	if(null == maxSteer) maxSteer = thx.unit.angle._Degree.Degree_Impl_._new(5.0);
 	this.x = x;
 	this.y = y;
 	this.maxSteer = maxSteer;
@@ -928,59 +974,6 @@ boidz.rules.SteerTowardGoal.prototype = {
 		b.d = thx.unit.angle._Degree.Degree_Impl_._new(b.d + other);
 	}
 	,__class__: boidz.rules.SteerTowardGoal
-};
-boidz.rules.Waypoints = function(flock,radius,maxSteer) {
-	if(maxSteer == null) maxSteer = 10;
-	if(radius == null) radius = 10;
-	this.enabled = true;
-	this.flock = flock;
-	this.radius = radius;
-	this.goals = [];
-	this.onStep = function(x,y) {
-	};
-	this.set_maxSteer(maxSteer);
-};
-boidz.rules.Waypoints.__name__ = ["boidz","rules","Waypoints"];
-boidz.rules.Waypoints.__interfaces__ = [boidz.IFlockRule];
-boidz.rules.Waypoints.prototype = {
-	goals: null
-	,enabled: null
-	,radius: null
-	,onStep: null
-	,flock: null
-	,goalRule: null
-	,maxSteer: null
-	,before: function() {
-		if(null != this.goalRule) {
-			var dx = this.goalRule.x - this.flock.x;
-			var dy = this.goalRule.y - this.flock.y;
-			if(dx * dx + dy * dy <= this.radius * this.radius) {
-				this.onStep(this.goalRule.x,this.goalRule.y);
-				this.goalRule = null;
-			}
-		}
-		if(null == this.goalRule && this.goals.length > 0) {
-			var p = this.goals.shift();
-			this.goalRule = new boidz.rules.SteerTowardGoal(p.x,p.y,(function($this) {
-				var $r;
-				var value = $this.get_maxSteer();
-				$r = thx.unit.angle._Degree.Degree_Impl_._new(value);
-				return $r;
-			}(this)));
-		}
-		return null != this.goalRule;
-	}
-	,modify: function(b) {
-		this.goalRule.modify(b);
-	}
-	,get_maxSteer: function() {
-		return this.maxSteer;
-	}
-	,set_maxSteer: function(v) {
-		if(null != this.goalRule) this.goalRule.maxSteer = v;
-		return this.maxSteer = v;
-	}
-	,__class__: boidz.rules.Waypoints
 };
 boidz.util = {};
 boidz.util.Steer = function() { };
@@ -1003,10 +996,10 @@ boidz.util.Steer.away = function(a,b,max) {
 	if(null != max) {
 		var this3;
 		var this4;
-		var value1 = Math.abs(d);
-		this4 = thx.unit.angle._Degree.Degree_Impl_._new(value1);
-		var value2 = Math.min(this4,max);
-		this3 = thx.unit.angle._Degree.Degree_Impl_._new(value2);
+		var value2 = Math.abs(d);
+		this4 = thx.unit.angle._Degree.Degree_Impl_._new(value2);
+		var value1 = Math.min(this4,max);
+		this3 = thx.unit.angle._Degree.Degree_Impl_._new(value1);
 		d = thx.unit.angle._Degree.Degree_Impl_._new(this3 * (d < 0?-1:1));
 	}
 	return d;
@@ -1029,10 +1022,10 @@ boidz.util.Steer.toward = function(a,b,max) {
 	if(null != max) {
 		var this3;
 		var this4;
-		var value1 = Math.abs(d);
-		this4 = thx.unit.angle._Degree.Degree_Impl_._new(value1);
-		var value2 = Math.min(this4,max);
-		this3 = thx.unit.angle._Degree.Degree_Impl_._new(value2);
+		var value2 = Math.abs(d);
+		this4 = thx.unit.angle._Degree.Degree_Impl_._new(value2);
+		var value1 = Math.min(this4,max);
+		this3 = thx.unit.angle._Degree.Degree_Impl_._new(value1);
 		d = thx.unit.angle._Degree.Degree_Impl_._new(this3 * (d < 0?-1:1));
 	}
 	return d;
@@ -1201,12 +1194,11 @@ dots.Query.childrenOf = function(children,parent) {
 var haxe = {};
 haxe.StackItem = { __ename__ : ["haxe","StackItem"], __constructs__ : ["CFunction","Module","FilePos","Method","LocalFunction"] };
 haxe.StackItem.CFunction = ["CFunction",0];
-haxe.StackItem.CFunction.toString = $estr;
 haxe.StackItem.CFunction.__enum__ = haxe.StackItem;
-haxe.StackItem.Module = function(m) { var $x = ["Module",1,m]; $x.__enum__ = haxe.StackItem; $x.toString = $estr; return $x; };
-haxe.StackItem.FilePos = function(s,file,line) { var $x = ["FilePos",2,s,file,line]; $x.__enum__ = haxe.StackItem; $x.toString = $estr; return $x; };
-haxe.StackItem.Method = function(classname,method) { var $x = ["Method",3,classname,method]; $x.__enum__ = haxe.StackItem; $x.toString = $estr; return $x; };
-haxe.StackItem.LocalFunction = function(v) { var $x = ["LocalFunction",4,v]; $x.__enum__ = haxe.StackItem; $x.toString = $estr; return $x; };
+haxe.StackItem.Module = function(m) { var $x = ["Module",1,m]; $x.__enum__ = haxe.StackItem; return $x; };
+haxe.StackItem.FilePos = function(s,file,line) { var $x = ["FilePos",2,s,file,line]; $x.__enum__ = haxe.StackItem; return $x; };
+haxe.StackItem.Method = function(classname,method) { var $x = ["Method",3,classname,method]; $x.__enum__ = haxe.StackItem; return $x; };
+haxe.StackItem.LocalFunction = function(v) { var $x = ["LocalFunction",4,v]; $x.__enum__ = haxe.StackItem; return $x; };
 haxe.CallStack = function() { };
 haxe.CallStack.__name__ = ["haxe","CallStack"];
 haxe.CallStack.callStack = function() {
@@ -1300,170 +1292,26 @@ haxe.CallStack.makeStack = function(s) {
 		return m;
 	} else return s;
 };
+haxe.IMap = function() { };
+haxe.IMap.__name__ = ["haxe","IMap"];
+haxe.IMap.prototype = {
+	get: null
+	,set: null
+	,exists: null
+	,keys: null
+	,__class__: haxe.IMap
+};
 haxe.Log = function() { };
 haxe.Log.__name__ = ["haxe","Log"];
 haxe.Log.trace = function(v,infos) {
 	js.Boot.__trace(v,infos);
 };
 haxe.ds = {};
-haxe.ds.BalancedTree = function() {
-};
-haxe.ds.BalancedTree.__name__ = ["haxe","ds","BalancedTree"];
-haxe.ds.BalancedTree.prototype = {
-	root: null
-	,set: function(key,value) {
-		this.root = this.setLoop(key,value,this.root);
-	}
-	,get: function(key) {
-		var node = this.root;
-		while(node != null) {
-			var c = this.compare(key,node.key);
-			if(c == 0) return node.value;
-			if(c < 0) node = node.left; else node = node.right;
-		}
-		return null;
-	}
-	,exists: function(key) {
-		var node = this.root;
-		while(node != null) {
-			var c = this.compare(key,node.key);
-			if(c == 0) return true; else if(c < 0) node = node.left; else node = node.right;
-		}
-		return false;
-	}
-	,keys: function() {
-		var ret = [];
-		this.keysLoop(this.root,ret);
-		return HxOverrides.iter(ret);
-	}
-	,setLoop: function(k,v,node) {
-		if(node == null) return new haxe.ds.TreeNode(null,k,v,null);
-		var c = this.compare(k,node.key);
-		if(c == 0) return new haxe.ds.TreeNode(node.left,k,v,node.right,node == null?0:node._height); else if(c < 0) {
-			var nl = this.setLoop(k,v,node.left);
-			return this.balance(nl,node.key,node.value,node.right);
-		} else {
-			var nr = this.setLoop(k,v,node.right);
-			return this.balance(node.left,node.key,node.value,nr);
-		}
-	}
-	,keysLoop: function(node,acc) {
-		if(node != null) {
-			this.keysLoop(node.left,acc);
-			acc.push(node.key);
-			this.keysLoop(node.right,acc);
-		}
-	}
-	,balance: function(l,k,v,r) {
-		var hl;
-		if(l == null) hl = 0; else hl = l._height;
-		var hr;
-		if(r == null) hr = 0; else hr = r._height;
-		if(hl > hr + 2) {
-			if((function($this) {
-				var $r;
-				var _this = l.left;
-				$r = _this == null?0:_this._height;
-				return $r;
-			}(this)) >= (function($this) {
-				var $r;
-				var _this1 = l.right;
-				$r = _this1 == null?0:_this1._height;
-				return $r;
-			}(this))) return new haxe.ds.TreeNode(l.left,l.key,l.value,new haxe.ds.TreeNode(l.right,k,v,r)); else return new haxe.ds.TreeNode(new haxe.ds.TreeNode(l.left,l.key,l.value,l.right.left),l.right.key,l.right.value,new haxe.ds.TreeNode(l.right.right,k,v,r));
-		} else if(hr > hl + 2) {
-			if((function($this) {
-				var $r;
-				var _this2 = r.right;
-				$r = _this2 == null?0:_this2._height;
-				return $r;
-			}(this)) > (function($this) {
-				var $r;
-				var _this3 = r.left;
-				$r = _this3 == null?0:_this3._height;
-				return $r;
-			}(this))) return new haxe.ds.TreeNode(new haxe.ds.TreeNode(l,k,v,r.left),r.key,r.value,r.right); else return new haxe.ds.TreeNode(new haxe.ds.TreeNode(l,k,v,r.left.left),r.left.key,r.left.value,new haxe.ds.TreeNode(r.left.right,r.key,r.value,r.right));
-		} else return new haxe.ds.TreeNode(l,k,v,r,(hl > hr?hl:hr) + 1);
-	}
-	,compare: function(k1,k2) {
-		return Reflect.compare(k1,k2);
-	}
-	,__class__: haxe.ds.BalancedTree
-};
-haxe.ds.TreeNode = function(l,k,v,r,h) {
-	if(h == null) h = -1;
-	this.left = l;
-	this.key = k;
-	this.value = v;
-	this.right = r;
-	if(h == -1) this._height = ((function($this) {
-		var $r;
-		var _this = $this.left;
-		$r = _this == null?0:_this._height;
-		return $r;
-	}(this)) > (function($this) {
-		var $r;
-		var _this1 = $this.right;
-		$r = _this1 == null?0:_this1._height;
-		return $r;
-	}(this))?(function($this) {
-		var $r;
-		var _this2 = $this.left;
-		$r = _this2 == null?0:_this2._height;
-		return $r;
-	}(this)):(function($this) {
-		var $r;
-		var _this3 = $this.right;
-		$r = _this3 == null?0:_this3._height;
-		return $r;
-	}(this))) + 1; else this._height = h;
-};
-haxe.ds.TreeNode.__name__ = ["haxe","ds","TreeNode"];
-haxe.ds.TreeNode.prototype = {
-	left: null
-	,right: null
-	,key: null
-	,value: null
-	,_height: null
-	,__class__: haxe.ds.TreeNode
-};
-haxe.ds.EnumValueMap = function() {
-	haxe.ds.BalancedTree.call(this);
-};
-haxe.ds.EnumValueMap.__name__ = ["haxe","ds","EnumValueMap"];
-haxe.ds.EnumValueMap.__interfaces__ = [IMap];
-haxe.ds.EnumValueMap.__super__ = haxe.ds.BalancedTree;
-haxe.ds.EnumValueMap.prototype = $extend(haxe.ds.BalancedTree.prototype,{
-	compare: function(k1,k2) {
-		var d = k1[1] - k2[1];
-		if(d != 0) return d;
-		var p1 = k1.slice(2);
-		var p2 = k2.slice(2);
-		if(p1.length == 0 && p2.length == 0) return 0;
-		return this.compareArgs(p1,p2);
-	}
-	,compareArgs: function(a1,a2) {
-		var ld = a1.length - a2.length;
-		if(ld != 0) return ld;
-		var _g1 = 0;
-		var _g = a1.length;
-		while(_g1 < _g) {
-			var i = _g1++;
-			var d = this.compareArg(a1[i],a2[i]);
-			if(d != 0) return d;
-		}
-		return 0;
-	}
-	,compareArg: function(v1,v2) {
-		if(Reflect.isEnumValue(v1) && Reflect.isEnumValue(v2)) return this.compare(v1,v2); else if((v1 instanceof Array) && v1.__enum__ == null && ((v2 instanceof Array) && v2.__enum__ == null)) return this.compareArgs(v1,v2); else return Reflect.compare(v1,v2);
-	}
-	,__class__: haxe.ds.EnumValueMap
-});
 haxe.ds.IntMap = function() {
 	this.h = { };
 };
 haxe.ds.IntMap.__name__ = ["haxe","ds","IntMap"];
-haxe.ds.IntMap.__interfaces__ = [IMap];
+haxe.ds.IntMap.__interfaces__ = [haxe.IMap];
 haxe.ds.IntMap.prototype = {
 	h: null
 	,set: function(key,value) {
@@ -1489,7 +1337,7 @@ haxe.ds.ObjectMap = function() {
 	this.h.__keys__ = { };
 };
 haxe.ds.ObjectMap.__name__ = ["haxe","ds","ObjectMap"];
-haxe.ds.ObjectMap.__interfaces__ = [IMap];
+haxe.ds.ObjectMap.__interfaces__ = [haxe.IMap];
 haxe.ds.ObjectMap.prototype = {
 	h: null
 	,set: function(key,value) {
@@ -1520,15 +1368,14 @@ haxe.ds.ObjectMap.prototype = {
 	,__class__: haxe.ds.ObjectMap
 };
 haxe.ds.Option = { __ename__ : ["haxe","ds","Option"], __constructs__ : ["Some","None"] };
-haxe.ds.Option.Some = function(v) { var $x = ["Some",0,v]; $x.__enum__ = haxe.ds.Option; $x.toString = $estr; return $x; };
+haxe.ds.Option.Some = function(v) { var $x = ["Some",0,v]; $x.__enum__ = haxe.ds.Option; return $x; };
 haxe.ds.Option.None = ["None",1];
-haxe.ds.Option.None.toString = $estr;
 haxe.ds.Option.None.__enum__ = haxe.ds.Option;
 haxe.ds.StringMap = function() {
 	this.h = { };
 };
 haxe.ds.StringMap.__name__ = ["haxe","ds","StringMap"];
-haxe.ds.StringMap.__interfaces__ = [IMap];
+haxe.ds.StringMap.__interfaces__ = [haxe.IMap];
 haxe.ds.StringMap.prototype = {
 	h: null
 	,set: function(key,value) {
@@ -1572,7 +1419,13 @@ js.Boot.__trace = function(v,i) {
 	if(typeof(document) != "undefined" && (d = document.getElementById("haxe:trace")) != null) d.innerHTML += js.Boot.__unhtml(msg) + "<br/>"; else if(typeof console != "undefined" && console.log != null) console.log(msg);
 };
 js.Boot.getClass = function(o) {
-	if((o instanceof Array) && o.__enum__ == null) return Array; else return o.__class__;
+	if((o instanceof Array) && o.__enum__ == null) return Array; else {
+		var cl = o.__class__;
+		if(cl != null) return cl;
+		var name = js.Boot.__nativeClassName(o);
+		if(name != null) return js.Boot.__resolveNativeClass(name);
+		return null;
+	}
 };
 js.Boot.__string_rec = function(o,s) {
 	if(o == null) return "null";
@@ -1584,18 +1437,18 @@ js.Boot.__string_rec = function(o,s) {
 		if(o instanceof Array) {
 			if(o.__enum__) {
 				if(o.length == 2) return o[0];
-				var str = o[0] + "(";
+				var str2 = o[0] + "(";
 				s += "\t";
 				var _g1 = 2;
 				var _g = o.length;
 				while(_g1 < _g) {
-					var i = _g1++;
-					if(i != 2) str += "," + js.Boot.__string_rec(o[i],s); else str += js.Boot.__string_rec(o[i],s);
+					var i1 = _g1++;
+					if(i1 != 2) str2 += "," + js.Boot.__string_rec(o[i1],s); else str2 += js.Boot.__string_rec(o[i1],s);
 				}
-				return str + ")";
+				return str2 + ")";
 			}
 			var l = o.length;
-			var i1;
+			var i;
 			var str1 = "[";
 			s += "\t";
 			var _g2 = 0;
@@ -1612,12 +1465,12 @@ js.Boot.__string_rec = function(o,s) {
 		} catch( e ) {
 			return "???";
 		}
-		if(tostr != null && tostr != Object.toString) {
+		if(tostr != null && tostr != Object.toString && typeof(tostr) == "function") {
 			var s2 = o.toString();
 			if(s2 != "[object Object]") return s2;
 		}
 		var k = null;
-		var str2 = "{\n";
+		var str = "{\n";
 		s += "\t";
 		var hasp = o.hasOwnProperty != null;
 		for( var k in o ) {
@@ -1627,12 +1480,12 @@ js.Boot.__string_rec = function(o,s) {
 		if(k == "prototype" || k == "__class__" || k == "__super__" || k == "__interfaces__" || k == "__properties__") {
 			continue;
 		}
-		if(str2.length != 2) str2 += ", \n";
-		str2 += s + k + " : " + js.Boot.__string_rec(o[k],s);
+		if(str.length != 2) str += ", \n";
+		str += s + k + " : " + js.Boot.__string_rec(o[k],s);
 		}
 		s = s.substring(1);
-		str2 += "\n" + s + "}";
-		return str2;
+		str += "\n" + s + "}";
+		return str;
 	case "function":
 		return "<function>";
 	case "string":
@@ -1676,12 +1529,25 @@ js.Boot.__instanceof = function(o,cl) {
 			if(typeof(cl) == "function") {
 				if(o instanceof cl) return true;
 				if(js.Boot.__interfLoop(js.Boot.getClass(o),cl)) return true;
+			} else if(typeof(cl) == "object" && js.Boot.__isNativeObj(cl)) {
+				if(o instanceof cl) return true;
 			}
 		} else return false;
 		if(cl == Class && o.__name__ != null) return true;
 		if(cl == Enum && o.__ename__ != null) return true;
 		return o.__enum__ == cl;
 	}
+};
+js.Boot.__nativeClassName = function(o) {
+	var name = js.Boot.__toStr.call(o).slice(8,-1);
+	if(name == "Object" || name == "Function" || name == "Math" || name == "JSON") return null;
+	return name;
+};
+js.Boot.__isNativeObj = function(o) {
+	return js.Boot.__nativeClassName(o) != null;
+};
+js.Boot.__resolveNativeClass = function(name) {
+	if(typeof window != "undefined") return window[name]; else return global[name];
 };
 var sui = {};
 sui.Sui = function() {
@@ -1724,7 +1590,7 @@ sui.Sui.createDate = function(defaultValue,options) {
 		var _11;
 		if(null == _01) t1 = null; else if(null == (_11 = _01.kind)) t1 = null; else t1 = _11;
 		if(t1 != null) _g1 = t1; else _g1 = sui.controls.DateKind.DateOnly;
-		switch(_g) {
+		if(_g != null) switch(_g) {
 		case true:
 			return new sui.controls.DateSelectControl(defaultValue,options);
 		default:
@@ -1734,6 +1600,11 @@ sui.Sui.createDate = function(defaultValue,options) {
 			default:
 				return new sui.controls.DateControl(defaultValue,options);
 			}
+		} else switch(_g1[1]) {
+		case 1:
+			return new sui.controls.DateTimeControl(defaultValue,options);
+		default:
+			return new sui.controls.DateControl(defaultValue,options);
 		}
 	}
 };
@@ -1753,11 +1624,6 @@ sui.Sui.collapsible = function(label,collapsed,attachTo,position) {
 	sui1.attach(attachTo,position);
 	return folder;
 };
-sui.Sui.createEnumMap = function(defaultValue,createKeyControl,createValueControl,options) {
-	return new sui.controls.MapControl(defaultValue,function() {
-		return new haxe.ds.EnumValueMap();
-	},createKeyControl,createValueControl,options);
-};
 sui.Sui.createFloat = function(defaultValue,options) {
 	if(defaultValue == null) defaultValue = 0.0;
 	{
@@ -1773,7 +1639,7 @@ sui.Sui.createFloat = function(defaultValue,options) {
 		var _11;
 		if(null == _01) t1 = null; else if(null == (_11 = _01.kind)) t1 = null; else t1 = _11;
 		if(t1 != null) _g1 = t1; else _g1 = sui.controls.FloatKind.FloatNumber;
-		switch(_g) {
+		if(_g != null) switch(_g) {
 		case true:
 			return new sui.controls.NumberSelectControl(defaultValue,options);
 		default:
@@ -1783,6 +1649,11 @@ sui.Sui.createFloat = function(defaultValue,options) {
 			default:
 				if(null != options && options.min != null && options.max != null) return new sui.controls.FloatRangeControl(defaultValue,options); else return new sui.controls.FloatControl(defaultValue,options);
 			}
+		} else switch(_g1[1]) {
+		case 1:
+			return new sui.controls.TimeControl(defaultValue,options);
+		default:
+			if(null != options && options.min != null && options.max != null) return new sui.controls.FloatRangeControl(defaultValue,options); else return new sui.controls.FloatControl(defaultValue,options);
 		}
 	}
 };
@@ -1834,7 +1705,7 @@ sui.Sui.createText = function(defaultValue,options) {
 		var _11;
 		if(null == _01) t1 = null; else if(null == (_11 = _01.kind)) t1 = null; else t1 = _11;
 		if(t1 != null) _g1 = t1; else _g1 = sui.controls.TextKind.PlainText;
-		switch(_g) {
+		if(_g != null) switch(_g) {
 		case true:
 			return new sui.controls.TextSelectControl(defaultValue,options);
 		default:
@@ -1852,6 +1723,19 @@ sui.Sui.createText = function(defaultValue,options) {
 			default:
 				return new sui.controls.TextControl(defaultValue,options);
 			}
+		} else switch(_g1[1]) {
+		case 0:
+			return new sui.controls.EmailControl(defaultValue,options);
+		case 1:
+			return new sui.controls.PasswordControl(defaultValue,options);
+		case 3:
+			return new sui.controls.TelControl(defaultValue,options);
+		case 2:
+			return new sui.controls.SearchControl(defaultValue,options);
+		case 5:
+			return new sui.controls.UrlControl(defaultValue,options);
+		default:
+			return new sui.controls.TextControl(defaultValue,options);
 		}
 	}
 };
@@ -1874,9 +1758,6 @@ sui.Sui.prototype = {
 	}
 	,date: function(label,defaultValue,options,callback) {
 		return this.control(label,sui.Sui.createDate(defaultValue,options),callback);
-	}
-	,enumMap: function(label,defaultValue,createKeyControl,createValueControl,options,callback) {
-		return this.control(label,sui.Sui.createEnumMap(defaultValue,createKeyControl,createValueControl,options),callback);
 	}
 	,'float': function(label,defaultValue,options,callback) {
 		if(defaultValue == null) defaultValue = 0.0;
@@ -1961,9 +1842,6 @@ sui.Sui.prototype = {
 	}
 	,__class__: sui.Sui
 };
-sui._Sui = {};
-sui._Sui.Anchor_Impl_ = function() { };
-sui._Sui.Anchor_Impl_.__name__ = ["sui","_Sui","Anchor_Impl_"];
 sui.components = {};
 sui.components.Grid = function() {
 	this.el = dots.Html.parseNodes("<table class=\"sui-grid\"></table>")[0];
@@ -2003,9 +1881,9 @@ sui.components.Grid.prototype = {
 	,__class__: sui.components.Grid
 };
 sui.components.CellContent = { __ename__ : ["sui","components","CellContent"], __constructs__ : ["Single","VerticalPair","HorizontalPair"] };
-sui.components.CellContent.Single = function(control) { var $x = ["Single",0,control]; $x.__enum__ = sui.components.CellContent; $x.toString = $estr; return $x; };
-sui.components.CellContent.VerticalPair = function(top,bottom) { var $x = ["VerticalPair",1,top,bottom]; $x.__enum__ = sui.components.CellContent; $x.toString = $estr; return $x; };
-sui.components.CellContent.HorizontalPair = function(left,right) { var $x = ["HorizontalPair",2,left,right]; $x.__enum__ = sui.components.CellContent; $x.toString = $estr; return $x; };
+sui.components.CellContent.Single = function(control) { var $x = ["Single",0,control]; $x.__enum__ = sui.components.CellContent; return $x; };
+sui.components.CellContent.VerticalPair = function(top,bottom) { var $x = ["VerticalPair",1,top,bottom]; $x.__enum__ = sui.components.CellContent; return $x; };
+sui.components.CellContent.HorizontalPair = function(left,right) { var $x = ["HorizontalPair",2,left,right]; $x.__enum__ = sui.components.CellContent; return $x; };
 sui.controls = {};
 sui.controls.IControl = function() { };
 sui.controls.IControl.__name__ = ["sui","controls","IControl"];
@@ -2053,7 +1931,8 @@ sui.controls.ArrayControl = function(defaultValue,defaultElementValue,createElem
 	thx.stream.EmitterBools.negate(this.values.enabled).subscribe(thx.stream.dom.Dom.subscribeToggleClass(this.el,"sui-disabled"));
 	this.values.enabled.subscribe(function(v2) {
 		_g.elements.map(function(_1) {
-			if(v2) return _1.control.enable(); else return _1.control.disable();
+			if(v2) _1.control.enable(); else _1.control.disable();
+			return;
 		});
 	});
 	this.setValue(defaultValue);
@@ -2125,7 +2004,8 @@ sui.controls.ArrayControl.prototype = {
 	,setValue: function(v) {
 		var _g = this;
 		v.map(function(_) {
-			return _g.addControl(_);
+			_g.addControl(_);
+			return;
 		});
 	}
 	,getValue: function() {
@@ -2162,7 +2042,8 @@ sui.controls.ArrayControl.prototype = {
 	,blur: function() {
 		var el = window.document.activeElement;
 		(function(_) {
-			if(null == _) return null; else return el.blur();
+			if(null == _) null; else el.blur();
+			return;
 		})(thx.core.Arrays.first(this.elements.filter(function(_1) {
 			return _1.control.el == el;
 		})));
@@ -2291,20 +2172,20 @@ sui.controls.BaseDateControl.toRFCDateTimeNoSeconds = function(date) {
 sui.controls.BaseDateControl.fromRFC = function(date) {
 	var dp = date.split("T")[0];
 	var dt;
-	var t;
+	var t1;
 	var _0 = date;
 	var _1;
 	var _2;
-	if(null == _0) t = null; else if(null == (_1 = _0.split("T"))) t = null; else if(null == (_2 = _1[1])) t = null; else t = _2;
-	if(t != null) dt = t; else dt = "00:00:00";
+	if(null == _0) t1 = null; else if(null == (_1 = _0.split("T"))) t1 = null; else if(null == (_2 = _1[1])) t1 = null; else t1 = _2;
+	if(t1 != null) dt = t1; else dt = "00:00:00";
 	var p = dp.split("-");
 	var y = Std.parseInt(p[0]);
 	var m = Std.parseInt(p[1]) - 1;
 	var d = Std.parseInt(p[2]);
-	var t1 = dt.split(":");
-	var hh = Std.parseInt(t1[0]);
-	var mm = Std.parseInt(t1[1]);
-	var ss = Std.parseInt(t1[2]);
+	var t = dt.split(":");
+	var hh = Std.parseInt(t[0]);
+	var mm = Std.parseInt(t[1]);
+	var ss = Std.parseInt(t[2]);
 	return new Date(y,m,d,hh,mm,ss);
 };
 sui.controls.BaseDateControl.__super__ = sui.controls.SingleInputControl;
@@ -2700,7 +2581,7 @@ sui.controls.FloatControl.prototype = $extend(sui.controls.NumberControl.prototy
 		this.input.value = "" + v;
 	}
 	,getInput: function() {
-		return Std.parseFloat(this.input.value);
+		return parseFloat(this.input.value);
 	}
 	,__class__: sui.controls.FloatControl
 });
@@ -2880,11 +2761,12 @@ sui.controls.MapControl = function(defaultValue,createMap,createKeyControl,creat
 		_g.elements.map(function(_1) {
 			if(v2) {
 				_1.controlKey.enable();
-				return _1.controlValue.enable();
+				_1.controlValue.enable();
 			} else {
 				_1.controlKey.disable();
-				return _1.controlValue.disable();
+				_1.controlValue.disable();
 			}
+			return;
 		});
 	});
 	this.setValue(defaultValue);
@@ -2937,7 +2819,8 @@ sui.controls.MapControl.prototype = {
 	,setValue: function(v) {
 		var _g = this;
 		thx.core.Iterators.map(v.keys(),function(_) {
-			return _g.addControl(_,v.get(_));
+			_g.addControl(_,v.get(_));
+			return;
 		});
 	}
 	,getValue: function() {
@@ -2983,7 +2866,8 @@ sui.controls.MapControl.prototype = {
 	,blur: function() {
 		var el = window.document.activeElement;
 		(function(_) {
-			if(null == _) return null; else return el.blur();
+			if(null == _) null; else el.blur();
+			return;
 		})(thx.core.Arrays.first(this.elements.filter(function(_1) {
 			return _1.controlKey.el == el || _1.controlValue.el == el;
 		})));
@@ -3011,36 +2895,26 @@ sui.controls.NumberSelectControl.prototype = $extend(sui.controls.SelectControl.
 });
 sui.controls.DateKind = { __ename__ : ["sui","controls","DateKind"], __constructs__ : ["DateOnly","DateTime"] };
 sui.controls.DateKind.DateOnly = ["DateOnly",0];
-sui.controls.DateKind.DateOnly.toString = $estr;
 sui.controls.DateKind.DateOnly.__enum__ = sui.controls.DateKind;
 sui.controls.DateKind.DateTime = ["DateTime",1];
-sui.controls.DateKind.DateTime.toString = $estr;
 sui.controls.DateKind.DateTime.__enum__ = sui.controls.DateKind;
 sui.controls.FloatKind = { __ename__ : ["sui","controls","FloatKind"], __constructs__ : ["FloatNumber","FloatTime"] };
 sui.controls.FloatKind.FloatNumber = ["FloatNumber",0];
-sui.controls.FloatKind.FloatNumber.toString = $estr;
 sui.controls.FloatKind.FloatNumber.__enum__ = sui.controls.FloatKind;
 sui.controls.FloatKind.FloatTime = ["FloatTime",1];
-sui.controls.FloatKind.FloatTime.toString = $estr;
 sui.controls.FloatKind.FloatTime.__enum__ = sui.controls.FloatKind;
 sui.controls.TextKind = { __ename__ : ["sui","controls","TextKind"], __constructs__ : ["TextEmail","TextPassword","TextSearch","TextTel","PlainText","TextUrl"] };
 sui.controls.TextKind.TextEmail = ["TextEmail",0];
-sui.controls.TextKind.TextEmail.toString = $estr;
 sui.controls.TextKind.TextEmail.__enum__ = sui.controls.TextKind;
 sui.controls.TextKind.TextPassword = ["TextPassword",1];
-sui.controls.TextKind.TextPassword.toString = $estr;
 sui.controls.TextKind.TextPassword.__enum__ = sui.controls.TextKind;
 sui.controls.TextKind.TextSearch = ["TextSearch",2];
-sui.controls.TextKind.TextSearch.toString = $estr;
 sui.controls.TextKind.TextSearch.__enum__ = sui.controls.TextKind;
 sui.controls.TextKind.TextTel = ["TextTel",3];
-sui.controls.TextKind.TextTel.toString = $estr;
 sui.controls.TextKind.TextTel.__enum__ = sui.controls.TextKind;
 sui.controls.TextKind.PlainText = ["PlainText",4];
-sui.controls.TextKind.PlainText.toString = $estr;
 sui.controls.TextKind.PlainText.__enum__ = sui.controls.TextKind;
 sui.controls.TextKind.TextUrl = ["TextUrl",5];
-sui.controls.TextKind.TextUrl.toString = $estr;
 sui.controls.TextKind.TextUrl.__enum__ = sui.controls.TextKind;
 sui.controls.PasswordControl = function(value,options) {
 	sui.controls.BaseTextControl.call(this,value,"text","password",options);
@@ -3113,7 +2987,7 @@ sui.controls.TimeControl.stringToTime = function(t) {
 	var p = t.split(":");
 	var h = Std.parseInt(p[0]);
 	var m = Std.parseInt(p[1]);
-	var s = Std.parseFloat(p[2]);
+	var s = parseFloat(p[2]);
 	return s * 1000 + m * 60000 + h * 3600000;
 };
 sui.controls.TimeControl.__super__ = sui.controls.SingleInputControl;
@@ -3205,7 +3079,7 @@ sui.macro.Embed.__name__ = ["sui","macro","Embed"];
 var thx = {};
 thx.color = {};
 thx.color._CMYK = {};
-thx.color._CMYK.CMYK_Impl_ = function() { };
+thx.color._CMYK.CMYK_Impl_ = {};
 thx.color._CMYK.CMYK_Impl_.__name__ = ["thx","color","_CMYK","CMYK_Impl_"];
 thx.color._CMYK.CMYK_Impl_.fromString = function(color) {
 	var info = thx.color.parse.ColorParser.parseColor(color);
@@ -3302,7 +3176,7 @@ thx.color._CMYK.CMYK_Impl_.get_yellow = function(this1) {
 	return this1[2];
 };
 thx.color._Grey = {};
-thx.color._Grey.Grey_Impl_ = function() { };
+thx.color._Grey.Grey_Impl_ = {};
 thx.color._Grey.Grey_Impl_.__name__ = ["thx","color","_Grey","Grey_Impl_"];
 thx.color._Grey.Grey_Impl_.fromString = function(color) {
 	var info = thx.color.parse.ColorParser.parseColor(color);
@@ -3380,7 +3254,7 @@ thx.color._Grey.Grey_Impl_.toString = function(this1) {
 	return "grey(" + this1 * 100 + "%)";
 };
 thx.color._HSL = {};
-thx.color._HSL.HSL_Impl_ = function() { };
+thx.color._HSL.HSL_Impl_ = {};
 thx.color._HSL.HSL_Impl_.__name__ = ["thx","color","_HSL","HSL_Impl_"];
 thx.color._HSL.HSL_Impl_.fromString = function(color) {
 	var info = thx.color.parse.ColorParser.parseColor(color);
@@ -3495,7 +3369,7 @@ thx.color._HSL.HSL_Impl_._c = function(d,s,l) {
 	if(d < 60) return m1 + (m2 - m1) * d / 60; else if(d < 180) return m2; else if(d < 240) return m1 + (m2 - m1) * (240 - d) / 60; else return m1;
 };
 thx.color._HSLA = {};
-thx.color._HSLA.HSLA_Impl_ = function() { };
+thx.color._HSLA.HSLA_Impl_ = {};
 thx.color._HSLA.HSLA_Impl_.__name__ = ["thx","color","_HSLA","HSLA_Impl_"];
 thx.color._HSLA.HSLA_Impl_.fromString = function(color) {
 	var info = thx.color.parse.ColorParser.parseColor(color);
@@ -3602,7 +3476,7 @@ thx.color._HSLA.HSLA_Impl_._c = function(d,s,l) {
 	if(d < 60) return m1 + (m2 - m1) * d / 60; else if(d < 180) return m2; else if(d < 240) return m1 + (m2 - m1) * (240 - d) / 60; else return m1;
 };
 thx.color._HSV = {};
-thx.color._HSV.HSV_Impl_ = function() { };
+thx.color._HSV.HSV_Impl_ = {};
 thx.color._HSV.HSV_Impl_.__name__ = ["thx","color","_HSV","HSV_Impl_"];
 thx.color._HSV.HSV_Impl_.fromString = function(color) {
 	var info = thx.color.parse.ColorParser.parseColor(color);
@@ -3978,7 +3852,7 @@ thx.color._HSV.HSV_Impl_.get_value = function(this1) {
 	return this1[2];
 };
 thx.color._HSVA = {};
-thx.color._HSVA.HSVA_Impl_ = function() { };
+thx.color._HSVA.HSVA_Impl_ = {};
 thx.color._HSVA.HSVA_Impl_.__name__ = ["thx","color","_HSVA","HSVA_Impl_"];
 thx.color._HSVA.HSVA_Impl_.fromString = function(color) {
 	var info = thx.color.parse.ColorParser.parseColor(color);
@@ -4210,7 +4084,7 @@ thx.color._HSVA.HSVA_Impl_.get_alpha = function(this1) {
 	return this1[3];
 };
 thx.color._RGB = {};
-thx.color._RGB.RGB_Impl_ = function() { };
+thx.color._RGB.RGB_Impl_ = {};
 thx.color._RGB.RGB_Impl_.__name__ = ["thx","color","_RGB","RGB_Impl_"];
 thx.color._RGB.RGB_Impl_.fromString = function(color) {
 	var info = thx.color.parse.ColorParser.parseHex(color);
@@ -4241,14 +4115,8 @@ thx.color._RGB.RGB_Impl_.fromArray = function(arr) {
 thx.color._RGB.RGB_Impl_.fromInts = function(red,green,blue) {
 	return (red & 255) << 16 | (green & 255) << 8 | blue & 255;
 };
-thx.color._RGB.RGB_Impl_.fromInt = function(rgb) {
-	return rgb;
-};
 thx.color._RGB.RGB_Impl_._new = function(rgb) {
 	return rgb;
-};
-thx.color._RGB.RGB_Impl_.toInt = function(this1) {
-	return this1;
 };
 thx.color._RGB.RGB_Impl_.toCMYK = function(this1) {
 	return thx.color._RGBX.RGBX_Impl_.toCMYK(thx.color._RGB.RGB_Impl_.toRGBX(this1));
@@ -4319,7 +4187,7 @@ thx.color._RGB.RGB_Impl_.get_blue = function(this1) {
 	return this1 & 255;
 };
 thx.color._RGBA = {};
-thx.color._RGBA.RGBA_Impl_ = function() { };
+thx.color._RGBA.RGBA_Impl_ = {};
 thx.color._RGBA.RGBA_Impl_.__name__ = ["thx","color","_RGBA","RGBA_Impl_"];
 thx.color._RGBA.RGBA_Impl_.fromString = function(color) {
 	var info = thx.color.parse.ColorParser.parseHex(color);
@@ -4365,9 +4233,6 @@ thx.color._RGBA.RGBA_Impl_.fromInt = function(rgba) {
 };
 thx.color._RGBA.RGBA_Impl_._new = function(rgba) {
 	return rgba;
-};
-thx.color._RGBA.RGBA_Impl_.toInt = function(this1) {
-	return this1;
 };
 thx.color._RGBA.RGBA_Impl_.toHSLA = function(this1) {
 	return thx.color._RGBXA.RGBXA_Impl_.toHSLA(thx.color._RGBA.RGBA_Impl_.toRGBXA(this1));
@@ -4430,7 +4295,7 @@ thx.color._RGBA.RGBA_Impl_.get_blue = function(this1) {
 	return this1 & 255;
 };
 thx.color._RGBX = {};
-thx.color._RGBX.RGBX_Impl_ = function() { };
+thx.color._RGBX.RGBX_Impl_ = {};
 thx.color._RGBX.RGBX_Impl_.__name__ = ["thx","color","_RGBX","RGBX_Impl_"];
 thx.color._RGBX.RGBX_Impl_.fromString = function(color) {
 	var info = thx.color.parse.ColorParser.parseHex(color);
@@ -4583,7 +4448,7 @@ thx.color._RGBX.RGBX_Impl_.get_bluef = function(this1) {
 	return this1[2];
 };
 thx.color._RGBXA = {};
-thx.color._RGBXA.RGBXA_Impl_ = function() { };
+thx.color._RGBXA.RGBXA_Impl_ = {};
 thx.color._RGBXA.RGBXA_Impl_.__name__ = ["thx","color","_RGBXA","RGBXA_Impl_"];
 thx.color._RGBXA.RGBXA_Impl_.parse = function(color) {
 	var info = thx.color.parse.ColorParser.parseHex(color);
@@ -4875,12 +4740,12 @@ thx.color.parse.ColorInfo.prototype = {
 	,__class__: thx.color.parse.ColorInfo
 };
 thx.color.parse.ChannelInfo = { __ename__ : ["thx","color","parse","ChannelInfo"], __constructs__ : ["CIPercent","CIFloat","CIDegree","CIInt8","CIInt","CIBool"] };
-thx.color.parse.ChannelInfo.CIPercent = function(value) { var $x = ["CIPercent",0,value]; $x.__enum__ = thx.color.parse.ChannelInfo; $x.toString = $estr; return $x; };
-thx.color.parse.ChannelInfo.CIFloat = function(value) { var $x = ["CIFloat",1,value]; $x.__enum__ = thx.color.parse.ChannelInfo; $x.toString = $estr; return $x; };
-thx.color.parse.ChannelInfo.CIDegree = function(value) { var $x = ["CIDegree",2,value]; $x.__enum__ = thx.color.parse.ChannelInfo; $x.toString = $estr; return $x; };
-thx.color.parse.ChannelInfo.CIInt8 = function(value) { var $x = ["CIInt8",3,value]; $x.__enum__ = thx.color.parse.ChannelInfo; $x.toString = $estr; return $x; };
-thx.color.parse.ChannelInfo.CIInt = function(value) { var $x = ["CIInt",4,value]; $x.__enum__ = thx.color.parse.ChannelInfo; $x.toString = $estr; return $x; };
-thx.color.parse.ChannelInfo.CIBool = function(value) { var $x = ["CIBool",5,value]; $x.__enum__ = thx.color.parse.ChannelInfo; $x.toString = $estr; return $x; };
+thx.color.parse.ChannelInfo.CIPercent = function(value) { var $x = ["CIPercent",0,value]; $x.__enum__ = thx.color.parse.ChannelInfo; return $x; };
+thx.color.parse.ChannelInfo.CIFloat = function(value) { var $x = ["CIFloat",1,value]; $x.__enum__ = thx.color.parse.ChannelInfo; return $x; };
+thx.color.parse.ChannelInfo.CIDegree = function(value) { var $x = ["CIDegree",2,value]; $x.__enum__ = thx.color.parse.ChannelInfo; return $x; };
+thx.color.parse.ChannelInfo.CIInt8 = function(value) { var $x = ["CIInt8",3,value]; $x.__enum__ = thx.color.parse.ChannelInfo; return $x; };
+thx.color.parse.ChannelInfo.CIInt = function(value) { var $x = ["CIInt",4,value]; $x.__enum__ = thx.color.parse.ChannelInfo; return $x; };
+thx.color.parse.ChannelInfo.CIBool = function(value) { var $x = ["CIBool",5,value]; $x.__enum__ = thx.color.parse.ChannelInfo; return $x; };
 thx.core = {};
 thx.core.Arrays = function() { };
 thx.core.Arrays.__name__ = ["thx","core","Arrays"];
@@ -5227,7 +5092,7 @@ thx.core.ArrayFloats.average = function(arr) {
 };
 thx.core.ArrayFloats.compact = function(arr) {
 	return arr.filter(function(v) {
-		return null != v && Math.isFinite(v);
+		return null != v && isFinite(v);
 	});
 };
 thx.core.ArrayFloats.max = function(arr) {
@@ -5283,8 +5148,8 @@ thx.core.ArrayStrings.min = function(arr) {
 	},arr[0]);
 };
 thx.core.Either = { __ename__ : ["thx","core","Either"], __constructs__ : ["Left","Right"] };
-thx.core.Either.Left = function(value) { var $x = ["Left",0,value]; $x.__enum__ = thx.core.Either; $x.toString = $estr; return $x; };
-thx.core.Either.Right = function(value) { var $x = ["Right",1,value]; $x.__enum__ = thx.core.Either; $x.toString = $estr; return $x; };
+thx.core.Either.Left = function(value) { var $x = ["Left",0,value]; $x.__enum__ = thx.core.Either; return $x; };
+thx.core.Either.Right = function(value) { var $x = ["Right",1,value]; $x.__enum__ = thx.core.Either; return $x; };
 thx.core.Error = function(message,stack,pos) {
 	Error.call(this,message);
 	this.message = message;
@@ -5353,7 +5218,7 @@ thx.core.Floats.normalize = function(v) {
 };
 thx.core.Floats.parse = function(s) {
 	if(s.substring(0,1) == "+") s = s.substring(1);
-	return Std.parseFloat(s);
+	return parseFloat(s);
 };
 thx.core.Floats.round = function(f,decimals) {
 	var p = Math.pow(10,decimals);
@@ -5428,12 +5293,12 @@ thx.core.Functions1.memoize = function(callback,resolver) {
 	if(null == resolver) resolver = function(v) {
 		return "" + Std.string(v);
 	};
-	var map = new haxe.ds.StringMap();
+	var map_h = { };
 	return function(v1) {
 		var key = resolver(v1);
-		if(map.exists(key)) return map.get(key);
+		if(map_h.hasOwnProperty("$" + key)) return map_h["$" + key];
 		var result = callback(v1);
-		map.set(key,result);
+		map_h["$" + key] = result;
 		return result;
 	};
 };
@@ -5469,12 +5334,12 @@ thx.core.Functions2.memoize = function(callback,resolver) {
 	if(null == resolver) resolver = function(v1,v2) {
 		return "" + Std.string(v1) + ":" + Std.string(v2);
 	};
-	var map = new haxe.ds.StringMap();
+	var map_h = { };
 	return function(v11,v21) {
 		var key = resolver(v11,v21);
-		if(map.exists(key)) return map.get(key);
+		if(map_h.hasOwnProperty("$" + key)) return map_h["$" + key];
 		var result = callback(v11,v21);
-		map.set(key,result);
+		map_h["$" + key] = result;
 		return result;
 	};
 };
@@ -5489,12 +5354,12 @@ thx.core.Functions3.memoize = function(callback,resolver) {
 	if(null == resolver) resolver = function(v1,v2,v3) {
 		return "" + Std.string(v1) + ":" + Std.string(v2) + ":" + Std.string(v3);
 	};
-	var map = new haxe.ds.StringMap();
+	var map_h = { };
 	return function(v11,v21,v31) {
 		var key = resolver(v11,v21,v31);
-		if(map.exists(key)) return map.get(key);
+		if(map_h.hasOwnProperty("$" + key)) return map_h["$" + key];
 		var result = callback(v11,v21,v31);
-		map.set(key,result);
+		map_h["$" + key] = result;
 		return result;
 	};
 };
@@ -5552,7 +5417,7 @@ thx.core.Ints.min = function(a,b) {
 };
 thx.core.Ints.parse = function(s,base) {
 	var v = parseInt(s,base);
-	if(Math.isNaN(v)) return null; else return v;
+	if(isNaN(v)) return null; else return v;
 };
 thx.core.Ints.random = function(min,max) {
 	if(min == null) min = 0;
@@ -5564,7 +5429,7 @@ thx.core.Ints.range = function(start,stop,step) {
 		stop = start;
 		start = 0;
 	}
-	if((stop - start) / step == Math.POSITIVE_INFINITY) throw "infinite range";
+	if((stop - start) / step == Infinity) throw "infinite range";
 	var range = [];
 	var i = -1;
 	var j;
@@ -5675,7 +5540,6 @@ thx.core.Iterators.toArray = function(it) {
 };
 thx.core.Nil = { __ename__ : ["thx","core","Nil"], __constructs__ : ["nil"] };
 thx.core.Nil.nil = ["nil",0];
-thx.core.Nil.nil.toString = $estr;
 thx.core.Nil.nil.__enum__ = thx.core.Nil;
 thx.core.Nulls = function() { };
 thx.core.Nulls.__name__ = ["thx","core","Nulls"];
@@ -5757,7 +5621,7 @@ thx.core.Options.toValue = function(option) {
 	}
 };
 thx.core._Result = {};
-thx.core._Result.Result_Impl_ = function() { };
+thx.core._Result.Result_Impl_ = {};
 thx.core._Result.Result_Impl_.__name__ = ["thx","core","_Result","Result_Impl_"];
 thx.core._Result.Result_Impl_.optionValue = function(this1) {
 	switch(this1[1]) {
@@ -5921,10 +5785,10 @@ thx.core.Strings.toChunks = function(s,len) {
 	}
 	return chunks;
 };
-thx.core.Strings.trim = function(value,charlist) {
-	return thx.core.Strings.trimRight(thx.core.Strings.trimLeft(value,charlist),charlist);
+thx.core.Strings.trimChars = function(value,charlist) {
+	return thx.core.Strings.trimCharsRight(thx.core.Strings.trimCharsLeft(value,charlist),charlist);
 };
-thx.core.Strings.trimLeft = function(value,charlist) {
+thx.core.Strings.trimCharsLeft = function(value,charlist) {
 	var pos = 0;
 	var _g1 = 0;
 	var _g = value.length;
@@ -5934,7 +5798,7 @@ thx.core.Strings.trimLeft = function(value,charlist) {
 	}
 	return value.substring(pos);
 };
-thx.core.Strings.trimRight = function(value,charlist) {
+thx.core.Strings.trimCharsRight = function(value,charlist) {
 	var len = value.length;
 	var pos = len;
 	var i;
@@ -6030,14 +5894,14 @@ thx.core.Timer.throttle = function(callback,delayms,leading) {
 thx.core.Timer.repeat = function(callback,delayms) {
 	return (function(f,id) {
 		return function() {
-			return f(id);
+			f(id);
 		};
 	})(thx.core.Timer.clear,setInterval(callback,delayms));
 };
 thx.core.Timer.delay = function(callback,delayms) {
 	return (function(f,id) {
 		return function() {
-			return f(id);
+			f(id);
 		};
 	})(thx.core.Timer.clear,setTimeout(callback,delayms));
 };
@@ -6067,18 +5931,19 @@ thx.core.Timer.nextFrame = function(callback) {
 thx.core.Timer.immediate = function(callback) {
 	return (function(f,id) {
 		return function() {
-			return f(id);
+			f(id);
 		};
 	})(thx.core.Timer.clear,setImmediate(callback));
 };
 thx.core.Timer.clear = function(id) {
-	return clearTimeout(id);
+	clearTimeout(id);
+	return;
 };
 thx.core.Timer.time = function() {
 	return performance.now();
 };
 thx.core._Tuple = {};
-thx.core._Tuple.Tuple0_Impl_ = function() { };
+thx.core._Tuple.Tuple0_Impl_ = {};
 thx.core._Tuple.Tuple0_Impl_.__name__ = ["thx","core","_Tuple","Tuple0_Impl_"];
 thx.core._Tuple.Tuple0_Impl_._new = function() {
 	return thx.core.Nil.nil;
@@ -6095,7 +5960,7 @@ thx.core._Tuple.Tuple0_Impl_.toNil = function(this1) {
 thx.core._Tuple.Tuple0_Impl_.nilToTuple = function(v) {
 	return thx.core.Nil.nil;
 };
-thx.core._Tuple.Tuple1_Impl_ = function() { };
+thx.core._Tuple.Tuple1_Impl_ = {};
 thx.core._Tuple.Tuple1_Impl_.__name__ = ["thx","core","_Tuple","Tuple1_Impl_"];
 thx.core._Tuple.Tuple1_Impl_._new = function(_0) {
 	return _0;
@@ -6109,7 +5974,7 @@ thx.core._Tuple.Tuple1_Impl_["with"] = function(this1,v) {
 thx.core._Tuple.Tuple1_Impl_.toString = function(this1) {
 	return "Tuple1(" + Std.string(this1) + ")";
 };
-thx.core._Tuple.Tuple2_Impl_ = function() { };
+thx.core._Tuple.Tuple2_Impl_ = {};
 thx.core._Tuple.Tuple2_Impl_.__name__ = ["thx","core","_Tuple","Tuple2_Impl_"];
 thx.core._Tuple.Tuple2_Impl_._new = function(_0,_1) {
 	return { _0 : _0, _1 : _1};
@@ -6135,7 +6000,7 @@ thx.core._Tuple.Tuple2_Impl_["with"] = function(this1,v) {
 thx.core._Tuple.Tuple2_Impl_.toString = function(this1) {
 	return "Tuple2(" + Std.string(this1._0) + "," + Std.string(this1._1) + ")";
 };
-thx.core._Tuple.Tuple3_Impl_ = function() { };
+thx.core._Tuple.Tuple3_Impl_ = {};
 thx.core._Tuple.Tuple3_Impl_.__name__ = ["thx","core","_Tuple","Tuple3_Impl_"];
 thx.core._Tuple.Tuple3_Impl_._new = function(_0,_1,_2) {
 	return { _0 : _0, _1 : _1, _2 : _2};
@@ -6155,7 +6020,7 @@ thx.core._Tuple.Tuple3_Impl_["with"] = function(this1,v) {
 thx.core._Tuple.Tuple3_Impl_.toString = function(this1) {
 	return "Tuple3(" + Std.string(this1._0) + "," + Std.string(this1._1) + "," + Std.string(this1._2) + ")";
 };
-thx.core._Tuple.Tuple4_Impl_ = function() { };
+thx.core._Tuple.Tuple4_Impl_ = {};
 thx.core._Tuple.Tuple4_Impl_.__name__ = ["thx","core","_Tuple","Tuple4_Impl_"];
 thx.core._Tuple.Tuple4_Impl_._new = function(_0,_1,_2,_3) {
 	return { _0 : _0, _1 : _1, _2 : _2, _3 : _3};
@@ -6175,7 +6040,7 @@ thx.core._Tuple.Tuple4_Impl_["with"] = function(this1,v) {
 thx.core._Tuple.Tuple4_Impl_.toString = function(this1) {
 	return "Tuple4(" + Std.string(this1._0) + "," + Std.string(this1._1) + "," + Std.string(this1._2) + "," + Std.string(this1._3) + ")";
 };
-thx.core._Tuple.Tuple5_Impl_ = function() { };
+thx.core._Tuple.Tuple5_Impl_ = {};
 thx.core._Tuple.Tuple5_Impl_.__name__ = ["thx","core","_Tuple","Tuple5_Impl_"];
 thx.core._Tuple.Tuple5_Impl_._new = function(_0,_1,_2,_3,_4) {
 	return { _0 : _0, _1 : _1, _2 : _2, _3 : _3, _4 : _4};
@@ -6195,7 +6060,7 @@ thx.core._Tuple.Tuple5_Impl_["with"] = function(this1,v) {
 thx.core._Tuple.Tuple5_Impl_.toString = function(this1) {
 	return "Tuple5(" + Std.string(this1._0) + "," + Std.string(this1._1) + "," + Std.string(this1._2) + "," + Std.string(this1._3) + "," + Std.string(this1._4) + ")";
 };
-thx.core._Tuple.Tuple6_Impl_ = function() { };
+thx.core._Tuple.Tuple6_Impl_ = {};
 thx.core._Tuple.Tuple6_Impl_.__name__ = ["thx","core","_Tuple","Tuple6_Impl_"];
 thx.core._Tuple.Tuple6_Impl_._new = function(_0,_1,_2,_3,_4,_5) {
 	return { _0 : _0, _1 : _1, _2 : _2, _3 : _3, _4 : _4, _5 : _5};
@@ -6431,7 +6296,8 @@ thx.promise.FutureTuple6.mapTuple = function(future,callback) {
 };
 thx.promise.FutureTuple6.mapTupleAsync = function(future,callback) {
 	return future.mapAsync(function(t,cb) {
-		return callback(t._0,t._1,t._2,t._3,t._4,t._5,cb);
+		callback(t._0,t._1,t._2,t._3,t._4,t._5,cb);
+		return;
 	});
 };
 thx.promise.FutureTuple6.mapTupleFuture = function(future,callback) {
@@ -6465,7 +6331,8 @@ thx.promise.FutureTuple5.mapTuple = function(future,callback) {
 };
 thx.promise.FutureTuple5.mapTupleAsync = function(future,callback) {
 	return future.mapAsync(function(t,cb) {
-		return callback(t._0,t._1,t._2,t._3,t._4,cb);
+		callback(t._0,t._1,t._2,t._3,t._4,cb);
+		return;
 	});
 };
 thx.promise.FutureTuple5.mapTupleFuture = function(future,callback) {
@@ -6499,7 +6366,8 @@ thx.promise.FutureTuple4.mapTuple = function(future,callback) {
 };
 thx.promise.FutureTuple4.mapTupleAsync = function(future,callback) {
 	return future.mapAsync(function(t,cb) {
-		return callback(t._0,t._1,t._2,t._3,cb);
+		callback(t._0,t._1,t._2,t._3,cb);
+		return;
 	});
 };
 thx.promise.FutureTuple4.mapTupleFuture = function(future,callback) {
@@ -6533,7 +6401,8 @@ thx.promise.FutureTuple3.mapTuple = function(future,callback) {
 };
 thx.promise.FutureTuple3.mapTupleAsync = function(future,callback) {
 	return future.mapAsync(function(t,cb) {
-		return callback(t._0,t._1,t._2,cb);
+		callback(t._0,t._1,t._2,cb);
+		return;
 	});
 };
 thx.promise.FutureTuple3.mapTupleFuture = function(future,callback) {
@@ -6567,7 +6436,8 @@ thx.promise.FutureTuple2.mapTuple = function(future,callback) {
 };
 thx.promise.FutureTuple2.mapTupleAsync = function(future,callback) {
 	return future.mapAsync(function(t,cb) {
-		return callback(t._0,t._1,cb);
+		callback(t._0,t._1,cb);
+		return;
 	});
 };
 thx.promise.FutureTuple2.mapTupleFuture = function(future,callback) {
@@ -6590,7 +6460,7 @@ thx.promise.FutureNil.join = function(p1,p2) {
 	});
 };
 thx.promise._Promise = {};
-thx.promise._Promise.Promise_Impl_ = function() { };
+thx.promise._Promise.Promise_Impl_ = {};
 thx.promise._Promise.Promise_Impl_.__name__ = ["thx","promise","_Promise","Promise_Impl_"];
 thx.promise._Promise.Promise_Impl_.futureToPromise = function(future) {
 	return future.map(function(v) {
@@ -6706,7 +6576,8 @@ thx.promise._Promise.Promise_Impl_.mapAlways = function(this1,handler) {
 };
 thx.promise._Promise.Promise_Impl_.mapAlwaysAsync = function(this1,handler) {
 	return this1.mapAsync(function(_,cb) {
-		return handler(cb);
+		handler(cb);
+		return;
 	});
 };
 thx.promise._Promise.Promise_Impl_.mapAlwaysFuture = function(this1,handler) {
@@ -6977,7 +6848,7 @@ thx.promise.Timer.delayValue = function(value,delayms) {
 	return thx.promise.Future.create(function(callback) {
 		thx.core.Timer.delay((function(f,a1) {
 			return function() {
-				return f(a1);
+				f(a1);
 			};
 		})(callback,value),delayms);
 	});
@@ -6989,7 +6860,7 @@ thx.promise.Timer.immediateValue = function(value) {
 	return thx.promise.Future.create(function(callback) {
 		thx.core.Timer.immediate((function(f,a1) {
 			return function() {
-				return f(a1);
+				f(a1);
 			};
 		})(callback,value));
 	});
@@ -7103,7 +6974,7 @@ thx.stream.Emitter.prototype = {
 					cancel();
 					cancel = thx.core.Timer.delay((function(f,v1) {
 						return function() {
-							return f(v1);
+							f(v1);
 						};
 					})($bind(stream,stream.pulse),v),delay);
 					break;
@@ -7795,10 +7666,10 @@ thx.stream.EmitterStrings.truthy = function(emitter) {
 };
 thx.stream.EmitterStrings.unique = function(emitter) {
 	return emitter.filter((function() {
-		var buf = new haxe.ds.StringMap();
+		var buf_h = { };
 		return function(v) {
-			if(buf.exists(v)) return false; else {
-				buf.set(v,true);
+			if(buf_h.hasOwnProperty("$" + v)) return false; else {
+				buf_h["$" + v] = true;
 				return true;
 			}
 		};
@@ -7882,10 +7753,10 @@ thx.stream.EmitterInts.toBool = function(emitter) {
 };
 thx.stream.EmitterInts.unique = function(emitter) {
 	return emitter.filter((function() {
-		var buf = new haxe.ds.IntMap();
+		var buf_h = { };
 		return function(v) {
-			if(buf.exists(v)) return false; else {
-				buf.set(v,true);
+			if(buf_h.hasOwnProperty(v)) return false; else {
+				buf_h[v] = true;
 				return true;
 			}
 		};
@@ -7934,7 +7805,7 @@ thx.stream.EmitterFloats.lessThanOrEqualTo = function(emitter,x) {
 };
 thx.stream.EmitterFloats.max = function(emitter) {
 	return emitter.filter((function() {
-		var max = Math.NEGATIVE_INFINITY;
+		var max = -Infinity;
 		return function(v) {
 			if(v > max) {
 				max = v;
@@ -7945,7 +7816,7 @@ thx.stream.EmitterFloats.max = function(emitter) {
 };
 thx.stream.EmitterFloats.min = function(emitter) {
 	return emitter.filter((function() {
-		var min = Math.POSITIVE_INFINITY;
+		var min = Infinity;
 		return function(v) {
 			if(v < min) {
 				min = v;
@@ -8113,8 +7984,8 @@ thx.stream.Stream.prototype = {
 	,__class__: thx.stream.Stream
 };
 thx.stream.StreamValue = { __ename__ : ["thx","stream","StreamValue"], __constructs__ : ["Pulse","End"] };
-thx.stream.StreamValue.Pulse = function(value) { var $x = ["Pulse",0,value]; $x.__enum__ = thx.stream.StreamValue; $x.toString = $estr; return $x; };
-thx.stream.StreamValue.End = function(cancel) { var $x = ["End",1,cancel]; $x.__enum__ = thx.stream.StreamValue; $x.toString = $estr; return $x; };
+thx.stream.StreamValue.Pulse = function(value) { var $x = ["Pulse",0,value]; $x.__enum__ = thx.stream.StreamValue; return $x; };
+thx.stream.StreamValue.End = function(cancel) { var $x = ["End",1,cancel]; $x.__enum__ = thx.stream.StreamValue; return $x; };
 thx.stream.Value = function(value,equals) {
 	var _g = this;
 	if(null == equals) this.equals = thx.core.Functions.equality; else this.equals = equals;
@@ -8312,7 +8183,7 @@ thx.stream.dom.Dom.subscribeToggleVisibility = function(el) {
 thx.unit = {};
 thx.unit.angle = {};
 thx.unit.angle._BinaryDegree = {};
-thx.unit.angle._BinaryDegree.BinaryDegree_Impl_ = function() { };
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_ = {};
 thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.__name__ = ["thx","unit","angle","_BinaryDegree","BinaryDegree_Impl_"];
 thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.pointToBinaryDegree = function(x,y) {
 	var this1;
@@ -8441,7 +8312,7 @@ thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.toString = function(this1) {
 	return this1 + "binary degree";
 };
 thx.unit.angle._Degree = {};
-thx.unit.angle._Degree.Degree_Impl_ = function() { };
+thx.unit.angle._Degree.Degree_Impl_ = {};
 thx.unit.angle._Degree.Degree_Impl_.__name__ = ["thx","unit","angle","_Degree","Degree_Impl_"];
 thx.unit.angle._Degree.Degree_Impl_.pointToDegree = function(x,y) {
 	var this1;
@@ -8570,7 +8441,7 @@ thx.unit.angle._Degree.Degree_Impl_.toString = function(this1) {
 	return this1 + "°";
 };
 thx.unit.angle._Grad = {};
-thx.unit.angle._Grad.Grad_Impl_ = function() { };
+thx.unit.angle._Grad.Grad_Impl_ = {};
 thx.unit.angle._Grad.Grad_Impl_.__name__ = ["thx","unit","angle","_Grad","Grad_Impl_"];
 thx.unit.angle._Grad.Grad_Impl_.pointToGrad = function(x,y) {
 	var this1;
@@ -8699,7 +8570,7 @@ thx.unit.angle._Grad.Grad_Impl_.toString = function(this1) {
 	return this1 + "grad";
 };
 thx.unit.angle._HourAngle = {};
-thx.unit.angle._HourAngle.HourAngle_Impl_ = function() { };
+thx.unit.angle._HourAngle.HourAngle_Impl_ = {};
 thx.unit.angle._HourAngle.HourAngle_Impl_.__name__ = ["thx","unit","angle","_HourAngle","HourAngle_Impl_"];
 thx.unit.angle._HourAngle.HourAngle_Impl_.pointToHourAngle = function(x,y) {
 	var this1;
@@ -8828,7 +8699,7 @@ thx.unit.angle._HourAngle.HourAngle_Impl_.toString = function(this1) {
 	return this1 + "hour";
 };
 thx.unit.angle._MinuteOfArc = {};
-thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_ = function() { };
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_ = {};
 thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.__name__ = ["thx","unit","angle","_MinuteOfArc","MinuteOfArc_Impl_"];
 thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.pointToMinuteOfArc = function(x,y) {
 	var this1;
@@ -8957,7 +8828,7 @@ thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.toString = function(this1) {
 	return this1 + "′";
 };
 thx.unit.angle._Point = {};
-thx.unit.angle._Point.Point_Impl_ = function() { };
+thx.unit.angle._Point.Point_Impl_ = {};
 thx.unit.angle._Point.Point_Impl_.__name__ = ["thx","unit","angle","_Point","Point_Impl_"];
 thx.unit.angle._Point.Point_Impl_.pointToPoint = function(x,y) {
 	var this1;
@@ -9086,7 +8957,7 @@ thx.unit.angle._Point.Point_Impl_.toString = function(this1) {
 	return this1 + "point";
 };
 thx.unit.angle._Quadrant = {};
-thx.unit.angle._Quadrant.Quadrant_Impl_ = function() { };
+thx.unit.angle._Quadrant.Quadrant_Impl_ = {};
 thx.unit.angle._Quadrant.Quadrant_Impl_.__name__ = ["thx","unit","angle","_Quadrant","Quadrant_Impl_"];
 thx.unit.angle._Quadrant.Quadrant_Impl_.pointToQuadrant = function(x,y) {
 	var this1;
@@ -9215,7 +9086,7 @@ thx.unit.angle._Quadrant.Quadrant_Impl_.toString = function(this1) {
 	return this1 + "quad.";
 };
 thx.unit.angle._Radian = {};
-thx.unit.angle._Radian.Radian_Impl_ = function() { };
+thx.unit.angle._Radian.Radian_Impl_ = {};
 thx.unit.angle._Radian.Radian_Impl_.__name__ = ["thx","unit","angle","_Radian","Radian_Impl_"];
 thx.unit.angle._Radian.Radian_Impl_.pointToRadian = function(x,y) {
 	var value = Math.atan2(y,x);
@@ -9340,7 +9211,7 @@ thx.unit.angle._Radian.Radian_Impl_.toString = function(this1) {
 	return this1 + "rad";
 };
 thx.unit.angle._Revolution = {};
-thx.unit.angle._Revolution.Revolution_Impl_ = function() { };
+thx.unit.angle._Revolution.Revolution_Impl_ = {};
 thx.unit.angle._Revolution.Revolution_Impl_.__name__ = ["thx","unit","angle","_Revolution","Revolution_Impl_"];
 thx.unit.angle._Revolution.Revolution_Impl_.pointToRevolution = function(x,y) {
 	var this1;
@@ -9469,7 +9340,7 @@ thx.unit.angle._Revolution.Revolution_Impl_.toString = function(this1) {
 	return this1 + "r";
 };
 thx.unit.angle._SecondOfArc = {};
-thx.unit.angle._SecondOfArc.SecondOfArc_Impl_ = function() { };
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_ = {};
 thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.__name__ = ["thx","unit","angle","_SecondOfArc","SecondOfArc_Impl_"];
 thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.pointToSecondOfArc = function(x,y) {
 	var this1;
@@ -9598,7 +9469,7 @@ thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.toString = function(this1) {
 	return this1 + "″";
 };
 thx.unit.angle._Sextant = {};
-thx.unit.angle._Sextant.Sextant_Impl_ = function() { };
+thx.unit.angle._Sextant.Sextant_Impl_ = {};
 thx.unit.angle._Sextant.Sextant_Impl_.__name__ = ["thx","unit","angle","_Sextant","Sextant_Impl_"];
 thx.unit.angle._Sextant.Sextant_Impl_.pointToSextant = function(x,y) {
 	var this1;
@@ -9727,7 +9598,7 @@ thx.unit.angle._Sextant.Sextant_Impl_.toString = function(this1) {
 	return this1 + "sextant";
 };
 thx.unit.angle._Turn = {};
-thx.unit.angle._Turn.Turn_Impl_ = function() { };
+thx.unit.angle._Turn.Turn_Impl_ = {};
 thx.unit.angle._Turn.Turn_Impl_.__name__ = ["thx","unit","angle","_Turn","Turn_Impl_"];
 thx.unit.angle._Turn.Turn_Impl_.pointToTurn = function(x,y) {
 	var this1;
@@ -9861,15 +9732,6 @@ function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id
 if(Array.prototype.indexOf) HxOverrides.indexOf = function(a,o,i) {
 	return Array.prototype.indexOf.call(a,o,i);
 };
-Math.NaN = Number.NaN;
-Math.NEGATIVE_INFINITY = Number.NEGATIVE_INFINITY;
-Math.POSITIVE_INFINITY = Number.POSITIVE_INFINITY;
-Math.isFinite = function(i) {
-	return isFinite(i);
-};
-Math.isNaN = function(i1) {
-	return isNaN(i1);
-};
 String.prototype.__class__ = String;
 String.__name__ = ["String"];
 Array.__name__ = ["Array"];
@@ -9976,12 +9838,7 @@ Canvas.height = 600;
 dots.Html.pattern = new EReg("[<]([^> ]+)","");
 dots.Query.doc = document;
 haxe.ds.ObjectMap.count = 0;
-sui._Sui.Anchor_Impl_.topLeft = "sui-top-left";
-sui._Sui.Anchor_Impl_.topRight = "sui-top-right";
-sui._Sui.Anchor_Impl_.bottomLeft = "sui-bottom-left";
-sui._Sui.Anchor_Impl_.bottomRight = "sui-bottom-right";
-sui._Sui.Anchor_Impl_.fill = "sui-fill";
-sui._Sui.Anchor_Impl_.append = "sui-append";
+js.Boot.__toStr = {}.toString;
 sui.controls.ColorControl.PATTERN = new EReg("^[#][0-9a-f]{6}$","i");
 sui.controls.DataList.nid = 0;
 thx.color._Grey.Grey_Impl_.black = (function($this) {
@@ -10014,29 +9871,29 @@ thx.core.Strings.WSG = new EReg("\\s+","g");
 thx.core.Strings.SPLIT_LINES = new EReg("\r\n|\n\r|\n|\r","g");
 thx.core.Timer.FRAME_RATE = Math.round(16.6666666666666679);
 thx.promise._Promise.Promise_Impl_.nil = thx.promise._Promise.Promise_Impl_.value(thx.core.Nil.nil);
-thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.turn = 256;
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.turn = thx.unit.angle._BinaryDegree.BinaryDegree_Impl_._new(256);
 thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.symbol = "binary degree";
-thx.unit.angle._Degree.Degree_Impl_.turn = 360;
+thx.unit.angle._Degree.Degree_Impl_.turn = thx.unit.angle._Degree.Degree_Impl_._new(360);
 thx.unit.angle._Degree.Degree_Impl_.symbol = "°";
-thx.unit.angle._Grad.Grad_Impl_.turn = 400;
+thx.unit.angle._Grad.Grad_Impl_.turn = thx.unit.angle._Grad.Grad_Impl_._new(400);
 thx.unit.angle._Grad.Grad_Impl_.symbol = "grad";
-thx.unit.angle._HourAngle.HourAngle_Impl_.turn = 24;
+thx.unit.angle._HourAngle.HourAngle_Impl_.turn = thx.unit.angle._HourAngle.HourAngle_Impl_._new(24);
 thx.unit.angle._HourAngle.HourAngle_Impl_.symbol = "hour";
-thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.turn = 21600;
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.turn = thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_._new(21600);
 thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.symbol = "′";
-thx.unit.angle._Point.Point_Impl_.turn = 32;
+thx.unit.angle._Point.Point_Impl_.turn = thx.unit.angle._Point.Point_Impl_._new(32);
 thx.unit.angle._Point.Point_Impl_.symbol = "point";
-thx.unit.angle._Quadrant.Quadrant_Impl_.turn = 4;
+thx.unit.angle._Quadrant.Quadrant_Impl_.turn = thx.unit.angle._Quadrant.Quadrant_Impl_._new(4);
 thx.unit.angle._Quadrant.Quadrant_Impl_.symbol = "quad.";
-thx.unit.angle._Radian.Radian_Impl_.turn = 6.28318530717959;
+thx.unit.angle._Radian.Radian_Impl_.turn = thx.unit.angle._Radian.Radian_Impl_._new(6.28318530717959);
 thx.unit.angle._Radian.Radian_Impl_.symbol = "rad";
-thx.unit.angle._Revolution.Revolution_Impl_.turn = 1;
+thx.unit.angle._Revolution.Revolution_Impl_.turn = thx.unit.angle._Revolution.Revolution_Impl_._new(1);
 thx.unit.angle._Revolution.Revolution_Impl_.symbol = "r";
-thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.turn = 1296000;
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.turn = thx.unit.angle._SecondOfArc.SecondOfArc_Impl_._new(1296000);
 thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.symbol = "″";
-thx.unit.angle._Sextant.Sextant_Impl_.turn = 6;
+thx.unit.angle._Sextant.Sextant_Impl_.turn = thx.unit.angle._Sextant.Sextant_Impl_._new(6);
 thx.unit.angle._Sextant.Sextant_Impl_.symbol = "sextant";
-thx.unit.angle._Turn.Turn_Impl_.turn = 1;
+thx.unit.angle._Turn.Turn_Impl_.turn = thx.unit.angle._Turn.Turn_Impl_._new(1);
 thx.unit.angle._Turn.Turn_Impl_.symbol = "τ";
 Canvas.main();
 })();

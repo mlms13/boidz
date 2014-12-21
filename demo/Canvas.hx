@@ -20,7 +20,7 @@ class Canvas {
         display = new Display(render),
         avoidCollisions = new AvoidCollisions(flock, 3, 25),
         respectBoundaries = new RespectBoundaries(0, width, 0, height, 50, 25),
-        waypoints = new Waypoints(flock, 10),
+        waypoints = new IndividualWaypoints(flock, 10),
         velocity = 3.0;
 
     //flock.addRule(new SteerTowardCenter(flock));
@@ -30,7 +30,7 @@ class Canvas {
     addBoids(flock, 1000, velocity, respectBoundaries.offset);
 
     var canvasBoundaries = new CanvasBoundaries(respectBoundaries),
-        canvasWaypoints = new CanvasWaypoints(waypoints),
+        canvasWaypoints = new CanvasIndividualWaypoints(waypoints),
         canvasFlock = new CanvasFlock(flock);
 
     display.addRenderable(canvasBoundaries);
@@ -86,7 +86,7 @@ class Canvas {
       frameRate.set('$average/s ($min -> $max)');
     }, 2000);
     canvas.addEventListener("click", function(e) {
-      waypoints.goals.push({ x : e.clientX, y : e.clientY });
+      waypoints.addGoal(e.clientX, e.clientY);
     }, false);
 
     // UI

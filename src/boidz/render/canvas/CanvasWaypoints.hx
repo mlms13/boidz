@@ -25,7 +25,6 @@ class CanvasWaypoints implements IRenderable<CanvasRender> {
 
     ctx.beginPath();
     ctx.fillStyle = "rgba(0,0,0,0.1)";
-    ctx.moveTo(waypoints.flock.x, waypoints.flock.y);
     ctx.arc(waypoints.goalRule.x, waypoints.goalRule.y, waypoints.radius, 0, 2 * Math.PI, false);
     ctx.fill();
 

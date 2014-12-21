@@ -10,6 +10,8 @@ class SteerTowardCenter implements IFlockRule {
 
   // move 1% toward the perceived center of all other boids
   public function new(flock : Flock, ?maxSteer : Degree) {
+    if(null == maxSteer)
+      maxSteer = 10;
     this.flock = flock;
     this.goal = new SteerTowardGoal(flock.x, flock.y, maxSteer);
   }
