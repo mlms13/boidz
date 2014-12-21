@@ -733,22 +733,20 @@ boidz.render.canvas.CanvasIndividualWaypoints.prototype = {
 	waypoints: null
 	,enabled: null
 	,render: function(render) {
-		var x = this.waypoints.flock.x;
-		var y = this.waypoints.flock.y;
 		var ctx = render.ctx;
 		ctx.lineWidth = 1;
 		ctx.setLineDash([2]);
-		ctx.beginPath();
 		ctx.fillStyle = "rgba(0,0,0,0.2)";
-		ctx.moveTo(x,y);
 		var _g1 = this.waypoints.current;
 		var _g = this.waypoints.goals.length;
 		while(_g1 < _g) {
 			var i = _g1++;
 			var goal = this.waypoints.goals[i];
 			ctx.strokeStyle = "#CCCCCC";
-			ctx.lineTo(goal.x,goal.y);
-			ctx.stroke();
+			if(i > this.waypoints.current) {
+				ctx.lineTo(goal.x,goal.y);
+				ctx.stroke();
+			}
 			ctx.beginPath();
 			ctx.strokeStyle = "";
 			ctx.arc(goal.x,goal.y,this.waypoints.radius,0,2 * Math.PI,false);
