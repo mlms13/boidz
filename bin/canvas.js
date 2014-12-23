@@ -559,14 +559,14 @@ boidz.Flock.prototype = {
 			++_g4;
 			boid1.x += boid1.v * (function($this) {
 				var $r;
-				var this2 = thx.unit.angle._Radian.Radian_Impl_._new(boid1.d * 0.0174532925199433);
-				$r = Math.cos(this2);
+				var this1 = thx.unit.angle._Radian.Radian_Impl_._new(boid1.d * 0.0174532925199433);
+				$r = Math.cos(this1);
 				return $r;
 			}(this));
 			boid1.y += boid1.v * (function($this) {
 				var $r;
-				var this21 = thx.unit.angle._Radian.Radian_Impl_._new(boid1.d * 0.0174532925199433);
-				$r = Math.sin(this21);
+				var this2 = thx.unit.angle._Radian.Radian_Impl_._new(boid1.d * 0.0174532925199433);
+				$r = Math.sin(this2);
 				return $r;
 			}(this));
 		}
@@ -644,6 +644,7 @@ boidz.render.canvas.CanvasBoundaries.prototype = {
 	,__class__: boidz.render.canvas.CanvasBoundaries
 };
 boidz.render.canvas.CanvasFlock = function(flock,boidColor) {
+	this.pos = 0;
 	this.trailLength = 20;
 	this.renderTrail = true;
 	this.renderCentroid = true;
@@ -652,7 +653,7 @@ boidz.render.canvas.CanvasFlock = function(flock,boidColor) {
 	this.flock = flock;
 	this.map = new haxe.ds.ObjectMap();
 	this.rgb = "" + "#" + StringTools.hex(boidColor >> 16 & 255,2) + StringTools.hex(boidColor >> 8 & 255,2) + StringTools.hex(boidColor & 255,2);
-	var this1 = thx.color._RGBA.RGBA_Impl_.toRGBXA(419430400 | (boidColor >> 16 & 255 & 255) << 16 | (boidColor >> 8 & 255 & 255) << 8 | boidColor & 255 & 255);
+	var this1 = thx.color._RGBA.RGBA_Impl_.toRGBXA(335544320 | (boidColor >> 16 & 255 & 255) << 16 | (boidColor >> 8 & 255 & 255) << 8 | boidColor & 255 & 255);
 	this.rgba = "rgba(" + this1[0] * 100 + "%," + this1[1] * 100 + "%," + this1[2] * 100 + "%," + this1[3] + ")";
 };
 boidz.render.canvas.CanvasFlock.__name__ = ["boidz","render","canvas","CanvasFlock"];
@@ -669,24 +670,33 @@ boidz.render.canvas.CanvasFlock.prototype = {
 	,getTrail: function(b) {
 		var c = this.map.h[b.__id__];
 		if(c == null) {
-			c = [];
+			var _g = [];
+			var _g2 = 0;
+			var _g1 = this.trailLength;
+			while(_g2 < _g1) {
+				var i = _g2++;
+				_g.push({ x : b.x, y : b.y});
+			}
+			c = _g;
 			this.map.set(b,c);
 		}
-		if(c.length < this.trailLength) c.push({ x : b.x, y : b.y}); else {
-			var p = c.pop();
-			p.x = b.x;
-			p.y = b.y;
-			c.unshift(p);
-		}
+		while(c.length < this.trailLength) c.push({ x : b.x, y : b.y});
+		if(c.length > this.trailLength) c.splice(this.trailLength,c.length - this.trailLength);
+		c[this.pos].x = b.x;
+		c[this.pos].y = b.y;
 		return c;
 	}
+	,pos: null
 	,render: function(render) {
 		var ctx = render.ctx;
-		ctx.setLineDash([]);
 		if(this.renderTrail) {
+			this.pos++;
+			if(this.pos >= this.trailLength) this.pos = 0;
 			ctx.beginPath();
 			ctx.strokeStyle = this.rgba;
 			var c;
+			var s = this.pos + 1;
+			if(s == this.trailLength) s = 0;
 			var _g = 0;
 			var _g1 = this.flock.boids;
 			while(_g < _g1.length) {
@@ -694,12 +704,20 @@ boidz.render.canvas.CanvasFlock.prototype = {
 				++_g;
 				c = this.getTrail(b);
 				if(c.length < 2) continue;
-				ctx.moveTo(c[0].x,c[0].y);
-				var _g3 = 1;
-				var _g2 = thx.core.Ints.min(c.length,this.trailLength);
+				ctx.moveTo(c[s].x,c[s].y);
+				var _g3 = s;
+				var _g2 = this.trailLength;
 				while(_g3 < _g2) {
 					var i = _g3++;
 					ctx.lineTo(c[i].x,c[i].y);
+				}
+				if(s != 0) {
+					var _g31 = 0;
+					var _g21 = this.pos;
+					while(_g31 < _g21) {
+						var i1 = _g31++;
+						ctx.lineTo(c[i1].x,c[i1].y);
+					}
 				}
 			}
 			ctx.stroke();
@@ -5723,6 +5741,12 @@ thx.core.Strings.humanize = function(s) {
 thx.core.Strings.isAlphaNum = function(value) {
 	return thx.core.Strings.ALPHANUM.match(value);
 };
+thx.core.Strings.isLowerCase = function(value) {
+	return value.toLowerCase() == value;
+};
+thx.core.Strings.isUpperCase = function(value) {
+	return value.toUpperCase() == value;
+};
 thx.core.Strings.ifEmpty = function(value,alt) {
 	if(null != value && "" != value) return value; else return alt;
 };
@@ -5762,6 +5786,11 @@ thx.core.Strings.repeat = function(s,times) {
 		$r = _g;
 		return $r;
 	}(this))).join("");
+};
+thx.core.Strings.reverse = function(s) {
+	var arr = s.split("");
+	arr.reverse();
+	return arr.join("");
 };
 thx.core.Strings.stripTags = function(s) {
 	return thx.core.Strings.STRIPTAGS.replace(s,"");
@@ -6081,6 +6110,27 @@ thx.core.Types = function() { };
 thx.core.Types.__name__ = ["thx","core","Types"];
 thx.core.Types.isAnonymousObject = function(v) {
 	return Reflect.isObject(v) && null == Type.getClass(v);
+};
+thx.core.Types.isPrimitive = function(v) {
+	{
+		var _g = Type["typeof"](v);
+		switch(_g[1]) {
+		case 1:case 2:case 3:
+			return true;
+		case 0:case 5:case 7:case 4:case 8:
+			return false;
+		case 6:
+			var c = _g[2];
+			return Type.getClassName(c) == "String";
+		}
+	}
+};
+thx.core.Types.hasSuperClass = function(cls,sup) {
+	while(null != cls) {
+		if(cls == sup) return true;
+		cls = Type.getSuperClass(cls);
+	}
+	return false;
 };
 thx.core.Types.sameType = function(a,b) {
 	return thx.core.Types.typeToString(Type["typeof"](a)) == thx.core.Types.typeToString(Type["typeof"](b));
