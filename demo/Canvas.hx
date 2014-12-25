@@ -93,7 +93,7 @@ class Canvas {
     var sui = new sui.Sui();
     var ui = sui.folder("flock");
     ui.int("boids",
-      flock.boids.length, { min : 0, max : 3000 },
+      flock.boids.length, { min : 1, max : 3000 },
       function(v){
         if(v > flock.boids.length)
           addBoids(flock, v - flock.boids.length, velocity, respectBoundaries.offset);

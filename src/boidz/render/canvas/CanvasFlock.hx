@@ -5,6 +5,7 @@ import boidz.IRenderable;
 import boidz.Point;
 import thx.core.Ints;
 import thx.color.RGB;
+import thx.color.RGBA;
 
 class CanvasFlock implements IRenderable<CanvasRender> {
   var flock : Flock;
@@ -12,18 +13,18 @@ class CanvasFlock implements IRenderable<CanvasRender> {
   public var renderCentroid : Bool = true;
   public var renderTrail : Bool = true;
   public var trailLength : Int = 20;
-  var rgb : String;
-  var rgba : String;
+  var boidColor : String;
+  var crownColor : String;
+  var trailColor : String;
 
   var map : Map<Boid, Array<Point>>;
-  public function new(flock : Flock, ?boidColor : RGB) {
-    if(null == boidColor)
-      boidColor = "#000000";
+  public function new(flock : Flock, ?boidColor : RGBA, ?crownColor : RGBA, ?trailColor : RGBA) {
+    this.boidColor = null == boidColor ? "#000000" : boidColor;
+    this.crownColor = null == crownColor ? "rgba(255,255,255,100)" : crownColor;
+    this.trailColor = null == trailColor ? (this.boidColor : RGB).withAlpha(20) : trailColor;
+
     this.flock = flock;
     this.map = new Map();
-
-    rgb = boidColor.toString();
-    rgba = boidColor.withAlpha(20).toString();
   }
 
   function getTrail(b : Boid) {
@@ -56,7 +57,7 @@ class CanvasFlock implements IRenderable<CanvasRender> {
         pos = 0;
       }
       ctx.beginPath();
-      ctx.strokeStyle = rgba;
+      ctx.strokeStyle = trailColor;
       var c,
           s = pos + 1;
       if(s == trailLength)
@@ -80,7 +81,12 @@ class CanvasFlock implements IRenderable<CanvasRender> {
     // boidz
     for(b in flock.boids) {
       ctx.beginPath();
-      ctx.fillStyle = rgb;
+      ctx.fillStyle = crownColor;
+      ctx.arc(b.x, b.y, 1.5, 0, 2 * Math.PI, false);
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.fillStyle = boidColor;
       ctx.arc(b.x, b.y, 1, 0, 2 * Math.PI, false);
       ctx.fill();
     }

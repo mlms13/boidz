@@ -74,7 +74,7 @@ Canvas.main = function() {
 	},false);
 	var sui1 = new sui.Sui();
 	var ui = sui1.folder("flock");
-	ui["int"]("boids",flock.boids.length,{ min : 0, max : 3000},function(v) {
+	ui["int"]("boids",flock.boids.length,{ min : 1, max : 3000},function(v) {
 		if(v > flock.boids.length) Canvas.addBoids(flock,v - flock.boids.length,velocity,respectBoundaries.offset); else flock.boids.splice(v,flock.boids.length - v);
 	});
 	var randomVelocity = false;
@@ -646,18 +646,22 @@ boidz.render.canvas.CanvasBoundaries.prototype = {
 	}
 	,__class__: boidz.render.canvas.CanvasBoundaries
 };
-boidz.render.canvas.CanvasFlock = function(flock,boidColor) {
+boidz.render.canvas.CanvasFlock = function(flock,boidColor,crownColor,trailColor) {
 	this.pos = 0;
 	this.trailLength = 20;
 	this.renderTrail = true;
 	this.renderCentroid = true;
 	this.enabled = true;
-	if(null == boidColor) boidColor = thx.color._RGB.RGB_Impl_.fromString("#000000");
+	if(null == boidColor) this.boidColor = "#000000"; else this.boidColor = "rgba(" + (boidColor >> 16 & 255) + "," + (boidColor >> 8 & 255) + "," + (boidColor & 255) + "," + (boidColor >> 24 & 255) / 255 + ")";
+	if(null == crownColor) this.crownColor = "rgba(255,255,255,100)"; else this.crownColor = "rgba(" + (crownColor >> 16 & 255) + "," + (crownColor >> 8 & 255) + "," + (crownColor & 255) + "," + (crownColor >> 24 & 255) / 255 + ")";
+	if(null == trailColor) {
+		var this1;
+		var this11 = thx.color._RGB.RGB_Impl_.fromString(this.boidColor);
+		this1 = thx.color._RGBA.RGBA_Impl_.toRGBXA(335544320 | (this11 >> 16 & 255 & 255) << 16 | (this11 >> 8 & 255 & 255) << 8 | this11 & 255 & 255);
+		this.trailColor = "rgba(" + this1[0] * 100 + "%," + this1[1] * 100 + "%," + this1[2] * 100 + "%," + this1[3] + ")";
+	} else this.trailColor = "rgba(" + (trailColor >> 16 & 255) + "," + (trailColor >> 8 & 255) + "," + (trailColor & 255) + "," + (trailColor >> 24 & 255) / 255 + ")";
 	this.flock = flock;
 	this.map = new haxe.ds.ObjectMap();
-	this.rgb = thx.color._RGB.RGB_Impl_.toHex(boidColor);
-	var this1 = thx.color._RGBA.RGBA_Impl_.toRGBXA(335544320 | (boidColor >> 16 & 255 & 255) << 16 | (boidColor >> 8 & 255 & 255) << 8 | boidColor & 255 & 255);
-	this.rgba = "rgba(" + this1[0] * 100 + "%," + this1[1] * 100 + "%," + this1[2] * 100 + "%," + this1[3] + ")";
 };
 boidz.render.canvas.CanvasFlock.__name__ = ["boidz","render","canvas","CanvasFlock"];
 boidz.render.canvas.CanvasFlock.__interfaces__ = [boidz.IRenderable];
@@ -667,8 +671,9 @@ boidz.render.canvas.CanvasFlock.prototype = {
 	,renderCentroid: null
 	,renderTrail: null
 	,trailLength: null
-	,rgb: null
-	,rgba: null
+	,boidColor: null
+	,crownColor: null
+	,trailColor: null
 	,map: null
 	,getTrail: function(b) {
 		var c = this.map.h[b.__id__];
@@ -696,7 +701,7 @@ boidz.render.canvas.CanvasFlock.prototype = {
 			this.pos++;
 			if(this.pos >= this.trailLength) this.pos = 0;
 			ctx.beginPath();
-			ctx.strokeStyle = this.rgba;
+			ctx.strokeStyle = this.trailColor;
 			var c;
 			var s = this.pos + 1;
 			if(s == this.trailLength) s = 0;
@@ -731,7 +736,11 @@ boidz.render.canvas.CanvasFlock.prototype = {
 			var b1 = _g11[_g4];
 			++_g4;
 			ctx.beginPath();
-			ctx.fillStyle = this.rgb;
+			ctx.fillStyle = this.crownColor;
+			ctx.arc(b1.x,b1.y,1.5,0,2 * Math.PI,false);
+			ctx.fill();
+			ctx.beginPath();
+			ctx.fillStyle = this.boidColor;
 			ctx.arc(b1.x,b1.y,1,0,2 * Math.PI,false);
 			ctx.fill();
 		}
