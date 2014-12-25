@@ -126,6 +126,7 @@ class Canvas {
 
     ui = sui.folder("collisions");
     ui.bind(avoidCollisions.enabled);
+    ui.bind(avoidCollisions.proportional);
     ui.bind(avoidCollisions.radius, { min : 0, max : 100 });
     ui.bind(avoidCollisions.maxSteer, { min : 1, max : 90 });
 
