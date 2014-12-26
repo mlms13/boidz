@@ -70,19 +70,19 @@ class Canvas {
     });
 
     thx.core.Timer.repeat(function() {
-      var average = benchmarks.average().round(2),
-          min     = benchmarks.min().round(2),
-          max     = benchmarks.max().round(2);
+      var average = benchmarks.average().roundTo(2),
+          min     = benchmarks.min().roundTo(2),
+          max     = benchmarks.max().roundTo(2);
       execution.set('$average ($min -> $max)');
 
-      average = renderings.average().round(1);
-      min     = renderings.min().round(1);
-      max     = renderings.max().round(1);
+      average = renderings.average().roundTo(1);
+      min     = renderings.min().roundTo(1);
+      max     = renderings.max().roundTo(1);
       rendering.set('$average ($min -> $max)');
 
-      average = (1000 / frames.average()).round(1);
-      min     = (1000 / frames.min()).round(1);
-      max     = (1000 / frames.max()).round(1);
+      average = (1000 / frames.average()).roundTo(1);
+      min     = (1000 / frames.min()).roundTo(1);
+      max     = (1000 / frames.max()).roundTo(1);
       frameRate.set('$average/s ($min -> $max)');
     }, 2000);
     canvas.addEventListener("click", function(e) {
@@ -93,7 +93,7 @@ class Canvas {
     var sui = new sui.Sui();
     var ui = sui.folder("flock");
     ui.int("boids",
-      flock.boids.length, { min : 0, max : 3000 },
+      flock.boids.length, { min : 1, max : 3000 },
       function(v){
         if(v > flock.boids.length)
           addBoids(flock, v - flock.boids.length, velocity, respectBoundaries.offset);
@@ -126,6 +126,7 @@ class Canvas {
 
     ui = sui.folder("collisions");
     ui.bind(avoidCollisions.enabled);
+    ui.bind(avoidCollisions.proportional);
     ui.bind(avoidCollisions.radius, { min : 0, max : 100 });
     ui.bind(avoidCollisions.maxSteer, { min : 1, max : 90 });
 

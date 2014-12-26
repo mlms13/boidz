@@ -9,6 +9,7 @@ class AvoidCollisions implements IFlockRule {
   @:isVar public var radius(get, set) : Float;
   var flock : Flock;
   public var enabled : Bool = true;
+  public var proportional : Bool = false;
   public var maxSteer : Float;
   var squareRadius : Float;
   var a : Point;
@@ -45,7 +46,12 @@ class AvoidCollisions implements IFlockRule {
     a.x /= count;
     a.y /= count;
 
-    b.d += Steer.away(b, a, maxSteer);
+    if(proportional) {
+      var dist = Math.sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
+      b.d += Steer.away(b, a, maxSteer) * (radius - dist) / radius;
+    } else {
+      b.d += Steer.away(b, a, maxSteer);
+    }
   }
 
   function get_radius() return radius;

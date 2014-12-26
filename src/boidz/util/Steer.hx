@@ -25,6 +25,14 @@ class Steer {
     return d;
   }
 
+  public static function converge(src : Float, dst : Float, max : Float) {
+    var delta = dst - src;
+    if(Math.abs(delta) > max)
+      return delta.sign() * max;
+    else
+      return delta;
+  }
+
   public static function facingRight(d : Degree) {
     d = d.normalize();
     return d > 270 || d < 90;
