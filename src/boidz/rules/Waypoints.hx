@@ -3,7 +3,7 @@ package boidz.rules;
 import thx.unit.angle.Degree;
 import boidz.IFlockRule;
 
-class Waypoints implements IFlockRule {
+class Waypoints implements IFlockRule<{}> {
   public var goals : Array<Point>;
   public var enabled : Bool = true;
   public var radius : Float;
@@ -41,7 +41,7 @@ class Waypoints implements IFlockRule {
     return null != goalRule;
   }
 
-  public function modify(b : Boid) : Void
+  public function modify(b : Boid<{}>) : Void
     goalRule.modify(b);
 
   function get_maxSteer() return maxSteer;

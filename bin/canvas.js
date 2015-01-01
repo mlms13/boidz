@@ -13,10 +13,12 @@ Canvas.main = function() {
 	var canvas = Canvas.getCanvas();
 	var render = new boidz.render.canvas.CanvasRender(canvas);
 	var display = new boidz.Display(render);
-	var avoidCollisions = new boidz.rules.AvoidCollisions(flock,3,thx.unit.angle._Degree.Degree_Impl_._new(25));
+	var neighbors = new boidz.rules.CollectNeighbors(flock,3);
+	var avoidCollisions = new boidz.rules.AvoidCollisions(thx.unit.angle._Degree.Degree_Impl_._new(25));
 	var respectBoundaries = new boidz.rules.RespectBoundaries(0,Canvas.width,0,Canvas.height,50,thx.unit.angle._Degree.Degree_Impl_._new(25));
 	var waypoints = new boidz.rules.IndividualWaypoints(flock,10);
 	var velocity = 3.0;
+	flock.addRule(neighbors);
 	flock.addRule(waypoints);
 	flock.addRule(avoidCollisions);
 	flock.addRule(respectBoundaries);
@@ -105,15 +107,16 @@ Canvas.main = function() {
 	ui["int"]("trail length",canvasFlock.trailLength,{ min : 1, max : 400},function(v5) {
 		canvasFlock.trailLength = v5;
 	});
+	ui = sui1.folder("neighbors");
+	ui.bool("enabled",neighbors.enabled,null,function(v6) {
+		neighbors.enabled = v6;
+	});
+	ui["float"]("radius",neighbors.get_radius(),{ min : 0, max : 100},function(v7) {
+		neighbors.set_radius(v7);
+	});
 	ui = sui1.folder("collisions");
-	ui.bool("enabled",avoidCollisions.enabled,null,function(v6) {
-		avoidCollisions.enabled = v6;
-	});
-	ui.bool("proportional",avoidCollisions.proportional,null,function(v7) {
-		avoidCollisions.proportional = v7;
-	});
-	ui["float"]("radius",avoidCollisions.get_radius(),{ min : 0, max : 100},function(v8) {
-		avoidCollisions.set_radius(v8);
+	ui.bool("enabled",avoidCollisions.enabled,null,function(v8) {
+		avoidCollisions.enabled = v8;
 	});
 	ui["float"]("max steer",avoidCollisions.maxSteer,{ min : 1, max : 90},function(v9) {
 		avoidCollisions.maxSteer = v9;
@@ -171,6 +174,7 @@ Canvas.addBoids = function(flock,howMany,velocity,offset) {
 			$r = thx.unit.angle._Degree.Degree_Impl_._new(value);
 			return $r;
 		}(this)));
+		b.data = { neighbors : []};
 		flock.boids.push(b);
 	}
 };
@@ -810,34 +814,60 @@ boidz.render.canvas.CanvasRender.prototype = {
 	,__class__: boidz.render.canvas.CanvasRender
 };
 boidz.rules = {};
-boidz.rules.AvoidCollisions = function(flock,radius,maxSteer) {
-	if(radius == null) radius = 5;
-	this.proportional = false;
+boidz.rules.AvoidCollisions = function(maxSteer) {
 	this.enabled = true;
 	if(null == maxSteer) maxSteer = thx.unit.angle._Degree.Degree_Impl_._new(10.0);
-	this.flock = flock;
-	this.set_radius(radius);
 	this.maxSteer = maxSteer;
 	this.a = { x : 0.0, y : 0.0};
 };
 boidz.rules.AvoidCollisions.__name__ = ["boidz","rules","AvoidCollisions"];
 boidz.rules.AvoidCollisions.__interfaces__ = [boidz.IFlockRule];
 boidz.rules.AvoidCollisions.prototype = {
+	enabled: null
+	,maxSteer: null
+	,a: null
+	,before: function() {
+		return true;
+	}
+	,modify: function(b) {
+		var len = b.data.neighbors.length;
+		if(len == 0) return;
+		this.a.x = this.a.y = 0.0;
+		var _g = 0;
+		var _g1 = b.data.neighbors;
+		while(_g < _g1.length) {
+			var n = _g1[_g];
+			++_g;
+			this.a.x += n.x;
+			this.a.y += n.y;
+		}
+		this.a.x /= len;
+		this.a.y /= len;
+		var other = boidz.util.Steer.away(b,this.a,thx.unit.angle._Degree.Degree_Impl_._new(this.maxSteer));
+		b.d = thx.unit.angle._Degree.Degree_Impl_._new(b.d + other);
+	}
+	,__class__: boidz.rules.AvoidCollisions
+};
+boidz.rules.CollectNeighbors = function(flock,radius) {
+	if(radius == null) radius = 5;
+	this.enabled = true;
+	this.flock = flock;
+	this.set_radius(radius);
+};
+boidz.rules.CollectNeighbors.__name__ = ["boidz","rules","CollectNeighbors"];
+boidz.rules.CollectNeighbors.__interfaces__ = [boidz.IFlockRule];
+boidz.rules.CollectNeighbors.prototype = {
 	radius: null
 	,flock: null
 	,enabled: null
-	,proportional: null
-	,maxSteer: null
 	,squareRadius: null
-	,a: null
 	,before: function() {
 		return true;
 	}
 	,modify: function(b) {
 		var dx = 0.0;
 		var dy = 0.0;
-		var count = 0;
-		this.a.x = this.a.y = 0.0;
+		var boids = [];
 		var _g = 0;
 		var _g1 = this.flock.boids;
 		while(_g < _g1.length) {
@@ -847,27 +877,9 @@ boidz.rules.AvoidCollisions.prototype = {
 			dx = b.x - n.x;
 			dy = b.y - n.y;
 			if(dx * dx + dy * dy > this.squareRadius) continue;
-			this.a.x += n.x;
-			this.a.y += n.y;
-			count++;
+			boids.push(n);
 		}
-		if(count == 0) return;
-		this.a.x /= count;
-		this.a.y /= count;
-		if(this.proportional) {
-			var dist = Math.sqrt((this.a.x - b.x) * (this.a.x - b.x) + (this.a.y - b.y) * (this.a.y - b.y));
-			var other;
-			var this1;
-			var this11 = boidz.util.Steer.away(b,this.a,thx.unit.angle._Degree.Degree_Impl_._new(this.maxSteer));
-			var other2 = this.get_radius() - dist;
-			this1 = thx.unit.angle._Degree.Degree_Impl_._new(this11 * other2);
-			var other1 = this.get_radius();
-			other = thx.unit.angle._Degree.Degree_Impl_._new(this1 / other1);
-			b.d = thx.unit.angle._Degree.Degree_Impl_._new(b.d + other);
-		} else {
-			var other3 = boidz.util.Steer.away(b,this.a,thx.unit.angle._Degree.Degree_Impl_._new(this.maxSteer));
-			b.d = thx.unit.angle._Degree.Degree_Impl_._new(b.d + other3);
-		}
+		b.data.neighbors = boids;
 	}
 	,get_radius: function() {
 		return this.radius;
@@ -877,7 +889,7 @@ boidz.rules.AvoidCollisions.prototype = {
 		this.squareRadius = r * r;
 		return r;
 	}
-	,__class__: boidz.rules.AvoidCollisions
+	,__class__: boidz.rules.CollectNeighbors
 };
 boidz.rules.IndividualWaypoints = function(flock,radius,maxSteer) {
 	if(radius == null) radius = 10;

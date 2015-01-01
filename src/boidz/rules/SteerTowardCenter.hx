@@ -3,7 +3,7 @@ package boidz.rules;
 import boidz.IFlockRule;
 import thx.unit.angle.Degree;
 
-class SteerTowardCenter implements IFlockRule {
+class SteerTowardCenter implements IFlockRule<{}> {
   public var flock : Flock;
   public var goal : SteerTowardGoal;
   public var enabled : Bool = true;
@@ -22,6 +22,6 @@ class SteerTowardCenter implements IFlockRule {
     return true;
   }
 
-  public function modify(b:Boid)
+  public function modify(b:Boid<{}>)
     goal.modify(b);
 }
