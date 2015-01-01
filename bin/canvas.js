@@ -1,5 +1,5 @@
 (function () { "use strict";
-var console = (1,eval)('this').console || {log:function(){}};
+var $estr = function() { return js.Boot.__string_rec(this,''); };
 function $extend(from, fields) {
 	function Inherit() {} Inherit.prototype = from; var proto = new Inherit();
 	for (var name in fields) proto[name] = fields[name];
@@ -298,6 +298,15 @@ Lambda.has = function(it,elt) {
 	}
 	return false;
 };
+var IMap = function() { };
+IMap.__name__ = ["IMap"];
+IMap.prototype = {
+	get: null
+	,set: null
+	,exists: null
+	,keys: null
+	,__class__: IMap
+};
 Math.__name__ = ["Math"];
 var Reflect = function() { };
 Reflect.__name__ = ["Reflect"];
@@ -324,10 +333,16 @@ Reflect.fields = function(o) {
 Reflect.isFunction = function(f) {
 	return typeof(f) == "function" && !(f.__name__ || f.__ename__);
 };
+Reflect.compare = function(a,b) {
+	if(a == b) return 0; else if(a > b) return 1; else return -1;
+};
 Reflect.isObject = function(v) {
 	if(v == null) return false;
 	var t = typeof(v);
 	return t == "string" || t == "object" && v.__enum__ == null || t == "function" && (v.__name__ || v.__ename__) != null;
+};
+Reflect.isEnumValue = function(v) {
+	return v != null && v.__enum__ != null;
 };
 var Std = function() { };
 Std.__name__ = ["Std"];
@@ -339,6 +354,9 @@ Std.parseInt = function(x) {
 	if(v == 0 && (HxOverrides.cca(x,1) == 120 || HxOverrides.cca(x,1) == 88)) v = parseInt(x);
 	if(isNaN(v)) return null;
 	return v;
+};
+Std.parseFloat = function(x) {
+	return parseFloat(x);
 };
 Std.random = function(x) {
 	if(x <= 0) return 0; else return Math.floor(Math.random() * x);
@@ -407,33 +425,39 @@ StringTools.hex = function(n,digits) {
 };
 var ValueType = { __ename__ : ["ValueType"], __constructs__ : ["TNull","TInt","TFloat","TBool","TObject","TFunction","TClass","TEnum","TUnknown"] };
 ValueType.TNull = ["TNull",0];
+ValueType.TNull.toString = $estr;
 ValueType.TNull.__enum__ = ValueType;
 ValueType.TInt = ["TInt",1];
+ValueType.TInt.toString = $estr;
 ValueType.TInt.__enum__ = ValueType;
 ValueType.TFloat = ["TFloat",2];
+ValueType.TFloat.toString = $estr;
 ValueType.TFloat.__enum__ = ValueType;
 ValueType.TBool = ["TBool",3];
+ValueType.TBool.toString = $estr;
 ValueType.TBool.__enum__ = ValueType;
 ValueType.TObject = ["TObject",4];
+ValueType.TObject.toString = $estr;
 ValueType.TObject.__enum__ = ValueType;
 ValueType.TFunction = ["TFunction",5];
+ValueType.TFunction.toString = $estr;
 ValueType.TFunction.__enum__ = ValueType;
-ValueType.TClass = function(c) { var $x = ["TClass",6,c]; $x.__enum__ = ValueType; return $x; };
-ValueType.TEnum = function(e) { var $x = ["TEnum",7,e]; $x.__enum__ = ValueType; return $x; };
+ValueType.TClass = function(c) { var $x = ["TClass",6,c]; $x.__enum__ = ValueType; $x.toString = $estr; return $x; };
+ValueType.TEnum = function(e) { var $x = ["TEnum",7,e]; $x.__enum__ = ValueType; $x.toString = $estr; return $x; };
 ValueType.TUnknown = ["TUnknown",8];
+ValueType.TUnknown.toString = $estr;
 ValueType.TUnknown.__enum__ = ValueType;
 var Type = function() { };
 Type.__name__ = ["Type"];
 Type.getClass = function(o) {
 	if(o == null) return null;
-	return js.Boot.getClass(o);
+	if((o instanceof Array) && o.__enum__ == null) return Array; else return o.__class__;
 };
 Type.getSuperClass = function(c) {
 	return c.__super__;
 };
 Type.getClassName = function(c) {
 	var a = c.__name__;
-	if(a == null) return null;
 	return a.join(".");
 };
 Type.getEnumName = function(e) {
@@ -461,7 +485,8 @@ Type["typeof"] = function(v) {
 		if(v == null) return ValueType.TNull;
 		var e = v.__enum__;
 		if(e != null) return ValueType.TEnum(e);
-		var c = js.Boot.getClass(v);
+		var c;
+		if((v instanceof Array) && v.__enum__ == null) c = Array; else c = v.__class__;
 		if(c != null) return ValueType.TClass(c);
 		return ValueType.TObject;
 	case "function":
@@ -476,6 +501,7 @@ Type["typeof"] = function(v) {
 var boidz = {};
 boidz.Boid = function(x,y,v,d) {
 	if(v == null) v = 0.0;
+	this.data = { neighbors : 0.0};
 	if(null == d) d = thx.unit.angle._Degree.Degree_Impl_._new(0.0);
 	this.x = x;
 	this.y = y;
@@ -488,6 +514,7 @@ boidz.Boid.prototype = {
 	,y: null
 	,v: null
 	,d: null
+	,data: null
 	,__class__: boidz.Boid
 };
 boidz.Display = function(render) {
@@ -652,14 +679,14 @@ boidz.render.canvas.CanvasFlock = function(flock,boidColor,crownColor,trailColor
 	this.renderTrail = true;
 	this.renderCentroid = true;
 	this.enabled = true;
-	if(null == boidColor) this.boidColor = "#000000"; else this.boidColor = "rgba(" + (boidColor >> 16 & 255) + "," + (boidColor >> 8 & 255) + "," + (boidColor & 255) + "," + (boidColor >> 24 & 255) / 255 + ")";
-	if(null == crownColor) this.crownColor = "rgba(255,255,255,100)"; else this.crownColor = "rgba(" + (crownColor >> 16 & 255) + "," + (crownColor >> 8 & 255) + "," + (crownColor & 255) + "," + (crownColor >> 24 & 255) / 255 + ")";
+	if(null == boidColor) this.boidColor = "#000000"; else this.boidColor = thx.color._RGBXA.RGBXA_Impl_.toHSLA(thx.color._RGBA.RGBA_Impl_.toRGBXA(boidColor));
+	if(null == crownColor) this.crownColor = "rgba(255,255,255,100)"; else this.crownColor = thx.color._RGBXA.RGBXA_Impl_.toHSLA(thx.color._RGBA.RGBA_Impl_.toRGBXA(crownColor));
 	if(null == trailColor) {
 		var this1;
-		var this11 = thx.color._RGB.RGB_Impl_.fromString(this.boidColor);
-		this1 = thx.color._RGBA.RGBA_Impl_.toRGBXA(335544320 | (this11 >> 16 & 255 & 255) << 16 | (this11 >> 8 & 255 & 255) << 8 | this11 & 255 & 255);
-		this.trailColor = "rgba(" + this1[0] * 100 + "%," + this1[1] * 100 + "%," + this1[2] * 100 + "%," + this1[3] + ")";
-	} else this.trailColor = "rgba(" + (trailColor >> 16 & 255) + "," + (trailColor >> 8 & 255) + "," + (trailColor & 255) + "," + (trailColor >> 24 & 255) / 255 + ")";
+		var this2 = thx.color._RGB.RGB_Impl_.fromString(this.boidColor);
+		this1 = thx.color._RGBA.RGBA_Impl_.fromInts([this2 >> 16 & 255,this2 >> 8 & 255,this2 & 255,20]);
+		this.trailColor = thx.color._RGBXA.RGBXA_Impl_.toHSLA(thx.color._RGBA.RGBA_Impl_.toRGBXA(this1));
+	} else this.trailColor = thx.color._RGBXA.RGBXA_Impl_.toHSLA(thx.color._RGBA.RGBA_Impl_.toRGBXA(trailColor));
 	this.flock = flock;
 	this.map = new haxe.ds.ObjectMap();
 };
@@ -837,6 +864,7 @@ boidz.rules.AvoidCollisions.prototype = {
 		var dy = 0.0;
 		var count = 0;
 		this.a.x = this.a.y = 0.0;
+		b.data.neighbors = 0.0;
 		var _g = 0;
 		var _g1 = this.flock.boids;
 		while(_g < _g1.length) {
@@ -849,6 +877,7 @@ boidz.rules.AvoidCollisions.prototype = {
 			this.a.x += n.x;
 			this.a.y += n.y;
 			count++;
+			b.data.neighbors++;
 		}
 		if(count == 0) return;
 		this.a.x /= count;
@@ -857,11 +886,11 @@ boidz.rules.AvoidCollisions.prototype = {
 			var dist = Math.sqrt((this.a.x - b.x) * (this.a.x - b.x) + (this.a.y - b.y) * (this.a.y - b.y));
 			var other;
 			var this1;
-			var this11 = boidz.util.Steer.away(b,this.a,thx.unit.angle._Degree.Degree_Impl_._new(this.maxSteer));
-			var other2 = this.get_radius() - dist;
-			this1 = thx.unit.angle._Degree.Degree_Impl_._new(this11 * other2);
-			var other1 = this.get_radius();
-			other = thx.unit.angle._Degree.Degree_Impl_._new(this1 / other1);
+			var this2 = boidz.util.Steer.away(b,this.a,thx.unit.angle._Degree.Degree_Impl_._new(this.maxSteer));
+			var other1 = this.get_radius() - dist;
+			this1 = thx.unit.angle._Degree.Degree_Impl_._new(this2 * other1);
+			var other2 = this.get_radius();
+			other = thx.unit.angle._Degree.Degree_Impl_._new(this1 / other2);
 			b.d = thx.unit.angle._Degree.Degree_Impl_._new(b.d + other);
 		} else {
 			var other3 = boidz.util.Steer.away(b,this.a,thx.unit.angle._Degree.Degree_Impl_._new(this.maxSteer));
@@ -1040,10 +1069,10 @@ boidz.util.Steer.away = function(a,b,max) {
 	if(null != max) {
 		var this3;
 		var this4;
-		var value2 = Math.abs(d);
-		this4 = thx.unit.angle._Degree.Degree_Impl_._new(value2);
-		var value1 = Math.min(this4,max);
-		this3 = thx.unit.angle._Degree.Degree_Impl_._new(value1);
+		var value1 = Math.abs(d);
+		this4 = thx.unit.angle._Degree.Degree_Impl_._new(value1);
+		var value2 = Math.min(this4,max);
+		this3 = thx.unit.angle._Degree.Degree_Impl_._new(value2);
 		d = thx.unit.angle._Degree.Degree_Impl_._new(this3 * (d < 0?-1:1));
 	}
 	return d;
@@ -1066,10 +1095,10 @@ boidz.util.Steer.toward = function(a,b,max) {
 	if(null != max) {
 		var this3;
 		var this4;
-		var value2 = Math.abs(d);
-		this4 = thx.unit.angle._Degree.Degree_Impl_._new(value2);
-		var value1 = Math.min(this4,max);
-		this3 = thx.unit.angle._Degree.Degree_Impl_._new(value1);
+		var value1 = Math.abs(d);
+		this4 = thx.unit.angle._Degree.Degree_Impl_._new(value1);
+		var value2 = Math.min(this4,max);
+		this3 = thx.unit.angle._Degree.Degree_Impl_._new(value2);
 		d = thx.unit.angle._Degree.Degree_Impl_._new(this3 * (d < 0?-1:1));
 	}
 	return d;
@@ -1242,11 +1271,12 @@ dots.Query.childrenOf = function(children,parent) {
 var haxe = {};
 haxe.StackItem = { __ename__ : ["haxe","StackItem"], __constructs__ : ["CFunction","Module","FilePos","Method","LocalFunction"] };
 haxe.StackItem.CFunction = ["CFunction",0];
+haxe.StackItem.CFunction.toString = $estr;
 haxe.StackItem.CFunction.__enum__ = haxe.StackItem;
-haxe.StackItem.Module = function(m) { var $x = ["Module",1,m]; $x.__enum__ = haxe.StackItem; return $x; };
-haxe.StackItem.FilePos = function(s,file,line) { var $x = ["FilePos",2,s,file,line]; $x.__enum__ = haxe.StackItem; return $x; };
-haxe.StackItem.Method = function(classname,method) { var $x = ["Method",3,classname,method]; $x.__enum__ = haxe.StackItem; return $x; };
-haxe.StackItem.LocalFunction = function(v) { var $x = ["LocalFunction",4,v]; $x.__enum__ = haxe.StackItem; return $x; };
+haxe.StackItem.Module = function(m) { var $x = ["Module",1,m]; $x.__enum__ = haxe.StackItem; $x.toString = $estr; return $x; };
+haxe.StackItem.FilePos = function(s,file,line) { var $x = ["FilePos",2,s,file,line]; $x.__enum__ = haxe.StackItem; $x.toString = $estr; return $x; };
+haxe.StackItem.Method = function(classname,method) { var $x = ["Method",3,classname,method]; $x.__enum__ = haxe.StackItem; $x.toString = $estr; return $x; };
+haxe.StackItem.LocalFunction = function(v) { var $x = ["LocalFunction",4,v]; $x.__enum__ = haxe.StackItem; $x.toString = $estr; return $x; };
 haxe.CallStack = function() { };
 haxe.CallStack.__name__ = ["haxe","CallStack"];
 haxe.CallStack.callStack = function() {
@@ -1340,26 +1370,170 @@ haxe.CallStack.makeStack = function(s) {
 		return m;
 	} else return s;
 };
-haxe.IMap = function() { };
-haxe.IMap.__name__ = ["haxe","IMap"];
-haxe.IMap.prototype = {
-	get: null
-	,set: null
-	,exists: null
-	,keys: null
-	,__class__: haxe.IMap
-};
 haxe.Log = function() { };
 haxe.Log.__name__ = ["haxe","Log"];
 haxe.Log.trace = function(v,infos) {
 	js.Boot.__trace(v,infos);
 };
 haxe.ds = {};
+haxe.ds.BalancedTree = function() {
+};
+haxe.ds.BalancedTree.__name__ = ["haxe","ds","BalancedTree"];
+haxe.ds.BalancedTree.prototype = {
+	root: null
+	,set: function(key,value) {
+		this.root = this.setLoop(key,value,this.root);
+	}
+	,get: function(key) {
+		var node = this.root;
+		while(node != null) {
+			var c = this.compare(key,node.key);
+			if(c == 0) return node.value;
+			if(c < 0) node = node.left; else node = node.right;
+		}
+		return null;
+	}
+	,exists: function(key) {
+		var node = this.root;
+		while(node != null) {
+			var c = this.compare(key,node.key);
+			if(c == 0) return true; else if(c < 0) node = node.left; else node = node.right;
+		}
+		return false;
+	}
+	,keys: function() {
+		var ret = [];
+		this.keysLoop(this.root,ret);
+		return HxOverrides.iter(ret);
+	}
+	,setLoop: function(k,v,node) {
+		if(node == null) return new haxe.ds.TreeNode(null,k,v,null);
+		var c = this.compare(k,node.key);
+		if(c == 0) return new haxe.ds.TreeNode(node.left,k,v,node.right,node == null?0:node._height); else if(c < 0) {
+			var nl = this.setLoop(k,v,node.left);
+			return this.balance(nl,node.key,node.value,node.right);
+		} else {
+			var nr = this.setLoop(k,v,node.right);
+			return this.balance(node.left,node.key,node.value,nr);
+		}
+	}
+	,keysLoop: function(node,acc) {
+		if(node != null) {
+			this.keysLoop(node.left,acc);
+			acc.push(node.key);
+			this.keysLoop(node.right,acc);
+		}
+	}
+	,balance: function(l,k,v,r) {
+		var hl;
+		if(l == null) hl = 0; else hl = l._height;
+		var hr;
+		if(r == null) hr = 0; else hr = r._height;
+		if(hl > hr + 2) {
+			if((function($this) {
+				var $r;
+				var _this = l.left;
+				$r = _this == null?0:_this._height;
+				return $r;
+			}(this)) >= (function($this) {
+				var $r;
+				var _this1 = l.right;
+				$r = _this1 == null?0:_this1._height;
+				return $r;
+			}(this))) return new haxe.ds.TreeNode(l.left,l.key,l.value,new haxe.ds.TreeNode(l.right,k,v,r)); else return new haxe.ds.TreeNode(new haxe.ds.TreeNode(l.left,l.key,l.value,l.right.left),l.right.key,l.right.value,new haxe.ds.TreeNode(l.right.right,k,v,r));
+		} else if(hr > hl + 2) {
+			if((function($this) {
+				var $r;
+				var _this2 = r.right;
+				$r = _this2 == null?0:_this2._height;
+				return $r;
+			}(this)) > (function($this) {
+				var $r;
+				var _this3 = r.left;
+				$r = _this3 == null?0:_this3._height;
+				return $r;
+			}(this))) return new haxe.ds.TreeNode(new haxe.ds.TreeNode(l,k,v,r.left),r.key,r.value,r.right); else return new haxe.ds.TreeNode(new haxe.ds.TreeNode(l,k,v,r.left.left),r.left.key,r.left.value,new haxe.ds.TreeNode(r.left.right,r.key,r.value,r.right));
+		} else return new haxe.ds.TreeNode(l,k,v,r,(hl > hr?hl:hr) + 1);
+	}
+	,compare: function(k1,k2) {
+		return Reflect.compare(k1,k2);
+	}
+	,__class__: haxe.ds.BalancedTree
+};
+haxe.ds.TreeNode = function(l,k,v,r,h) {
+	if(h == null) h = -1;
+	this.left = l;
+	this.key = k;
+	this.value = v;
+	this.right = r;
+	if(h == -1) this._height = ((function($this) {
+		var $r;
+		var _this = $this.left;
+		$r = _this == null?0:_this._height;
+		return $r;
+	}(this)) > (function($this) {
+		var $r;
+		var _this1 = $this.right;
+		$r = _this1 == null?0:_this1._height;
+		return $r;
+	}(this))?(function($this) {
+		var $r;
+		var _this2 = $this.left;
+		$r = _this2 == null?0:_this2._height;
+		return $r;
+	}(this)):(function($this) {
+		var $r;
+		var _this3 = $this.right;
+		$r = _this3 == null?0:_this3._height;
+		return $r;
+	}(this))) + 1; else this._height = h;
+};
+haxe.ds.TreeNode.__name__ = ["haxe","ds","TreeNode"];
+haxe.ds.TreeNode.prototype = {
+	left: null
+	,right: null
+	,key: null
+	,value: null
+	,_height: null
+	,__class__: haxe.ds.TreeNode
+};
+haxe.ds.EnumValueMap = function() {
+	haxe.ds.BalancedTree.call(this);
+};
+haxe.ds.EnumValueMap.__name__ = ["haxe","ds","EnumValueMap"];
+haxe.ds.EnumValueMap.__interfaces__ = [IMap];
+haxe.ds.EnumValueMap.__super__ = haxe.ds.BalancedTree;
+haxe.ds.EnumValueMap.prototype = $extend(haxe.ds.BalancedTree.prototype,{
+	compare: function(k1,k2) {
+		var d = k1[1] - k2[1];
+		if(d != 0) return d;
+		var p1 = k1.slice(2);
+		var p2 = k2.slice(2);
+		if(p1.length == 0 && p2.length == 0) return 0;
+		return this.compareArgs(p1,p2);
+	}
+	,compareArgs: function(a1,a2) {
+		var ld = a1.length - a2.length;
+		if(ld != 0) return ld;
+		var _g1 = 0;
+		var _g = a1.length;
+		while(_g1 < _g) {
+			var i = _g1++;
+			var d = this.compareArg(a1[i],a2[i]);
+			if(d != 0) return d;
+		}
+		return 0;
+	}
+	,compareArg: function(v1,v2) {
+		if(Reflect.isEnumValue(v1) && Reflect.isEnumValue(v2)) return this.compare(v1,v2); else if((v1 instanceof Array) && v1.__enum__ == null && ((v2 instanceof Array) && v2.__enum__ == null)) return this.compareArgs(v1,v2); else return Reflect.compare(v1,v2);
+	}
+	,__class__: haxe.ds.EnumValueMap
+});
 haxe.ds.IntMap = function() {
 	this.h = { };
 };
 haxe.ds.IntMap.__name__ = ["haxe","ds","IntMap"];
-haxe.ds.IntMap.__interfaces__ = [haxe.IMap];
+haxe.ds.IntMap.__interfaces__ = [IMap];
 haxe.ds.IntMap.prototype = {
 	h: null
 	,set: function(key,value) {
@@ -1385,7 +1559,7 @@ haxe.ds.ObjectMap = function() {
 	this.h.__keys__ = { };
 };
 haxe.ds.ObjectMap.__name__ = ["haxe","ds","ObjectMap"];
-haxe.ds.ObjectMap.__interfaces__ = [haxe.IMap];
+haxe.ds.ObjectMap.__interfaces__ = [IMap];
 haxe.ds.ObjectMap.prototype = {
 	h: null
 	,set: function(key,value) {
@@ -1416,14 +1590,15 @@ haxe.ds.ObjectMap.prototype = {
 	,__class__: haxe.ds.ObjectMap
 };
 haxe.ds.Option = { __ename__ : ["haxe","ds","Option"], __constructs__ : ["Some","None"] };
-haxe.ds.Option.Some = function(v) { var $x = ["Some",0,v]; $x.__enum__ = haxe.ds.Option; return $x; };
+haxe.ds.Option.Some = function(v) { var $x = ["Some",0,v]; $x.__enum__ = haxe.ds.Option; $x.toString = $estr; return $x; };
 haxe.ds.Option.None = ["None",1];
+haxe.ds.Option.None.toString = $estr;
 haxe.ds.Option.None.__enum__ = haxe.ds.Option;
 haxe.ds.StringMap = function() {
 	this.h = { };
 };
 haxe.ds.StringMap.__name__ = ["haxe","ds","StringMap"];
-haxe.ds.StringMap.__interfaces__ = [haxe.IMap];
+haxe.ds.StringMap.__interfaces__ = [IMap];
 haxe.ds.StringMap.prototype = {
 	h: null
 	,set: function(key,value) {
@@ -1467,13 +1642,7 @@ js.Boot.__trace = function(v,i) {
 	if(typeof(document) != "undefined" && (d = document.getElementById("haxe:trace")) != null) d.innerHTML += js.Boot.__unhtml(msg) + "<br/>"; else if(typeof console != "undefined" && console.log != null) console.log(msg);
 };
 js.Boot.getClass = function(o) {
-	if((o instanceof Array) && o.__enum__ == null) return Array; else {
-		var cl = o.__class__;
-		if(cl != null) return cl;
-		var name = js.Boot.__nativeClassName(o);
-		if(name != null) return js.Boot.__resolveNativeClass(name);
-		return null;
-	}
+	if((o instanceof Array) && o.__enum__ == null) return Array; else return o.__class__;
 };
 js.Boot.__string_rec = function(o,s) {
 	if(o == null) return "null";
@@ -1485,18 +1654,18 @@ js.Boot.__string_rec = function(o,s) {
 		if(o instanceof Array) {
 			if(o.__enum__) {
 				if(o.length == 2) return o[0];
-				var str2 = o[0] + "(";
+				var str = o[0] + "(";
 				s += "\t";
 				var _g1 = 2;
 				var _g = o.length;
 				while(_g1 < _g) {
-					var i1 = _g1++;
-					if(i1 != 2) str2 += "," + js.Boot.__string_rec(o[i1],s); else str2 += js.Boot.__string_rec(o[i1],s);
+					var i = _g1++;
+					if(i != 2) str += "," + js.Boot.__string_rec(o[i],s); else str += js.Boot.__string_rec(o[i],s);
 				}
-				return str2 + ")";
+				return str + ")";
 			}
 			var l = o.length;
-			var i;
+			var i1;
 			var str1 = "[";
 			s += "\t";
 			var _g2 = 0;
@@ -1513,12 +1682,12 @@ js.Boot.__string_rec = function(o,s) {
 		} catch( e ) {
 			return "???";
 		}
-		if(tostr != null && tostr != Object.toString && typeof(tostr) == "function") {
+		if(tostr != null && tostr != Object.toString) {
 			var s2 = o.toString();
 			if(s2 != "[object Object]") return s2;
 		}
 		var k = null;
-		var str = "{\n";
+		var str2 = "{\n";
 		s += "\t";
 		var hasp = o.hasOwnProperty != null;
 		for( var k in o ) {
@@ -1528,12 +1697,12 @@ js.Boot.__string_rec = function(o,s) {
 		if(k == "prototype" || k == "__class__" || k == "__super__" || k == "__interfaces__" || k == "__properties__") {
 			continue;
 		}
-		if(str.length != 2) str += ", \n";
-		str += s + k + " : " + js.Boot.__string_rec(o[k],s);
+		if(str2.length != 2) str2 += ", \n";
+		str2 += s + k + " : " + js.Boot.__string_rec(o[k],s);
 		}
 		s = s.substring(1);
-		str += "\n" + s + "}";
-		return str;
+		str2 += "\n" + s + "}";
+		return str2;
 	case "function":
 		return "<function>";
 	case "string":
@@ -1577,25 +1746,12 @@ js.Boot.__instanceof = function(o,cl) {
 			if(typeof(cl) == "function") {
 				if(o instanceof cl) return true;
 				if(js.Boot.__interfLoop(js.Boot.getClass(o),cl)) return true;
-			} else if(typeof(cl) == "object" && js.Boot.__isNativeObj(cl)) {
-				if(o instanceof cl) return true;
 			}
 		} else return false;
 		if(cl == Class && o.__name__ != null) return true;
 		if(cl == Enum && o.__ename__ != null) return true;
 		return o.__enum__ == cl;
 	}
-};
-js.Boot.__nativeClassName = function(o) {
-	var name = js.Boot.__toStr.call(o).slice(8,-1);
-	if(name == "Object" || name == "Function" || name == "Math" || name == "JSON") return null;
-	return name;
-};
-js.Boot.__isNativeObj = function(o) {
-	return js.Boot.__nativeClassName(o) != null;
-};
-js.Boot.__resolveNativeClass = function(name) {
-	if(typeof window != "undefined") return window[name]; else return global[name];
 };
 var sui = {};
 sui.Sui = function() {
@@ -1638,7 +1794,7 @@ sui.Sui.createDate = function(defaultValue,options) {
 		var _11;
 		if(null == _01) t1 = null; else if(null == (_11 = _01.kind)) t1 = null; else t1 = _11;
 		if(t1 != null) _g1 = t1; else _g1 = sui.controls.DateKind.DateOnly;
-		if(_g != null) switch(_g) {
+		switch(_g) {
 		case true:
 			return new sui.controls.DateSelectControl(defaultValue,options);
 		default:
@@ -1648,11 +1804,6 @@ sui.Sui.createDate = function(defaultValue,options) {
 			default:
 				return new sui.controls.DateControl(defaultValue,options);
 			}
-		} else switch(_g1[1]) {
-		case 1:
-			return new sui.controls.DateTimeControl(defaultValue,options);
-		default:
-			return new sui.controls.DateControl(defaultValue,options);
 		}
 	}
 };
@@ -1672,6 +1823,11 @@ sui.Sui.collapsible = function(label,collapsed,attachTo,position) {
 	sui1.attach(attachTo,position);
 	return folder;
 };
+sui.Sui.createEnumMap = function(defaultValue,createKeyControl,createValueControl,options) {
+	return new sui.controls.MapControl(defaultValue,function() {
+		return new haxe.ds.EnumValueMap();
+	},createKeyControl,createValueControl,options);
+};
 sui.Sui.createFloat = function(defaultValue,options) {
 	if(defaultValue == null) defaultValue = 0.0;
 	{
@@ -1687,7 +1843,7 @@ sui.Sui.createFloat = function(defaultValue,options) {
 		var _11;
 		if(null == _01) t1 = null; else if(null == (_11 = _01.kind)) t1 = null; else t1 = _11;
 		if(t1 != null) _g1 = t1; else _g1 = sui.controls.FloatKind.FloatNumber;
-		if(_g != null) switch(_g) {
+		switch(_g) {
 		case true:
 			return new sui.controls.NumberSelectControl(defaultValue,options);
 		default:
@@ -1697,11 +1853,6 @@ sui.Sui.createFloat = function(defaultValue,options) {
 			default:
 				if(null != options && options.min != null && options.max != null) return new sui.controls.FloatRangeControl(defaultValue,options); else return new sui.controls.FloatControl(defaultValue,options);
 			}
-		} else switch(_g1[1]) {
-		case 1:
-			return new sui.controls.TimeControl(defaultValue,options);
-		default:
-			if(null != options && options.min != null && options.max != null) return new sui.controls.FloatRangeControl(defaultValue,options); else return new sui.controls.FloatControl(defaultValue,options);
 		}
 	}
 };
@@ -1753,7 +1904,7 @@ sui.Sui.createText = function(defaultValue,options) {
 		var _11;
 		if(null == _01) t1 = null; else if(null == (_11 = _01.kind)) t1 = null; else t1 = _11;
 		if(t1 != null) _g1 = t1; else _g1 = sui.controls.TextKind.PlainText;
-		if(_g != null) switch(_g) {
+		switch(_g) {
 		case true:
 			return new sui.controls.TextSelectControl(defaultValue,options);
 		default:
@@ -1771,19 +1922,6 @@ sui.Sui.createText = function(defaultValue,options) {
 			default:
 				return new sui.controls.TextControl(defaultValue,options);
 			}
-		} else switch(_g1[1]) {
-		case 0:
-			return new sui.controls.EmailControl(defaultValue,options);
-		case 1:
-			return new sui.controls.PasswordControl(defaultValue,options);
-		case 3:
-			return new sui.controls.TelControl(defaultValue,options);
-		case 2:
-			return new sui.controls.SearchControl(defaultValue,options);
-		case 5:
-			return new sui.controls.UrlControl(defaultValue,options);
-		default:
-			return new sui.controls.TextControl(defaultValue,options);
 		}
 	}
 };
@@ -1806,6 +1944,9 @@ sui.Sui.prototype = {
 	}
 	,date: function(label,defaultValue,options,callback) {
 		return this.control(label,sui.Sui.createDate(defaultValue,options),callback);
+	}
+	,enumMap: function(label,defaultValue,createKeyControl,createValueControl,options,callback) {
+		return this.control(label,sui.Sui.createEnumMap(defaultValue,createKeyControl,createValueControl,options),callback);
 	}
 	,'float': function(label,defaultValue,options,callback) {
 		if(defaultValue == null) defaultValue = 0.0;
@@ -1890,6 +2031,9 @@ sui.Sui.prototype = {
 	}
 	,__class__: sui.Sui
 };
+sui._Sui = {};
+sui._Sui.Anchor_Impl_ = function() { };
+sui._Sui.Anchor_Impl_.__name__ = ["sui","_Sui","Anchor_Impl_"];
 sui.components = {};
 sui.components.Grid = function() {
 	this.el = dots.Html.parseNodes("<table class=\"sui-grid\"></table>")[0];
@@ -1929,9 +2073,9 @@ sui.components.Grid.prototype = {
 	,__class__: sui.components.Grid
 };
 sui.components.CellContent = { __ename__ : ["sui","components","CellContent"], __constructs__ : ["Single","VerticalPair","HorizontalPair"] };
-sui.components.CellContent.Single = function(control) { var $x = ["Single",0,control]; $x.__enum__ = sui.components.CellContent; return $x; };
-sui.components.CellContent.VerticalPair = function(top,bottom) { var $x = ["VerticalPair",1,top,bottom]; $x.__enum__ = sui.components.CellContent; return $x; };
-sui.components.CellContent.HorizontalPair = function(left,right) { var $x = ["HorizontalPair",2,left,right]; $x.__enum__ = sui.components.CellContent; return $x; };
+sui.components.CellContent.Single = function(control) { var $x = ["Single",0,control]; $x.__enum__ = sui.components.CellContent; $x.toString = $estr; return $x; };
+sui.components.CellContent.VerticalPair = function(top,bottom) { var $x = ["VerticalPair",1,top,bottom]; $x.__enum__ = sui.components.CellContent; $x.toString = $estr; return $x; };
+sui.components.CellContent.HorizontalPair = function(left,right) { var $x = ["HorizontalPair",2,left,right]; $x.__enum__ = sui.components.CellContent; $x.toString = $estr; return $x; };
 sui.controls = {};
 sui.controls.IControl = function() { };
 sui.controls.IControl.__name__ = ["sui","controls","IControl"];
@@ -1979,8 +2123,7 @@ sui.controls.ArrayControl = function(defaultValue,defaultElementValue,createElem
 	thx.stream.EmitterBools.negate(this.values.enabled).subscribe(thx.stream.dom.Dom.subscribeToggleClass(this.el,"sui-disabled"));
 	this.values.enabled.subscribe(function(v2) {
 		_g.elements.map(function(_1) {
-			if(v2) _1.control.enable(); else _1.control.disable();
-			return;
+			if(v2) return _1.control.enable(); else return _1.control.disable();
 		});
 	});
 	this.setValue(defaultValue);
@@ -2052,8 +2195,7 @@ sui.controls.ArrayControl.prototype = {
 	,setValue: function(v) {
 		var _g = this;
 		v.map(function(_) {
-			_g.addControl(_);
-			return;
+			return _g.addControl(_);
 		});
 	}
 	,getValue: function() {
@@ -2090,8 +2232,7 @@ sui.controls.ArrayControl.prototype = {
 	,blur: function() {
 		var el = window.document.activeElement;
 		(function(_) {
-			if(null == _) null; else el.blur();
-			return;
+			if(null == _) return null; else return el.blur();
 		})(thx.core.Arrays.first(this.elements.filter(function(_1) {
 			return _1.control.el == el;
 		})));
@@ -2220,20 +2361,20 @@ sui.controls.BaseDateControl.toRFCDateTimeNoSeconds = function(date) {
 sui.controls.BaseDateControl.fromRFC = function(date) {
 	var dp = date.split("T")[0];
 	var dt;
-	var t1;
+	var t;
 	var _0 = date;
 	var _1;
 	var _2;
-	if(null == _0) t1 = null; else if(null == (_1 = _0.split("T"))) t1 = null; else if(null == (_2 = _1[1])) t1 = null; else t1 = _2;
-	if(t1 != null) dt = t1; else dt = "00:00:00";
+	if(null == _0) t = null; else if(null == (_1 = _0.split("T"))) t = null; else if(null == (_2 = _1[1])) t = null; else t = _2;
+	if(t != null) dt = t; else dt = "00:00:00";
 	var p = dp.split("-");
 	var y = Std.parseInt(p[0]);
 	var m = Std.parseInt(p[1]) - 1;
 	var d = Std.parseInt(p[2]);
-	var t = dt.split(":");
-	var hh = Std.parseInt(t[0]);
-	var mm = Std.parseInt(t[1]);
-	var ss = Std.parseInt(t[2]);
+	var t1 = dt.split(":");
+	var hh = Std.parseInt(t1[0]);
+	var mm = Std.parseInt(t1[1]);
+	var ss = Std.parseInt(t1[2]);
 	return new Date(y,m,d,hh,mm,ss);
 };
 sui.controls.BaseDateControl.__super__ = sui.controls.SingleInputControl;
@@ -2629,7 +2770,7 @@ sui.controls.FloatControl.prototype = $extend(sui.controls.NumberControl.prototy
 		this.input.value = "" + v;
 	}
 	,getInput: function() {
-		return parseFloat(this.input.value);
+		return Std.parseFloat(this.input.value);
 	}
 	,__class__: sui.controls.FloatControl
 });
@@ -2809,12 +2950,11 @@ sui.controls.MapControl = function(defaultValue,createMap,createKeyControl,creat
 		_g.elements.map(function(_1) {
 			if(v2) {
 				_1.controlKey.enable();
-				_1.controlValue.enable();
+				return _1.controlValue.enable();
 			} else {
 				_1.controlKey.disable();
-				_1.controlValue.disable();
+				return _1.controlValue.disable();
 			}
-			return;
 		});
 	});
 	this.setValue(defaultValue);
@@ -2867,8 +3007,7 @@ sui.controls.MapControl.prototype = {
 	,setValue: function(v) {
 		var _g = this;
 		thx.core.Iterators.map(v.keys(),function(_) {
-			_g.addControl(_,v.get(_));
-			return;
+			return _g.addControl(_,v.get(_));
 		});
 	}
 	,getValue: function() {
@@ -2914,8 +3053,7 @@ sui.controls.MapControl.prototype = {
 	,blur: function() {
 		var el = window.document.activeElement;
 		(function(_) {
-			if(null == _) null; else el.blur();
-			return;
+			if(null == _) return null; else return el.blur();
 		})(thx.core.Arrays.first(this.elements.filter(function(_1) {
 			return _1.controlKey.el == el || _1.controlValue.el == el;
 		})));
@@ -2943,26 +3081,36 @@ sui.controls.NumberSelectControl.prototype = $extend(sui.controls.SelectControl.
 });
 sui.controls.DateKind = { __ename__ : ["sui","controls","DateKind"], __constructs__ : ["DateOnly","DateTime"] };
 sui.controls.DateKind.DateOnly = ["DateOnly",0];
+sui.controls.DateKind.DateOnly.toString = $estr;
 sui.controls.DateKind.DateOnly.__enum__ = sui.controls.DateKind;
 sui.controls.DateKind.DateTime = ["DateTime",1];
+sui.controls.DateKind.DateTime.toString = $estr;
 sui.controls.DateKind.DateTime.__enum__ = sui.controls.DateKind;
 sui.controls.FloatKind = { __ename__ : ["sui","controls","FloatKind"], __constructs__ : ["FloatNumber","FloatTime"] };
 sui.controls.FloatKind.FloatNumber = ["FloatNumber",0];
+sui.controls.FloatKind.FloatNumber.toString = $estr;
 sui.controls.FloatKind.FloatNumber.__enum__ = sui.controls.FloatKind;
 sui.controls.FloatKind.FloatTime = ["FloatTime",1];
+sui.controls.FloatKind.FloatTime.toString = $estr;
 sui.controls.FloatKind.FloatTime.__enum__ = sui.controls.FloatKind;
 sui.controls.TextKind = { __ename__ : ["sui","controls","TextKind"], __constructs__ : ["TextEmail","TextPassword","TextSearch","TextTel","PlainText","TextUrl"] };
 sui.controls.TextKind.TextEmail = ["TextEmail",0];
+sui.controls.TextKind.TextEmail.toString = $estr;
 sui.controls.TextKind.TextEmail.__enum__ = sui.controls.TextKind;
 sui.controls.TextKind.TextPassword = ["TextPassword",1];
+sui.controls.TextKind.TextPassword.toString = $estr;
 sui.controls.TextKind.TextPassword.__enum__ = sui.controls.TextKind;
 sui.controls.TextKind.TextSearch = ["TextSearch",2];
+sui.controls.TextKind.TextSearch.toString = $estr;
 sui.controls.TextKind.TextSearch.__enum__ = sui.controls.TextKind;
 sui.controls.TextKind.TextTel = ["TextTel",3];
+sui.controls.TextKind.TextTel.toString = $estr;
 sui.controls.TextKind.TextTel.__enum__ = sui.controls.TextKind;
 sui.controls.TextKind.PlainText = ["PlainText",4];
+sui.controls.TextKind.PlainText.toString = $estr;
 sui.controls.TextKind.PlainText.__enum__ = sui.controls.TextKind;
 sui.controls.TextKind.TextUrl = ["TextUrl",5];
+sui.controls.TextKind.TextUrl.toString = $estr;
 sui.controls.TextKind.TextUrl.__enum__ = sui.controls.TextKind;
 sui.controls.PasswordControl = function(value,options) {
 	sui.controls.BaseTextControl.call(this,value,"text","password",options);
@@ -3035,7 +3183,7 @@ sui.controls.TimeControl.stringToTime = function(t) {
 	var p = t.split(":");
 	var h = Std.parseInt(p[0]);
 	var m = Std.parseInt(p[1]);
-	var s = parseFloat(p[2]);
+	var s = Std.parseFloat(p[2]);
 	return s * 1000 + m * 60000 + h * 3600000;
 };
 sui.controls.TimeControl.__super__ = sui.controls.SingleInputControl;
@@ -3127,8 +3275,16 @@ sui.macro.Embed.__name__ = ["sui","macro","Embed"];
 var thx = {};
 thx.color = {};
 thx.color._CIELCh = {};
-thx.color._CIELCh.CIELCh_Impl_ = {};
+thx.color._CIELCh.CIELCh_Impl_ = function() { };
 thx.color._CIELCh.CIELCh_Impl_.__name__ = ["thx","color","_CIELCh","CIELCh_Impl_"];
+thx.color._CIELCh.CIELCh_Impl_.create = function(lightness,chroma,hue) {
+	var channels = [lightness,chroma,thx.core.Floats.wrapCircular(hue,360)];
+	return channels;
+};
+thx.color._CIELCh.CIELCh_Impl_.fromFloats = function(arr) {
+	thx.core.ArrayFloats.resize(arr,3);
+	return thx.color._CIELCh.CIELCh_Impl_.create(arr[0],arr[1],arr[2]);
+};
 thx.color._CIELCh.CIELCh_Impl_.fromString = function(color) {
 	var info = thx.color.parse.ColorParser.parseColor(color);
 	if(null == info) return null;
@@ -3136,8 +3292,7 @@ thx.color._CIELCh.CIELCh_Impl_.fromString = function(color) {
 		var _g = info.name;
 		switch(_g) {
 		case "cielch":
-			var channels = thx.color.parse.ColorParser.getFloatChannels(info.channels,3);
-			return channels;
+			return thx.color._CIELCh.CIELCh_Impl_.fromFloats(thx.color.parse.ColorParser.getFloatChannels(info.channels,3,false));
 		default:
 			return null;
 		}
@@ -3145,21 +3300,62 @@ thx.color._CIELCh.CIELCh_Impl_.fromString = function(color) {
 		return null;
 	}
 };
-thx.color._CIELCh.CIELCh_Impl_.fromFloats = function(l,c,h) {
-	return [l,c,h];
-};
 thx.color._CIELCh.CIELCh_Impl_._new = function(channels) {
 	return channels;
 };
+thx.color._CIELCh.CIELCh_Impl_.analogous = function(this1,spread) {
+	if(spread == null) spread = 30.0;
+	var _0 = thx.color._CIELCh.CIELCh_Impl_.rotate(this1,-spread);
+	var _1 = thx.color._CIELCh.CIELCh_Impl_.rotate(this1,spread);
+	return { _0 : _0, _1 : _1};
+};
+thx.color._CIELCh.CIELCh_Impl_.complement = function(this1) {
+	return thx.color._CIELCh.CIELCh_Impl_.rotate(this1,180);
+};
 thx.color._CIELCh.CIELCh_Impl_.interpolate = function(this1,other,t) {
-	var channels = [thx.core.Floats.interpolate(t,this1[0],other[0]),thx.core.Floats.interpolate(t,this1[1],other[1]),thx.core.Floats.interpolate(t,this1[2],other[2])];
+	var channels = [thx.core.Floats.interpolate(t,this1[0],other[0]),thx.core.Floats.interpolate(t,this1[1],other[1]),thx.core.Floats.interpolateAngle(t,this1[2],other[2],360)];
 	return channels;
+};
+thx.color._CIELCh.CIELCh_Impl_.rotate = function(this1,angle) {
+	return thx.color._CIELCh.CIELCh_Impl_.withHue(this1,this1[2] + angle);
+};
+thx.color._CIELCh.CIELCh_Impl_.split = function(this1,spread) {
+	if(spread == null) spread = 144.0;
+	var _0 = thx.color._CIELCh.CIELCh_Impl_.rotate(this1,-spread);
+	var _1 = thx.color._CIELCh.CIELCh_Impl_.rotate(this1,spread);
+	return { _0 : _0, _1 : _1};
+};
+thx.color._CIELCh.CIELCh_Impl_.square = function(this1) {
+	return thx.color._CIELCh.CIELCh_Impl_.tetrad(this1,90);
+};
+thx.color._CIELCh.CIELCh_Impl_.tetrad = function(this1,angle) {
+	var _0 = thx.color._CIELCh.CIELCh_Impl_.rotate(this1,0);
+	var _1 = thx.color._CIELCh.CIELCh_Impl_.rotate(this1,angle);
+	var _2 = thx.color._CIELCh.CIELCh_Impl_.rotate(this1,180);
+	var _3 = thx.color._CIELCh.CIELCh_Impl_.rotate(this1,180 + angle);
+	return { _0 : _0, _1 : _1, _2 : _2, _3 : _3};
+};
+thx.color._CIELCh.CIELCh_Impl_.triad = function(this1) {
+	var _0 = thx.color._CIELCh.CIELCh_Impl_.rotate(this1,-120);
+	var _1 = thx.color._CIELCh.CIELCh_Impl_.rotate(this1,0);
+	var _2 = thx.color._CIELCh.CIELCh_Impl_.rotate(this1,120);
+	return { _0 : _0, _1 : _1, _2 : _2};
+};
+thx.color._CIELCh.CIELCh_Impl_.withLightness = function(this1,newlightness) {
+	return [newlightness,this1[1],this1[2]];
+};
+thx.color._CIELCh.CIELCh_Impl_.withChroma = function(this1,newchroma) {
+	return [this1[0],newchroma,this1[2]];
+};
+thx.color._CIELCh.CIELCh_Impl_.withHue = function(this1,newhue) {
+	var channels = [this1[0],this1[1],thx.core.Floats.wrapCircular(newhue,360)];
+	return channels;
+};
+thx.color._CIELCh.CIELCh_Impl_.equals = function(this1,other) {
+	return Math.abs(this1[0] - other[0]) <= 10e-10 && Math.abs(this1[1] - other[1]) <= 10e-10 && Math.abs(this1[2] - other[2]) <= 10e-10;
 };
 thx.color._CIELCh.CIELCh_Impl_.toString = function(this1) {
 	return "CIELCh(" + this1[0] + "," + this1[1] + "," + this1[2] + ")";
-};
-thx.color._CIELCh.CIELCh_Impl_.equals = function(this1,other) {
-	return this1[0] == other[0] && this1[1] == other[1] && this1[2] == other[2];
 };
 thx.color._CIELCh.CIELCh_Impl_.toCIELab = function(this1) {
 	var hradi = this1[2] * (Math.PI / 180);
@@ -3185,12 +3381,9 @@ thx.color._CIELCh.CIELCh_Impl_.toCMYK = function(this1) {
 };
 thx.color._CIELCh.CIELCh_Impl_.toGrey = function(this1) {
 	var this2;
-	var this4 = thx.color._CIELCh.CIELCh_Impl_.toCIELab(this1);
-	this2 = thx.color._XYZ.XYZ_Impl_.toRGBX(thx.color._CIELab.CIELab_Impl_.toXYZ(this4));
-	var grey = this2[0] * .2126 + this2[1] * .7152 + this2[2] * .0722;
-	var this3;
-	if(grey < 0) this3 = 0; else if(grey > 1) this3 = 1; else this3 = grey;
-	return this3;
+	var this3 = thx.color._CIELCh.CIELCh_Impl_.toCIELab(this1);
+	this2 = thx.color._XYZ.XYZ_Impl_.toRGBX(thx.color._CIELab.CIELab_Impl_.toXYZ(this3));
+	return this2[0] * .2126 + this2[1] * .7152 + this2[2] * .0722;
 };
 thx.color._CIELCh.CIELCh_Impl_.toHSL = function(this1) {
 	return thx.color._RGBX.RGBX_Impl_.toHSL((function($this) {
@@ -3212,11 +3405,27 @@ thx.color._CIELCh.CIELCh_Impl_.toRGB = function(this1) {
 	var this2;
 	var this3 = thx.color._CIELCh.CIELCh_Impl_.toCIELab(this1);
 	this2 = thx.color._XYZ.XYZ_Impl_.toRGBX(thx.color._CIELab.CIELab_Impl_.toXYZ(this3));
-	return thx.color._RGB.RGB_Impl_.fromFloats(this2[0],this2[1],this2[2]);
+	return thx.color._RGB.RGB_Impl_.createf(this2[0],this2[1],this2[2]);
+};
+thx.color._CIELCh.CIELCh_Impl_.toRGBA = function(this1) {
+	var this2;
+	var this3;
+	var this4 = thx.color._CIELCh.CIELCh_Impl_.toCIELab(this1);
+	this3 = thx.color._XYZ.XYZ_Impl_.toRGBX(thx.color._CIELab.CIELab_Impl_.toXYZ(this4));
+	var channels = this3.concat([1.0]);
+	this2 = channels;
+	return thx.color._RGBA.RGBA_Impl_.fromFloats([this2[0],this2[1],this2[2],this2[3]]);
 };
 thx.color._CIELCh.CIELCh_Impl_.toRGBX = function(this1) {
 	var this2 = thx.color._CIELCh.CIELCh_Impl_.toCIELab(this1);
 	return thx.color._XYZ.XYZ_Impl_.toRGBX(thx.color._CIELab.CIELab_Impl_.toXYZ(this2));
+};
+thx.color._CIELCh.CIELCh_Impl_.toRGBXA = function(this1) {
+	var this2;
+	var this3 = thx.color._CIELCh.CIELCh_Impl_.toCIELab(this1);
+	this2 = thx.color._XYZ.XYZ_Impl_.toRGBX(thx.color._CIELab.CIELab_Impl_.toXYZ(this3));
+	var channels = this2.concat([1.0]);
+	return channels;
 };
 thx.color._CIELCh.CIELCh_Impl_.toXYZ = function(this1) {
 	return thx.color._CIELab.CIELab_Impl_.toXYZ(thx.color._CIELCh.CIELCh_Impl_.toCIELab(this1));
@@ -3225,18 +3434,25 @@ thx.color._CIELCh.CIELCh_Impl_.toYxy = function(this1) {
 	var this2 = thx.color._CIELCh.CIELCh_Impl_.toCIELab(this1);
 	return thx.color._XYZ.XYZ_Impl_.toYxy(thx.color._CIELab.CIELab_Impl_.toXYZ(this2));
 };
-thx.color._CIELCh.CIELCh_Impl_.get_l = function(this1) {
+thx.color._CIELCh.CIELCh_Impl_.get_lightness = function(this1) {
 	return this1[0];
 };
-thx.color._CIELCh.CIELCh_Impl_.get_c = function(this1) {
+thx.color._CIELCh.CIELCh_Impl_.get_chroma = function(this1) {
 	return this1[1];
 };
-thx.color._CIELCh.CIELCh_Impl_.get_h = function(this1) {
+thx.color._CIELCh.CIELCh_Impl_.get_hue = function(this1) {
 	return this1[2];
 };
 thx.color._CIELab = {};
-thx.color._CIELab.CIELab_Impl_ = {};
+thx.color._CIELab.CIELab_Impl_ = function() { };
 thx.color._CIELab.CIELab_Impl_.__name__ = ["thx","color","_CIELab","CIELab_Impl_"];
+thx.color._CIELab.CIELab_Impl_.create = function(l,a,b) {
+	return [l,a,b];
+};
+thx.color._CIELab.CIELab_Impl_.fromFloats = function(arr) {
+	thx.core.ArrayFloats.resize(arr,3);
+	return thx.color._CIELab.CIELab_Impl_.create(arr[0],arr[1],arr[2]);
+};
 thx.color._CIELab.CIELab_Impl_.fromString = function(color) {
 	var info = thx.color.parse.ColorParser.parseColor(color);
 	if(null == info) return null;
@@ -3244,8 +3460,7 @@ thx.color._CIELab.CIELab_Impl_.fromString = function(color) {
 		var _g = info.name;
 		switch(_g) {
 		case "cielab":
-			var channels = thx.color.parse.ColorParser.getFloatChannels(info.channels,3);
-			return channels;
+			return thx.color._CIELab.CIELab_Impl_.fromFloats(thx.color.parse.ColorParser.getFloatChannels(info.channels,3,false));
 		default:
 			return null;
 		}
@@ -3253,14 +3468,11 @@ thx.color._CIELab.CIELab_Impl_.fromString = function(color) {
 		return null;
 	}
 };
-thx.color._CIELab.CIELab_Impl_.fromFloats = function(l,a,b) {
-	return [l,a,b];
-};
 thx.color._CIELab.CIELab_Impl_._new = function(channels) {
 	return channels;
 };
 thx.color._CIELab.CIELab_Impl_.distance = function(this1,other) {
-	return Math.sqrt((this1[0] - other[0]) * (this1[0] - other[0]) + (this1[1] - other[1]) * (this1[1] - other[1]) + (this1[2] - other[2]) * (this1[2] - other[2]));
+	return (this1[0] - other[0]) * (this1[0] - other[0]) + (this1[1] - other[1]) * (this1[1] - other[1]) + (this1[2] - other[2]) * (this1[2] - other[2]);
 };
 thx.color._CIELab.CIELab_Impl_.interpolate = function(this1,other,t) {
 	var channels = [thx.core.Floats.interpolate(t,this1[0],other[0]),thx.core.Floats.interpolate(t,this1[1],other[1]),thx.core.Floats.interpolate(t,this1[2],other[2])];
@@ -3276,8 +3488,8 @@ thx.color._CIELab.CIELab_Impl_.lighter = function(this1,t) {
 };
 thx.color._CIELab.CIELab_Impl_.match = function(this1,palette) {
 	var it = palette;
-	if(null == it) throw new thx.core.error.NullArgument("Iterable argument \"palette\" cannot be null",{ fileName : "NullArgument.hx", lineNumber : 73, className : "thx.color._CIELab.CIELab_Impl_", methodName : "match"}); else if(!$iterator(it)().hasNext()) throw new thx.core.error.NullArgument("Iterable argument \"palette\" cannot be empty",{ fileName : "NullArgument.hx", lineNumber : 75, className : "thx.color._CIELab.CIELab_Impl_", methodName : "match"});
-	var dist = Infinity;
+	if(null == it) throw new thx.core.error.NullArgument("Iterable argument \"this\" cannot be null",{ fileName : "NullArgument.hx", lineNumber : 73, className : "thx.color._CIELab.CIELab_Impl_", methodName : "match"}); else if(!$iterator(it)().hasNext()) throw new thx.core.error.NullArgument("Iterable argument \"this\" cannot be empty",{ fileName : "NullArgument.hx", lineNumber : 75, className : "thx.color._CIELab.CIELab_Impl_", methodName : "match"});
+	var dist = Math.POSITIVE_INFINITY;
 	var closest = null;
 	var $it0 = $iterator(palette)();
 	while( $it0.hasNext() ) {
@@ -3290,14 +3502,20 @@ thx.color._CIELab.CIELab_Impl_.match = function(this1,palette) {
 	}
 	return closest;
 };
+thx.color._CIELab.CIELab_Impl_.equals = function(this1,other) {
+	return Math.abs(this1[0] - other[0]) <= 10e-10 && Math.abs(this1[1] - other[1]) <= 10e-10 && Math.abs(this1[2] - other[2]) <= 10e-10;
+};
 thx.color._CIELab.CIELab_Impl_.withLightness = function(this1,lightness) {
 	return [lightness,this1[1],this1[2]];
 };
+thx.color._CIELab.CIELab_Impl_.withA = function(this1,newa) {
+	return [this1[0],newa,this1[2]];
+};
+thx.color._CIELab.CIELab_Impl_.withB = function(this1,newb) {
+	return [this1[0],this1[1],newb];
+};
 thx.color._CIELab.CIELab_Impl_.toString = function(this1) {
 	return "CIELab(" + this1[0] + "," + this1[1] + "," + this1[2] + ")";
-};
-thx.color._CIELab.CIELab_Impl_.equals = function(this1,other) {
-	return this1[0] == other[0] && this1[1] == other[1] && this1[2] == other[2];
 };
 thx.color._CIELab.CIELab_Impl_.toCIELCh = function(this1) {
 	var h = thx.core.Floats.wrapCircular(Math.atan2(this1[2],this1[1]) * 180 / Math.PI,360);
@@ -3312,29 +3530,32 @@ thx.color._CIELab.CIELab_Impl_.toCMYK = function(this1) {
 };
 thx.color._CIELab.CIELab_Impl_.toGrey = function(this1) {
 	var this2 = thx.color._XYZ.XYZ_Impl_.toRGBX(thx.color._CIELab.CIELab_Impl_.toXYZ(this1));
-	var grey = this2[0] * .2126 + this2[1] * .7152 + this2[2] * .0722;
-	var this3;
-	if(grey < 0) this3 = 0; else if(grey > 1) this3 = 1; else this3 = grey;
-	return this3;
+	return this2[0] * .2126 + this2[1] * .7152 + this2[2] * .0722;
 };
 thx.color._CIELab.CIELab_Impl_.toHSL = function(this1) {
-	var this2 = thx.color._RGBX.RGBX_Impl_.toHSL(thx.color._XYZ.XYZ_Impl_.toRGBX(thx.color._CIELab.CIELab_Impl_.toXYZ(this1)));
-	return thx.color._RGBX.RGBX_Impl_.toHSV((function($this) {
-		var $r;
-		var channels = [thx.color._HSL.HSL_Impl_._c(this2[0] + 120,this2[1],this2[2]),thx.color._HSL.HSL_Impl_._c(this2[0],this2[1],this2[2]),thx.color._HSL.HSL_Impl_._c(this2[0] - 120,this2[1],this2[2])];
-		$r = channels;
-		return $r;
-	}(this)));
+	return thx.color._RGBX.RGBX_Impl_.toHSL(thx.color._XYZ.XYZ_Impl_.toRGBX(thx.color._CIELab.CIELab_Impl_.toXYZ(this1)));
 };
 thx.color._CIELab.CIELab_Impl_.toHSV = function(this1) {
 	return thx.color._RGBX.RGBX_Impl_.toHSV(thx.color._XYZ.XYZ_Impl_.toRGBX(thx.color._CIELab.CIELab_Impl_.toXYZ(this1)));
 };
 thx.color._CIELab.CIELab_Impl_.toRGB = function(this1) {
 	var this2 = thx.color._XYZ.XYZ_Impl_.toRGBX(thx.color._CIELab.CIELab_Impl_.toXYZ(this1));
-	return thx.color._RGB.RGB_Impl_.fromFloats(this2[0],this2[1],this2[2]);
+	return thx.color._RGB.RGB_Impl_.createf(this2[0],this2[1],this2[2]);
+};
+thx.color._CIELab.CIELab_Impl_.toRGBA = function(this1) {
+	var this2;
+	var this3 = thx.color._XYZ.XYZ_Impl_.toRGBX(thx.color._CIELab.CIELab_Impl_.toXYZ(this1));
+	var channels = this3.concat([1.0]);
+	this2 = channels;
+	return thx.color._RGBA.RGBA_Impl_.fromFloats([this2[0],this2[1],this2[2],this2[3]]);
 };
 thx.color._CIELab.CIELab_Impl_.toRGBX = function(this1) {
 	return thx.color._XYZ.XYZ_Impl_.toRGBX(thx.color._CIELab.CIELab_Impl_.toXYZ(this1));
+};
+thx.color._CIELab.CIELab_Impl_.toRGBXA = function(this1) {
+	var this2 = thx.color._XYZ.XYZ_Impl_.toRGBX(thx.color._CIELab.CIELab_Impl_.toXYZ(this1));
+	var channels = this2.concat([1.0]);
+	return channels;
 };
 thx.color._CIELab.CIELab_Impl_.toXYZ = function(this1) {
 	var y = (this1[0] + 16) / 116;
@@ -3362,8 +3583,15 @@ thx.color._CIELab.CIELab_Impl_.get_b = function(this1) {
 	return this1[2];
 };
 thx.color._CMY = {};
-thx.color._CMY.CMY_Impl_ = {};
+thx.color._CMY.CMY_Impl_ = function() { };
 thx.color._CMY.CMY_Impl_.__name__ = ["thx","color","_CMY","CMY_Impl_"];
+thx.color._CMY.CMY_Impl_.create = function(cyan,magenta,yellow) {
+	return [cyan < 0?0:cyan > 1?1:cyan,magenta < 0?0:magenta > 1?1:magenta,yellow < 0?0:yellow > 1?1:yellow];
+};
+thx.color._CMY.CMY_Impl_.fromFloats = function(arr) {
+	thx.core.ArrayFloats.resize(arr,3);
+	return thx.color._CMY.CMY_Impl_.create(arr[0],arr[1],arr[2]);
+};
 thx.color._CMY.CMY_Impl_.fromString = function(color) {
 	var info = thx.color.parse.ColorParser.parseColor(color);
 	if(null == info) return null;
@@ -3371,7 +3599,7 @@ thx.color._CMY.CMY_Impl_.fromString = function(color) {
 		var _g = info.name;
 		switch(_g) {
 		case "cmy":
-			var channels = thx.color.parse.ColorParser.getFloatChannels(info.channels,4);
+			var channels = thx.color.parse.ColorParser.getFloatChannels(info.channels,3);
 			return channels;
 		default:
 			return null;
@@ -3380,9 +3608,6 @@ thx.color._CMY.CMY_Impl_.fromString = function(color) {
 		return null;
 	}
 };
-thx.color._CMY.CMY_Impl_.fromFloats = function(cyan,magenta,yellow) {
-	return [cyan < 0?0:cyan > 1?1:cyan,magenta < 0?0:magenta > 1?1:magenta,yellow < 0?0:yellow > 1?1:yellow];
-};
 thx.color._CMY.CMY_Impl_._new = function(channels) {
 	return channels;
 };
@@ -3390,11 +3615,20 @@ thx.color._CMY.CMY_Impl_.interpolate = function(this1,other,t) {
 	var channels = [thx.core.Floats.interpolate(t,this1[0],other[0]),thx.core.Floats.interpolate(t,this1[1],other[1]),thx.core.Floats.interpolate(t,this1[2],other[2])];
 	return channels;
 };
+thx.color._CMY.CMY_Impl_.withCyan = function(this1,newcyan) {
+	return [newcyan < 0?0:newcyan > 1?1:newcyan,this1[1],this1[2]];
+};
+thx.color._CMY.CMY_Impl_.withMagenta = function(this1,newmagenta) {
+	return [this1[0],newmagenta < 0?0:newmagenta > 1?1:newmagenta,this1[2]];
+};
+thx.color._CMY.CMY_Impl_.withYellow = function(this1,newyellow) {
+	return [this1[0],this1[1],newyellow < 0?0:newyellow > 1?1:newyellow];
+};
 thx.color._CMY.CMY_Impl_.toString = function(this1) {
 	return "cmy(" + this1[0] + "," + this1[1] + "," + this1[2] + ")";
 };
 thx.color._CMY.CMY_Impl_.equals = function(this1,other) {
-	return this1[0] == other[0] && this1[1] == other[1] && this1[2] == other[2];
+	return Math.abs(this1[0] - other[0]) <= 10e-10 && Math.abs(this1[1] - other[1]) <= 10e-10 && Math.abs(this1[2] - other[2]) <= 10e-10;
 };
 thx.color._CMY.CMY_Impl_.toCIELab = function(this1) {
 	return thx.color._RGBX.RGBX_Impl_.toCIELab([1 - this1[0],1 - this1[1],1 - this1[2]]);
@@ -3410,10 +3644,7 @@ thx.color._CMY.CMY_Impl_.toGrey = function(this1) {
 	var this_0 = 1 - this1[0];
 	var this_1 = 1 - this1[1];
 	var this_2 = 1 - this1[2];
-	var grey = this_0 * .2126 + this_1 * .7152 + this_2 * .0722;
-	var this2;
-	if(grey < 0) this2 = 0; else if(grey > 1) this2 = 1; else this2 = grey;
-	return this2;
+	return this_0 * .2126 + this_1 * .7152 + this_2 * .0722;
 };
 thx.color._CMY.CMY_Impl_.toHSL = function(this1) {
 	return thx.color._RGBX.RGBX_Impl_.toHSL([1 - this1[0],1 - this1[1],1 - this1[2]]);
@@ -3425,7 +3656,13 @@ thx.color._CMY.CMY_Impl_.toRGB = function(this1) {
 	var this_0 = 1 - this1[0];
 	var this_1 = 1 - this1[1];
 	var this_2 = 1 - this1[2];
-	return thx.color._RGB.RGB_Impl_.fromFloats(this_0,this_1,this_2);
+	return thx.color._RGB.RGB_Impl_.createf(this_0,this_1,this_2);
+};
+thx.color._CMY.CMY_Impl_.toRGBA = function(this1) {
+	var this2;
+	var channels = [1 - this1[0],1 - this1[1],1 - this1[2]].concat([1.0]);
+	this2 = channels;
+	return thx.color._RGBA.RGBA_Impl_.fromFloats([this2[0],this2[1],this2[2],this2[3]]);
 };
 thx.color._CMY.CMY_Impl_.toRGBX = function(this1) {
 	return [1 - this1[0],1 - this1[1],1 - this1[2]];
@@ -3450,8 +3687,15 @@ thx.color._CMY.CMY_Impl_.get_yellow = function(this1) {
 	return this1[2];
 };
 thx.color._CMYK = {};
-thx.color._CMYK.CMYK_Impl_ = {};
+thx.color._CMYK.CMYK_Impl_ = function() { };
 thx.color._CMYK.CMYK_Impl_.__name__ = ["thx","color","_CMYK","CMYK_Impl_"];
+thx.color._CMYK.CMYK_Impl_.create = function(cyan,magenta,yellow,black) {
+	return [cyan < 0?0:cyan > 1?1:cyan,magenta < 0?0:magenta > 1?1:magenta,yellow < 0?0:yellow > 1?1:yellow,black < 0?0:black > 1?1:black];
+};
+thx.color._CMYK.CMYK_Impl_.fromFloats = function(arr) {
+	thx.core.ArrayFloats.resize(arr,4);
+	return thx.color._CMYK.CMYK_Impl_.create(arr[0],arr[1],arr[2],arr[3]);
+};
 thx.color._CMYK.CMYK_Impl_.fromString = function(color) {
 	var info = thx.color.parse.ColorParser.parseColor(color);
 	if(null == info) return null;
@@ -3468,9 +3712,6 @@ thx.color._CMYK.CMYK_Impl_.fromString = function(color) {
 		return null;
 	}
 };
-thx.color._CMYK.CMYK_Impl_.fromFloats = function(cyan,magenta,yellow,black) {
-	return [cyan < 0?0:cyan > 1?1:cyan,magenta < 0?0:magenta > 1?1:magenta,yellow < 0?0:yellow > 1?1:yellow,black < 0?0:black > 1?1:black];
-};
 thx.color._CMYK.CMYK_Impl_._new = function(channels) {
 	return channels;
 };
@@ -3486,11 +3727,23 @@ thx.color._CMYK.CMYK_Impl_.interpolate = function(this1,other,t) {
 	var channels = [thx.core.Floats.interpolate(t,this1[0],other[0]),thx.core.Floats.interpolate(t,this1[1],other[1]),thx.core.Floats.interpolate(t,this1[2],other[2]),thx.core.Floats.interpolate(t,this1[3],other[3])];
 	return channels;
 };
+thx.color._CMYK.CMYK_Impl_.withCyan = function(this1,newcyan) {
+	return [newcyan < 0?0:newcyan > 1?1:newcyan,this1[1],this1[2],this1[3]];
+};
+thx.color._CMYK.CMYK_Impl_.withMagenta = function(this1,newmagenta) {
+	return [this1[0],newmagenta < 0?0:newmagenta > 1?1:newmagenta,this1[2],this1[3]];
+};
+thx.color._CMYK.CMYK_Impl_.withYellow = function(this1,newyellow) {
+	return [this1[0],this1[1],newyellow < 0?0:newyellow > 1?1:newyellow,this1[3]];
+};
+thx.color._CMYK.CMYK_Impl_.withBlack = function(this1,newblack) {
+	return [this1[0],this1[1],this1[2],newblack < 0?0:newblack > 1?1:newblack];
+};
 thx.color._CMYK.CMYK_Impl_.toString = function(this1) {
 	return "cmyk(" + this1[0] + "," + this1[1] + "," + this1[2] + "," + this1[3] + ")";
 };
 thx.color._CMYK.CMYK_Impl_.equals = function(this1,other) {
-	return this1[0] == other[0] && this1[1] == other[1] && this1[2] == other[2] && this1[3] == other[3];
+	return Math.abs(this1[0] - other[0]) <= 10e-10 && Math.abs(this1[1] - other[1]) <= 10e-10 && Math.abs(this1[2] - other[2]) <= 10e-10 && Math.abs(this1[3] - other[3]) <= 10e-10;
 };
 thx.color._CMYK.CMYK_Impl_.toCIELab = function(this1) {
 	return thx.color._RGBX.RGBX_Impl_.toCIELab([(1 - this1[3]) * (1 - this1[0]),(1 - this1[3]) * (1 - this1[1]),(1 - this1[3]) * (1 - this1[2])]);
@@ -3505,10 +3758,7 @@ thx.color._CMYK.CMYK_Impl_.toGrey = function(this1) {
 	var this_0 = (1 - this1[3]) * (1 - this1[0]);
 	var this_1 = (1 - this1[3]) * (1 - this1[1]);
 	var this_2 = (1 - this1[3]) * (1 - this1[2]);
-	var grey = this_0 * .2126 + this_1 * .7152 + this_2 * .0722;
-	var this2;
-	if(grey < 0) this2 = 0; else if(grey > 1) this2 = 1; else this2 = grey;
-	return this2;
+	return this_0 * .2126 + this_1 * .7152 + this_2 * .0722;
 };
 thx.color._CMYK.CMYK_Impl_.toHSL = function(this1) {
 	return thx.color._RGBX.RGBX_Impl_.toHSL([(1 - this1[3]) * (1 - this1[0]),(1 - this1[3]) * (1 - this1[1]),(1 - this1[3]) * (1 - this1[2])]);
@@ -3520,7 +3770,13 @@ thx.color._CMYK.CMYK_Impl_.toRGB = function(this1) {
 	var this_0 = (1 - this1[3]) * (1 - this1[0]);
 	var this_1 = (1 - this1[3]) * (1 - this1[1]);
 	var this_2 = (1 - this1[3]) * (1 - this1[2]);
-	return thx.color._RGB.RGB_Impl_.fromFloats(this_0,this_1,this_2);
+	return thx.color._RGB.RGB_Impl_.createf(this_0,this_1,this_2);
+};
+thx.color._CMYK.CMYK_Impl_.toRGBA = function(this1) {
+	var this2;
+	var channels = [(1 - this1[3]) * (1 - this1[0]),(1 - this1[3]) * (1 - this1[1]),(1 - this1[3]) * (1 - this1[2])].concat([1.0]);
+	this2 = channels;
+	return thx.color._RGBA.RGBA_Impl_.fromFloats([this2[0],this2[1],this2[2],this2[3]]);
 };
 thx.color._CMYK.CMYK_Impl_.toRGBX = function(this1) {
 	return [(1 - this1[3]) * (1 - this1[0]),(1 - this1[3]) * (1 - this1[1]),(1 - this1[3]) * (1 - this1[2])];
@@ -3548,8 +3804,11 @@ thx.color._CMYK.CMYK_Impl_.toYxy = function(this1) {
 	return thx.color._XYZ.XYZ_Impl_.toYxy(thx.color._RGBX.RGBX_Impl_.toXYZ([(1 - this1[3]) * (1 - this1[0]),(1 - this1[3]) * (1 - this1[1]),(1 - this1[3]) * (1 - this1[2])]));
 };
 thx.color._Grey = {};
-thx.color._Grey.Grey_Impl_ = {};
+thx.color._Grey.Grey_Impl_ = function() { };
 thx.color._Grey.Grey_Impl_.__name__ = ["thx","color","_Grey","Grey_Impl_"];
+thx.color._Grey.Grey_Impl_.create = function(v) {
+	if(v < 0) return 0; else if(v > 1) return 1; else return v;
+};
 thx.color._Grey.Grey_Impl_.fromString = function(color) {
 	var info = thx.color.parse.ColorParser.parseColor(color);
 	if(null == info) return null;
@@ -3558,9 +3817,7 @@ thx.color._Grey.Grey_Impl_.fromString = function(color) {
 		switch(_g) {
 		case "grey":case "gray":
 			var grey = thx.color.parse.ColorParser.getFloatChannels(info.channels,1)[0];
-			var this1;
-			if(grey < 0) this1 = 0; else if(grey > 1) this1 = 1; else this1 = grey;
-			return this1;
+			return grey;
 		default:
 			return null;
 		}
@@ -3569,36 +3826,28 @@ thx.color._Grey.Grey_Impl_.fromString = function(color) {
 	}
 };
 thx.color._Grey.Grey_Impl_._new = function(grey) {
-	var this1;
-	if(grey < 0) this1 = 0; else if(grey > 1) this1 = 1; else this1 = grey;
-	return this1;
+	return grey;
 };
 thx.color._Grey.Grey_Impl_.contrast = function(this1) {
 	if(this1 > 0.5) return thx.color._Grey.Grey_Impl_.black; else return thx.color._Grey.Grey_Impl_.white;
 };
 thx.color._Grey.Grey_Impl_.darker = function(this1,t) {
 	var grey = thx.core.Floats.interpolate(t,this1,0);
-	var this2;
-	if(grey < 0) this2 = 0; else if(grey > 1) this2 = 1; else this2 = grey;
-	return this2;
+	return grey;
 };
 thx.color._Grey.Grey_Impl_.lighter = function(this1,t) {
 	var grey = thx.core.Floats.interpolate(t,this1,1);
-	var this2;
-	if(grey < 0) this2 = 0; else if(grey > 1) this2 = 1; else this2 = grey;
-	return this2;
+	return grey;
 };
 thx.color._Grey.Grey_Impl_.interpolate = function(this1,other,t) {
 	var grey = thx.core.Floats.interpolate(t,this1,other);
-	var this2;
-	if(grey < 0) this2 = 0; else if(grey > 1) this2 = 1; else this2 = grey;
-	return this2;
+	return grey;
 };
 thx.color._Grey.Grey_Impl_.toString = function(this1) {
 	return "grey(" + this1 * 100 + "%)";
 };
 thx.color._Grey.Grey_Impl_.equals = function(this1,other) {
-	return this1 == other;
+	return Math.abs(this1 - other) <= 10e-10;
 };
 thx.color._Grey.Grey_Impl_.get_grey = function(this1) {
 	return this1;
@@ -3625,7 +3874,13 @@ thx.color._Grey.Grey_Impl_.toRGB = function(this1) {
 	var this_0 = this1;
 	var this_1 = this1;
 	var this_2 = this1;
-	return thx.color._RGB.RGB_Impl_.fromFloats(this_0,this_1,this_2);
+	return thx.color._RGB.RGB_Impl_.createf(this_0,this_1,this_2);
+};
+thx.color._Grey.Grey_Impl_.toRGBA = function(this1) {
+	var this2;
+	var channels = [this1,this1,this1].concat([1.0]);
+	this2 = channels;
+	return thx.color._RGBA.RGBA_Impl_.fromFloats([this2[0],this2[1],this2[2],this2[3]]);
 };
 thx.color._Grey.Grey_Impl_.toRGBX = function(this1) {
 	return [this1,this1,this1];
@@ -3641,11 +3896,15 @@ thx.color._Grey.Grey_Impl_.toYxy = function(this1) {
 	return thx.color._XYZ.XYZ_Impl_.toYxy(thx.color._RGBX.RGBX_Impl_.toXYZ([this1,this1,this1]));
 };
 thx.color._HSL = {};
-thx.color._HSL.HSL_Impl_ = {};
+thx.color._HSL.HSL_Impl_ = function() { };
 thx.color._HSL.HSL_Impl_.__name__ = ["thx","color","_HSL","HSL_Impl_"];
 thx.color._HSL.HSL_Impl_.create = function(hue,saturation,lightness) {
 	var channels = [thx.core.Floats.wrapCircular(hue,360),saturation < 0?0:saturation > 1?1:saturation,lightness < 0?0:lightness > 1?1:lightness];
 	return channels;
+};
+thx.color._HSL.HSL_Impl_.fromFloats = function(arr) {
+	thx.core.ArrayFloats.resize(arr,3);
+	return thx.color._HSL.HSL_Impl_.create(arr[0],arr[1],arr[2]);
 };
 thx.color._HSL.HSL_Impl_.fromString = function(color) {
 	var info = thx.color.parse.ColorParser.parseColor(color);
@@ -3662,9 +3921,6 @@ thx.color._HSL.HSL_Impl_.fromString = function(color) {
 	} catch( e ) {
 		return null;
 	}
-};
-thx.color._HSL.HSL_Impl_.fromFloats = function(hue,saturation,lightness) {
-	return [hue,saturation,lightness];
 };
 thx.color._HSL.HSL_Impl_._new = function(channels) {
 	return channels;
@@ -3687,21 +3943,47 @@ thx.color._HSL.HSL_Impl_.lighter = function(this1,t) {
 	return channels;
 };
 thx.color._HSL.HSL_Impl_.interpolate = function(this1,other,t) {
-	var channels = [thx.core.Floats.interpolate(t,this1[0],other[0]),thx.core.Floats.interpolate(t,this1[1],other[1]),thx.core.Floats.interpolate(t,this1[2],other[2])];
+	var channels = [thx.core.Floats.interpolateAngle(t,this1[0],other[0],360),thx.core.Floats.interpolate(t,this1[1],other[1]),thx.core.Floats.interpolate(t,this1[2],other[2])];
 	return channels;
 };
 thx.color._HSL.HSL_Impl_.rotate = function(this1,angle) {
-	return thx.color._HSL.HSL_Impl_.create(this1[0] + angle,this1[1],this1[2]);
+	var newhue = this1[0] + angle;
+	return [newhue < 0?0:newhue > 1?1:newhue,this1[1],this1[2]];
 };
 thx.color._HSL.HSL_Impl_.split = function(this1,spread) {
-	if(spread == null) spread = 150.0;
+	if(spread == null) spread = 144.0;
 	var _0 = thx.color._HSL.HSL_Impl_.rotate(this1,-spread);
 	var _1 = thx.color._HSL.HSL_Impl_.rotate(this1,spread);
 	return { _0 : _0, _1 : _1};
 };
+thx.color._HSL.HSL_Impl_.square = function(this1) {
+	return thx.color._HSL.HSL_Impl_.tetrad(this1,90);
+};
+thx.color._HSL.HSL_Impl_.tetrad = function(this1,angle) {
+	var _0 = thx.color._HSL.HSL_Impl_.rotate(this1,0);
+	var _1 = thx.color._HSL.HSL_Impl_.rotate(this1,angle);
+	var _2 = thx.color._HSL.HSL_Impl_.rotate(this1,180);
+	var _3 = thx.color._HSL.HSL_Impl_.rotate(this1,180 + angle);
+	return { _0 : _0, _1 : _1, _2 : _2, _3 : _3};
+};
+thx.color._HSL.HSL_Impl_.triad = function(this1) {
+	var _0 = thx.color._HSL.HSL_Impl_.rotate(this1,-120);
+	var _1 = thx.color._HSL.HSL_Impl_.rotate(this1,0);
+	var _2 = thx.color._HSL.HSL_Impl_.rotate(this1,120);
+	return { _0 : _0, _1 : _1, _2 : _2};
+};
 thx.color._HSL.HSL_Impl_.withAlpha = function(this1,alpha) {
-	var channels = this1.concat([alpha]);
+	var channels = this1.concat([alpha < 0?0:alpha > 1?1:alpha]);
 	return channels;
+};
+thx.color._HSL.HSL_Impl_.withHue = function(this1,newhue) {
+	return [newhue < 0?0:newhue > 1?1:newhue,this1[1],this1[2]];
+};
+thx.color._HSL.HSL_Impl_.withLightness = function(this1,newlightness) {
+	return [this1[0],this1[1],newlightness < 0?0:newlightness > 1?1:newlightness];
+};
+thx.color._HSL.HSL_Impl_.withSaturation = function(this1,newsaturation) {
+	return [this1[0],newsaturation < 0?0:newsaturation > 1?1:newsaturation,this1[2]];
 };
 thx.color._HSL.HSL_Impl_.toCSS3 = function(this1) {
 	return "hsl(" + this1[0] + "," + this1[1] * 100 + "%," + this1[2] * 100 + "%)";
@@ -3710,7 +3992,7 @@ thx.color._HSL.HSL_Impl_.toString = function(this1) {
 	return "hsl(" + this1[0] + "," + this1[1] * 100 + "%," + this1[2] * 100 + "%)";
 };
 thx.color._HSL.HSL_Impl_.equals = function(this1,other) {
-	return this1[0] == other[0] && this1[1] == other[1] && this1[2] == other[2];
+	return Math.abs(this1[0] - other[0]) <= 10e-10 && Math.abs(this1[1] - other[1]) <= 10e-10 && Math.abs(this1[2] - other[2]) <= 10e-10;
 };
 thx.color._HSL.HSL_Impl_.toCIELab = function(this1) {
 	return thx.color._RGBX.RGBX_Impl_.toCIELab((function($this) {
@@ -3748,10 +4030,7 @@ thx.color._HSL.HSL_Impl_.toGrey = function(this1) {
 	var this2;
 	var channels = [thx.color._HSL.HSL_Impl_._c(this1[0] + 120,this1[1],this1[2]),thx.color._HSL.HSL_Impl_._c(this1[0],this1[1],this1[2]),thx.color._HSL.HSL_Impl_._c(this1[0] - 120,this1[1],this1[2])];
 	this2 = channels;
-	var grey = this2[0] * .2126 + this2[1] * .7152 + this2[2] * .0722;
-	var this3;
-	if(grey < 0) this3 = 0; else if(grey > 1) this3 = 1; else this3 = grey;
-	return this3;
+	return this2[0] * .2126 + this2[1] * .7152 + this2[2] * .0722;
 };
 thx.color._HSL.HSL_Impl_.toHSV = function(this1) {
 	return thx.color._RGBX.RGBX_Impl_.toHSV((function($this) {
@@ -3765,7 +4044,16 @@ thx.color._HSL.HSL_Impl_.toRGB = function(this1) {
 	var this2;
 	var channels = [thx.color._HSL.HSL_Impl_._c(this1[0] + 120,this1[1],this1[2]),thx.color._HSL.HSL_Impl_._c(this1[0],this1[1],this1[2]),thx.color._HSL.HSL_Impl_._c(this1[0] - 120,this1[1],this1[2])];
 	this2 = channels;
-	return thx.color._RGB.RGB_Impl_.fromFloats(this2[0],this2[1],this2[2]);
+	return thx.color._RGB.RGB_Impl_.createf(this2[0],this2[1],this2[2]);
+};
+thx.color._HSL.HSL_Impl_.toRGBA = function(this1) {
+	var this2;
+	var this3;
+	var channels = [thx.color._HSL.HSL_Impl_._c(this1[0] + 120,this1[1],this1[2]),thx.color._HSL.HSL_Impl_._c(this1[0],this1[1],this1[2]),thx.color._HSL.HSL_Impl_._c(this1[0] - 120,this1[1],this1[2])];
+	this3 = channels;
+	var channels1 = this3.concat([1.0]);
+	this2 = channels1;
+	return thx.color._RGBA.RGBA_Impl_.fromFloats([this2[0],this2[1],this2[2],this2[3]]);
 };
 thx.color._HSL.HSL_Impl_.toRGBX = function(this1) {
 	var channels = [thx.color._HSL.HSL_Impl_._c(this1[0] + 120,this1[1],this1[2]),thx.color._HSL.HSL_Impl_._c(this1[0],this1[1],this1[2]),thx.color._HSL.HSL_Impl_._c(this1[0] - 120,this1[1],this1[2])];
@@ -3816,11 +4104,15 @@ thx.color._HSL.HSL_Impl_._c = function(d,s,l) {
 	if(d < 60) return m1 + (m2 - m1) * d / 60; else if(d < 180) return m2; else if(d < 240) return m1 + (m2 - m1) * (240 - d) / 60; else return m1;
 };
 thx.color._HSLA = {};
-thx.color._HSLA.HSLA_Impl_ = {};
+thx.color._HSLA.HSLA_Impl_ = function() { };
 thx.color._HSLA.HSLA_Impl_.__name__ = ["thx","color","_HSLA","HSLA_Impl_"];
 thx.color._HSLA.HSLA_Impl_.create = function(hue,saturation,lightness,alpha) {
 	var channels = [thx.core.Floats.wrapCircular(hue,360),saturation < 0?0:saturation > 1?1:saturation,lightness < 0?0:lightness > 1?1:lightness,alpha < 0?0:alpha > 1?1:alpha];
 	return channels;
+};
+thx.color._HSLA.HSLA_Impl_.fromFloats = function(arr) {
+	thx.core.ArrayFloats.resize(arr,4);
+	return thx.color._HSLA.HSLA_Impl_.create(arr[0],arr[1],arr[2],arr[3]);
 };
 thx.color._HSLA.HSLA_Impl_.fromString = function(color) {
 	var info = thx.color.parse.ColorParser.parseColor(color);
@@ -3843,9 +4135,6 @@ thx.color._HSLA.HSLA_Impl_.fromString = function(color) {
 	} catch( e ) {
 		return null;
 	}
-};
-thx.color._HSLA.HSLA_Impl_.fromFloats = function(hue,saturation,lightness,alpha) {
-	return [hue,saturation,lightness,alpha];
 };
 thx.color._HSLA.HSLA_Impl_._new = function(channels) {
 	return channels;
@@ -3876,7 +4165,7 @@ thx.color._HSLA.HSLA_Impl_.opaque = function(this1,t) {
 	return channels;
 };
 thx.color._HSLA.HSLA_Impl_.interpolate = function(this1,other,t) {
-	var channels = [thx.core.Floats.interpolate(t,this1[0],other[0]),thx.core.Floats.interpolate(t,this1[1],other[1]),thx.core.Floats.interpolate(t,this1[2],other[2]),thx.core.Floats.interpolate(t,this1[3],other[3])];
+	var channels = [thx.core.Floats.interpolateAngle(t,this1[0],other[0]),thx.core.Floats.interpolate(t,this1[1],other[1]),thx.core.Floats.interpolate(t,this1[2],other[2]),thx.core.Floats.interpolate(t,this1[3],other[3])];
 	return channels;
 };
 thx.color._HSLA.HSLA_Impl_.rotate = function(this1,angle) {
@@ -3888,6 +4177,18 @@ thx.color._HSLA.HSLA_Impl_.split = function(this1,spread) {
 	var _1 = thx.color._HSLA.HSLA_Impl_.rotate(this1,spread);
 	return { _0 : _0, _1 : _1};
 };
+thx.color._HSLA.HSLA_Impl_.withAlpha = function(this1,newalpha) {
+	return [this1[0],this1[1],this1[2],newalpha < 0?0:newalpha > 1?1:newalpha];
+};
+thx.color._HSLA.HSLA_Impl_.withHue = function(this1,newhue) {
+	return [newhue < 0?0:newhue > 1?1:newhue,this1[1],this1[2],this1[3]];
+};
+thx.color._HSLA.HSLA_Impl_.withLightness = function(this1,newlightness) {
+	return [this1[0],this1[1],newlightness < 0?0:newlightness > 1?1:newlightness,this1[3]];
+};
+thx.color._HSLA.HSLA_Impl_.withSaturation = function(this1,newsaturation) {
+	return [this1[0],newsaturation < 0?0:newsaturation > 1?1:newsaturation,this1[2],this1[3]];
+};
 thx.color._HSLA.HSLA_Impl_.toCSS3 = function(this1) {
 	return "hsla(" + this1[0] + "," + this1[1] * 100 + "%," + this1[2] * 100 + "%," + this1[3] + ")";
 };
@@ -3895,7 +4196,7 @@ thx.color._HSLA.HSLA_Impl_.toString = function(this1) {
 	return "hsla(" + this1[0] + "," + this1[1] * 100 + "%," + this1[2] * 100 + "%," + this1[3] + ")";
 };
 thx.color._HSLA.HSLA_Impl_.equals = function(this1,other) {
-	return this1[0] == other[0] && this1[1] == other[1] && this1[2] == other[2] && this1[3] == other[3];
+	return Math.abs(this1[0] - other[0]) <= 10e-10 && Math.abs(this1[1] - other[1]) <= 10e-10 && Math.abs(this1[2] - other[2]) <= 10e-10 && Math.abs(this1[3] - other[3]) <= 10e-10;
 };
 thx.color._HSLA.HSLA_Impl_.toHSL = function(this1) {
 	var channels = this1.slice(0,3);
@@ -3916,7 +4217,13 @@ thx.color._HSLA.HSLA_Impl_.toRGB = function(this1) {
 	var this3;
 	var channels1 = this2.slice(0,3);
 	this3 = channels1;
-	return thx.color._RGB.RGB_Impl_.fromFloats(this3[0],this3[1],this3[2]);
+	return thx.color._RGB.RGB_Impl_.createf(this3[0],this3[1],this3[2]);
+};
+thx.color._HSLA.HSLA_Impl_.toRGBA = function(this1) {
+	var this2;
+	var channels = [thx.color._HSLA.HSLA_Impl_._c(this1[0] + 120,this1[1],this1[2]),thx.color._HSLA.HSLA_Impl_._c(this1[0],this1[1],this1[2]),thx.color._HSLA.HSLA_Impl_._c(this1[0] - 120,this1[1],this1[2]),this1[3]];
+	this2 = channels;
+	return thx.color._RGBA.RGBA_Impl_.fromFloats([this2[0],this2[1],this2[2],this2[3]]);
 };
 thx.color._HSLA.HSLA_Impl_.toRGBXA = function(this1) {
 	var channels = [thx.color._HSLA.HSLA_Impl_._c(this1[0] + 120,this1[1],this1[2]),thx.color._HSLA.HSLA_Impl_._c(this1[0],this1[1],this1[2]),thx.color._HSLA.HSLA_Impl_._c(this1[0] - 120,this1[1],this1[2]),this1[3]];
@@ -3945,11 +4252,15 @@ thx.color._HSLA.HSLA_Impl_._c = function(d,s,l) {
 	if(d < 60) return m1 + (m2 - m1) * d / 60; else if(d < 180) return m2; else if(d < 240) return m1 + (m2 - m1) * (240 - d) / 60; else return m1;
 };
 thx.color._HSV = {};
-thx.color._HSV.HSV_Impl_ = {};
+thx.color._HSV.HSV_Impl_ = function() { };
 thx.color._HSV.HSV_Impl_.__name__ = ["thx","color","_HSV","HSV_Impl_"];
 thx.color._HSV.HSV_Impl_.create = function(hue,saturation,lightness) {
 	var channels = [thx.core.Floats.wrapCircular(hue,360),saturation < 0?0:saturation > 1?1:saturation,lightness < 0?0:lightness > 1?1:lightness];
 	return channels;
+};
+thx.color._HSV.HSV_Impl_.fromFloats = function(arr) {
+	thx.core.ArrayFloats.resize(arr,3);
+	return thx.color._HSV.HSV_Impl_.create(arr[0],arr[1],arr[2]);
 };
 thx.color._HSV.HSV_Impl_.fromString = function(color) {
 	var info = thx.color.parse.ColorParser.parseColor(color);
@@ -3967,9 +4278,6 @@ thx.color._HSV.HSV_Impl_.fromString = function(color) {
 		return null;
 	}
 };
-thx.color._HSV.HSV_Impl_.fromFloats = function(hue,saturation,value) {
-	return [hue,saturation,value];
-};
 thx.color._HSV.HSV_Impl_._new = function(channels) {
 	return channels;
 };
@@ -3983,23 +4291,53 @@ thx.color._HSV.HSV_Impl_.complement = function(this1) {
 	return thx.color._HSV.HSV_Impl_.rotate(this1,180);
 };
 thx.color._HSV.HSV_Impl_.interpolate = function(this1,other,t) {
-	var channels = [thx.core.Floats.interpolate(t,this1[0],other[0]),thx.core.Floats.interpolate(t,this1[1],other[1]),thx.core.Floats.interpolate(t,this1[2],other[2])];
+	var channels = [thx.core.Floats.interpolateAngle(t,this1[0],other[0]),thx.core.Floats.interpolate(t,this1[1],other[1]),thx.core.Floats.interpolate(t,this1[2],other[2])];
 	return channels;
 };
 thx.color._HSV.HSV_Impl_.rotate = function(this1,angle) {
-	return thx.color._HSV.HSV_Impl_.create(this1[0] + angle,this1[1],this1[2]);
+	var newhue = this1[0] + angle;
+	return [newhue < 0?0:newhue > 1?1:newhue,this1[1],this1[2]];
 };
 thx.color._HSV.HSV_Impl_.split = function(this1,spread) {
-	if(spread == null) spread = 150.0;
+	if(spread == null) spread = 144.0;
 	var _0 = thx.color._HSV.HSV_Impl_.rotate(this1,-spread);
 	var _1 = thx.color._HSV.HSV_Impl_.rotate(this1,spread);
 	return { _0 : _0, _1 : _1};
+};
+thx.color._HSV.HSV_Impl_.square = function(this1) {
+	return thx.color._HSV.HSV_Impl_.tetrad(this1,90);
+};
+thx.color._HSV.HSV_Impl_.tetrad = function(this1,angle) {
+	var _0 = thx.color._HSV.HSV_Impl_.rotate(this1,0);
+	var _1 = thx.color._HSV.HSV_Impl_.rotate(this1,angle);
+	var _2 = thx.color._HSV.HSV_Impl_.rotate(this1,180);
+	var _3 = thx.color._HSV.HSV_Impl_.rotate(this1,180 + angle);
+	return { _0 : _0, _1 : _1, _2 : _2, _3 : _3};
+};
+thx.color._HSV.HSV_Impl_.triad = function(this1) {
+	var _0 = thx.color._HSV.HSV_Impl_.rotate(this1,-120);
+	var _1 = thx.color._HSV.HSV_Impl_.rotate(this1,0);
+	var _2 = thx.color._HSV.HSV_Impl_.rotate(this1,120);
+	return { _0 : _0, _1 : _1, _2 : _2};
+};
+thx.color._HSV.HSV_Impl_.withAlpha = function(this1,alpha) {
+	var channels = this1.concat([alpha < 0?0:alpha > 1?1:alpha]);
+	return channels;
+};
+thx.color._HSV.HSV_Impl_.withHue = function(this1,newhue) {
+	return [newhue < 0?0:newhue > 1?1:newhue,this1[1],this1[2]];
+};
+thx.color._HSV.HSV_Impl_.withValue = function(this1,newvalue) {
+	return [this1[0],this1[1],newvalue < 0?0:newvalue > 1?1:newvalue];
+};
+thx.color._HSV.HSV_Impl_.withSaturation = function(this1,newsaturation) {
+	return [this1[0],newsaturation < 0?0:newsaturation > 1?1:newsaturation,this1[2]];
 };
 thx.color._HSV.HSV_Impl_.toString = function(this1) {
 	return "hsv(" + this1[0] + "," + this1[1] * 100 + "%," + this1[2] * 100 + "%)";
 };
 thx.color._HSV.HSV_Impl_.equals = function(this1,other) {
-	return this1[0] == other[0] && this1[1] == other[1] && this1[2] == other[2];
+	return Math.abs(this1[0] - other[0]) <= 10e-10 && Math.abs(this1[1] - other[1]) <= 10e-10 && Math.abs(this1[2] - other[2]) <= 10e-10;
 };
 thx.color._HSV.HSV_Impl_.toCIELab = function(this1) {
 	return thx.color._RGBX.RGBX_Impl_.toCIELab(this1[1] == 0?[this1[2],this1[2],this1[2]]:(function($this) {
@@ -4259,10 +4597,7 @@ thx.color._HSV.HSV_Impl_.toGrey = function(this1) {
 		}
 		this2 = [r,g,b];
 	}
-	var grey = this2[0] * .2126 + this2[1] * .7152 + this2[2] * .0722;
-	var this3;
-	if(grey < 0) this3 = 0; else if(grey > 1) this3 = 1; else this3 = grey;
-	return this3;
+	return this2[0] * .2126 + this2[1] * .7152 + this2[2] * .0722;
 };
 thx.color._HSV.HSV_Impl_.toHSL = function(this1) {
 	return thx.color._RGBX.RGBX_Impl_.toHSL(this1[1] == 0?[this1[2],this1[2],this1[2]]:(function($this) {
@@ -4370,7 +4705,62 @@ thx.color._HSV.HSV_Impl_.toRGB = function(this1) {
 		}
 		this2 = [r,g,b];
 	}
-	return thx.color._RGB.RGB_Impl_.fromFloats(this2[0],this2[1],this2[2]);
+	return thx.color._RGB.RGB_Impl_.createf(this2[0],this2[1],this2[2]);
+};
+thx.color._HSV.HSV_Impl_.toRGBA = function(this1) {
+	var this2;
+	var this3;
+	if(this1[1] == 0) this3 = [this1[2],this1[2],this1[2]]; else {
+		var r;
+		var g;
+		var b;
+		var i;
+		var f;
+		var p;
+		var q;
+		var t;
+		var h = this1[0] / 60;
+		i = Math.floor(h);
+		f = h - i;
+		p = this1[2] * (1 - this1[1]);
+		q = this1[2] * (1 - f * this1[1]);
+		t = this1[2] * (1 - (1 - f) * this1[1]);
+		switch(i) {
+		case 0:
+			r = this1[2];
+			g = t;
+			b = p;
+			break;
+		case 1:
+			r = q;
+			g = this1[2];
+			b = p;
+			break;
+		case 2:
+			r = p;
+			g = this1[2];
+			b = t;
+			break;
+		case 3:
+			r = p;
+			g = q;
+			b = this1[2];
+			break;
+		case 4:
+			r = t;
+			g = p;
+			b = this1[2];
+			break;
+		default:
+			r = this1[2];
+			g = p;
+			b = q;
+		}
+		this3 = [r,g,b];
+	}
+	var channels = this3.concat([1.0]);
+	this2 = channels;
+	return thx.color._RGBA.RGBA_Impl_.fromFloats([this2[0],this2[1],this2[2],this2[3]]);
 };
 thx.color._HSV.HSV_Impl_.toRGBX = function(this1) {
 	if(this1[1] == 0) return [this1[2],this1[2],this1[2]];
@@ -4578,10 +4968,6 @@ thx.color._HSV.HSV_Impl_.toYxy = function(this1) {
 	}
 	return thx.color._XYZ.XYZ_Impl_.toYxy(thx.color._RGBX.RGBX_Impl_.toXYZ(this2));
 };
-thx.color._HSV.HSV_Impl_.withAlpha = function(this1,alpha) {
-	var channels = this1.concat([alpha]);
-	return channels;
-};
 thx.color._HSV.HSV_Impl_.get_hue = function(this1) {
 	return this1[0];
 };
@@ -4595,11 +4981,15 @@ thx.color._HSV.HSV_Impl_.get_value = function(this1) {
 	return this1[2];
 };
 thx.color._HSVA = {};
-thx.color._HSVA.HSVA_Impl_ = {};
+thx.color._HSVA.HSVA_Impl_ = function() { };
 thx.color._HSVA.HSVA_Impl_.__name__ = ["thx","color","_HSVA","HSVA_Impl_"];
 thx.color._HSVA.HSVA_Impl_.create = function(hue,saturation,value,alpha) {
 	var channels = [thx.core.Floats.wrapCircular(hue,360),saturation < 0?0:saturation > 1?1:saturation,value < 0?0:value > 1?1:value,alpha < 0?0:alpha > 1?1:alpha];
 	return channels;
+};
+thx.color._HSVA.HSVA_Impl_.fromFloats = function(arr) {
+	thx.core.ArrayFloats.resize(arr,4);
+	return thx.color._HSVA.HSVA_Impl_.create(arr[0],arr[1],arr[2],arr[3]);
 };
 thx.color._HSVA.HSVA_Impl_.fromString = function(color) {
 	var info = thx.color.parse.ColorParser.parseColor(color);
@@ -4623,9 +5013,6 @@ thx.color._HSVA.HSVA_Impl_.fromString = function(color) {
 		return null;
 	}
 };
-thx.color._HSVA.HSVA_Impl_.fromFloats = function(hue,saturation,value,alpha) {
-	return [hue,saturation,value,alpha];
-};
 thx.color._HSVA.HSVA_Impl_._new = function(channels) {
 	return channels;
 };
@@ -4647,7 +5034,7 @@ thx.color._HSVA.HSVA_Impl_.opaque = function(this1,t) {
 	return channels;
 };
 thx.color._HSVA.HSVA_Impl_.interpolate = function(this1,other,t) {
-	var channels = [thx.core.Floats.interpolate(t,this1[0],other[0]),thx.core.Floats.interpolate(t,this1[1],other[1]),thx.core.Floats.interpolate(t,this1[2],other[2]),thx.core.Floats.interpolate(t,this1[3],other[3])];
+	var channels = [thx.core.Floats.interpolateAngle(t,this1[0],other[0]),thx.core.Floats.interpolate(t,this1[1],other[1]),thx.core.Floats.interpolate(t,this1[2],other[2]),thx.core.Floats.interpolate(t,this1[3],other[3])];
 	return channels;
 };
 thx.color._HSVA.HSVA_Impl_.rotate = function(this1,angle) {
@@ -4659,11 +5046,23 @@ thx.color._HSVA.HSVA_Impl_.split = function(this1,spread) {
 	var _1 = thx.color._HSVA.HSVA_Impl_.rotate(this1,spread);
 	return { _0 : _0, _1 : _1};
 };
+thx.color._HSVA.HSVA_Impl_.withAlpha = function(this1,newalpha) {
+	return [this1[0],this1[1],this1[2],newalpha < 0?0:newalpha > 1?1:newalpha];
+};
+thx.color._HSVA.HSVA_Impl_.withHue = function(this1,newhue) {
+	return [newhue < 0?0:newhue > 1?1:newhue,this1[1],this1[2],this1[3]];
+};
+thx.color._HSVA.HSVA_Impl_.withLightness = function(this1,newvalue) {
+	return [this1[0],this1[1],newvalue < 0?0:newvalue > 1?1:newvalue,this1[3]];
+};
+thx.color._HSVA.HSVA_Impl_.withSaturation = function(this1,newsaturation) {
+	return [this1[0],newsaturation < 0?0:newsaturation > 1?1:newsaturation,this1[2],this1[3]];
+};
 thx.color._HSVA.HSVA_Impl_.toString = function(this1) {
 	return "hsva(" + this1[0] + "," + this1[1] * 100 + "%," + this1[2] * 100 + "%," + this1[3] + ")";
 };
 thx.color._HSVA.HSVA_Impl_.equals = function(this1,other) {
-	return this1[0] == other[0] && this1[1] == other[1] && this1[2] == other[2] && this1[3] == other[3];
+	return Math.abs(this1[0] - other[0]) <= 10e-10 && Math.abs(this1[1] - other[1]) <= 10e-10 && Math.abs(this1[2] - other[2]) <= 10e-10 && Math.abs(this1[3] - other[3]) <= 10e-10;
 };
 thx.color._HSVA.HSVA_Impl_.toHSV = function(this1) {
 	var channels = this1.slice(0,3);
@@ -4774,7 +5173,59 @@ thx.color._HSVA.HSVA_Impl_.toRGB = function(this1) {
 	var this3;
 	var channels = this2.slice(0,3);
 	this3 = channels;
-	return thx.color._RGB.RGB_Impl_.fromFloats(this3[0],this3[1],this3[2]);
+	return thx.color._RGB.RGB_Impl_.createf(this3[0],this3[1],this3[2]);
+};
+thx.color._HSVA.HSVA_Impl_.toRGBA = function(this1) {
+	var this2;
+	if(this1[1] == 0) this2 = [this1[2],this1[2],this1[2],this1[3]]; else {
+		var r;
+		var g;
+		var b;
+		var i;
+		var f;
+		var p;
+		var q;
+		var t;
+		var h = this1[0] / 60;
+		i = Math.floor(h);
+		f = h - i;
+		p = this1[2] * (1 - this1[1]);
+		q = this1[2] * (1 - f * this1[1]);
+		t = this1[2] * (1 - (1 - f) * this1[1]);
+		switch(i) {
+		case 0:
+			r = this1[2];
+			g = t;
+			b = p;
+			break;
+		case 1:
+			r = q;
+			g = this1[2];
+			b = p;
+			break;
+		case 2:
+			r = p;
+			g = this1[2];
+			b = t;
+			break;
+		case 3:
+			r = p;
+			g = q;
+			b = this1[2];
+			break;
+		case 4:
+			r = t;
+			g = p;
+			b = this1[2];
+			break;
+		default:
+			r = this1[2];
+			g = p;
+			b = q;
+		}
+		this2 = [r,g,b,this1[3]];
+	}
+	return thx.color._RGBA.RGBA_Impl_.fromFloats([this2[0],this2[1],this2[2],this2[3]]);
 };
 thx.color._HSVA.HSVA_Impl_.toRGBXA = function(this1) {
 	if(this1[1] == 0) return [this1[2],this1[2],this1[2],this1[3]];
@@ -4841,8 +5292,14 @@ thx.color._HSVA.HSVA_Impl_.get_alpha = function(this1) {
 	return this1[3];
 };
 thx.color._RGB = {};
-thx.color._RGB.RGB_Impl_ = {};
+thx.color._RGB.RGB_Impl_ = function() { };
 thx.color._RGB.RGB_Impl_.__name__ = ["thx","color","_RGB","RGB_Impl_"];
+thx.color._RGB.RGB_Impl_.create = function(red,green,blue) {
+	return (red & 255) << 16 | (green & 255) << 8 | blue & 255;
+};
+thx.color._RGB.RGB_Impl_.createf = function(red,green,blue) {
+	return thx.color._RGB.RGB_Impl_.create(Math.round(red * 255),Math.round(green * 255),Math.round(blue * 255));
+};
 thx.color._RGB.RGB_Impl_.fromString = function(color) {
 	var info = thx.color.parse.ColorParser.parseHex(color);
 	if(null == info) info = thx.color.parse.ColorParser.parseColor(color);
@@ -4851,8 +5308,7 @@ thx.color._RGB.RGB_Impl_.fromString = function(color) {
 		var _g = info.name;
 		switch(_g) {
 		case "rgb":
-			var arr = thx.color.parse.ColorParser.getInt8Channels(info.channels,3);
-			return (arr[0] & 255) << 16 | (arr[1] & 255) << 8 | arr[2] & 255;
+			return thx.color._RGB.RGB_Impl_.fromInts(thx.color.parse.ColorParser.getInt8Channels(info.channels,3));
 		default:
 			return null;
 		}
@@ -4860,35 +5316,36 @@ thx.color._RGB.RGB_Impl_.fromString = function(color) {
 		return null;
 	}
 };
-thx.color._RGB.RGB_Impl_.fromFloats = function(red,green,blue) {
-	var red1 = Math.round((red < 0?0:red > 1?1:red) * 255);
-	var green1 = Math.round((green < 0?0:green > 1?1:green) * 255);
-	var blue1 = Math.round((blue < 0?0:blue > 1?1:blue) * 255);
-	return (red1 & 255) << 16 | (green1 & 255) << 8 | blue1 & 255;
-};
-thx.color._RGB.RGB_Impl_.fromArray = function(arr) {
-	return (arr[0] & 255) << 16 | (arr[1] & 255) << 8 | arr[2] & 255;
-};
-thx.color._RGB.RGB_Impl_.fromInts = function(red,green,blue) {
-	return (red & 255) << 16 | (green & 255) << 8 | blue & 255;
+thx.color._RGB.RGB_Impl_.fromInts = function(arr) {
+	thx.core.ArrayInts.resize(arr,3);
+	return thx.color._RGB.RGB_Impl_.create(arr[0],arr[1],arr[2]);
 };
 thx.color._RGB.RGB_Impl_._new = function(rgb) {
 	return rgb;
 };
 thx.color._RGB.RGB_Impl_.darker = function(this1,t) {
-	var this2 = thx.color._RGBX.RGBX_Impl_.darker([(this1 >> 16 & 255) / 255,(this1 >> 8 & 255) / 255,(this1 & 255) / 255],t);
-	return thx.color._RGB.RGB_Impl_.fromFloats(this2[0],this2[1],this2[2]);
+	var this2 = thx.color._RGBX.RGBX_Impl_.darker(thx.color._RGBX.RGBX_Impl_.fromInts([this1 >> 16 & 255,this1 >> 8 & 255,this1 & 255]),t);
+	return thx.color._RGB.RGB_Impl_.createf(this2[0],this2[1],this2[2]);
 };
 thx.color._RGB.RGB_Impl_.lighter = function(this1,t) {
-	var this2 = thx.color._RGBX.RGBX_Impl_.lighter([(this1 >> 16 & 255) / 255,(this1 >> 8 & 255) / 255,(this1 & 255) / 255],t);
-	return thx.color._RGB.RGB_Impl_.fromFloats(this2[0],this2[1],this2[2]);
+	var this2 = thx.color._RGBX.RGBX_Impl_.lighter(thx.color._RGBX.RGBX_Impl_.fromInts([this1 >> 16 & 255,this1 >> 8 & 255,this1 & 255]),t);
+	return thx.color._RGB.RGB_Impl_.createf(this2[0],this2[1],this2[2]);
 };
 thx.color._RGB.RGB_Impl_.interpolate = function(this1,other,t) {
-	var this2 = thx.color._RGBX.RGBX_Impl_.interpolate([(this1 >> 16 & 255) / 255,(this1 >> 8 & 255) / 255,(this1 & 255) / 255],[(other >> 16 & 255) / 255,(other >> 8 & 255) / 255,(other & 255) / 255],t);
-	return thx.color._RGB.RGB_Impl_.fromFloats(this2[0],this2[1],this2[2]);
+	var this2 = thx.color._RGBX.RGBX_Impl_.interpolate(thx.color._RGBX.RGBX_Impl_.fromInts([this1 >> 16 & 255,this1 >> 8 & 255,this1 & 255]),thx.color._RGBX.RGBX_Impl_.fromInts([other >> 16 & 255,other >> 8 & 255,other & 255]),t);
+	return thx.color._RGB.RGB_Impl_.createf(this2[0],this2[1],this2[2]);
 };
 thx.color._RGB.RGB_Impl_.withAlpha = function(this1,alpha) {
-	return thx.color._RGBA.RGBA_Impl_.toRGBXA((alpha & 255) << 24 | (this1 >> 16 & 255 & 255) << 16 | (this1 >> 8 & 255 & 255) << 8 | this1 & 255 & 255);
+	return thx.color._RGBA.RGBA_Impl_.fromInts([this1 >> 16 & 255,this1 >> 8 & 255,this1 & 255,alpha]);
+};
+thx.color._RGB.RGB_Impl_.withRed = function(this1,newred) {
+	return thx.color._RGB.RGB_Impl_.fromInts([newred,this1 >> 8 & 255,this1 & 255]);
+};
+thx.color._RGB.RGB_Impl_.withGreen = function(this1,newgreen) {
+	return thx.color._RGB.RGB_Impl_.fromInts([this1 >> 16 & 255,newgreen,this1 & 255]);
+};
+thx.color._RGB.RGB_Impl_.withBlue = function(this1,newblue) {
+	return thx.color._RGB.RGB_Impl_.fromInts([this1 >> 16 & 255,this1 >> 8 & 255,newblue]);
 };
 thx.color._RGB.RGB_Impl_.toCSS3 = function(this1) {
 	return "rgb(" + (this1 >> 16 & 255) + "," + (this1 >> 8 & 255) + "," + (this1 & 255) + ")";
@@ -4904,52 +5361,42 @@ thx.color._RGB.RGB_Impl_.equals = function(this1,other) {
 	return (this1 >> 16 & 255) == (other >> 16 & 255) && (this1 >> 8 & 255) == (other >> 8 & 255) && (this1 & 255) == (other & 255);
 };
 thx.color._RGB.RGB_Impl_.toCIELab = function(this1) {
-	return thx.color._RGBX.RGBX_Impl_.toCIELab([(this1 >> 16 & 255) / 255,(this1 >> 8 & 255) / 255,(this1 & 255) / 255]);
+	return thx.color._RGBX.RGBX_Impl_.toCIELab(thx.color._RGBX.RGBX_Impl_.fromInts([this1 >> 16 & 255,this1 >> 8 & 255,this1 & 255]));
 };
 thx.color._RGB.RGB_Impl_.toCIELCh = function(this1) {
-	return thx.color._RGBX.RGBX_Impl_.toCIELCh([(this1 >> 16 & 255) / 255,(this1 >> 8 & 255) / 255,(this1 & 255) / 255]);
+	return thx.color._RGBX.RGBX_Impl_.toCIELCh(thx.color._RGBX.RGBX_Impl_.fromInts([this1 >> 16 & 255,this1 >> 8 & 255,this1 & 255]));
 };
 thx.color._RGB.RGB_Impl_.toCMY = function(this1) {
-	return thx.color._RGBX.RGBX_Impl_.toCMY([(this1 >> 16 & 255) / 255,(this1 >> 8 & 255) / 255,(this1 & 255) / 255]);
+	return thx.color._RGBX.RGBX_Impl_.toCMY(thx.color._RGBX.RGBX_Impl_.fromInts([this1 >> 16 & 255,this1 >> 8 & 255,this1 & 255]));
 };
 thx.color._RGB.RGB_Impl_.toCMYK = function(this1) {
-	return thx.color._RGBX.RGBX_Impl_.toCMYK([(this1 >> 16 & 255) / 255,(this1 >> 8 & 255) / 255,(this1 & 255) / 255]);
+	return thx.color._RGBX.RGBX_Impl_.toCMYK(thx.color._RGBX.RGBX_Impl_.fromInts([this1 >> 16 & 255,this1 >> 8 & 255,this1 & 255]));
 };
 thx.color._RGB.RGB_Impl_.toGrey = function(this1) {
-	var this_0 = (this1 >> 16 & 255) / 255;
-	var this_1 = (this1 >> 8 & 255) / 255;
-	var this_2 = (this1 & 255) / 255;
-	var grey = this_0 * .2126 + this_1 * .7152 + this_2 * .0722;
-	var this2;
-	if(grey < 0) this2 = 0; else if(grey > 1) this2 = 1; else this2 = grey;
-	return this2;
+	var this2 = thx.color._RGBX.RGBX_Impl_.fromInts([this1 >> 16 & 255,this1 >> 8 & 255,this1 & 255]);
+	return this2[0] * .2126 + this2[1] * .7152 + this2[2] * .0722;
 };
 thx.color._RGB.RGB_Impl_.toHSL = function(this1) {
-	return thx.color._RGBX.RGBX_Impl_.toHSL([(this1 >> 16 & 255) / 255,(this1 >> 8 & 255) / 255,(this1 & 255) / 255]);
+	return thx.color._RGBX.RGBX_Impl_.toHSL(thx.color._RGBX.RGBX_Impl_.fromInts([this1 >> 16 & 255,this1 >> 8 & 255,this1 & 255]));
 };
 thx.color._RGB.RGB_Impl_.toHSV = function(this1) {
-	return thx.color._RGBX.RGBX_Impl_.toHSV([(this1 >> 16 & 255) / 255,(this1 >> 8 & 255) / 255,(this1 & 255) / 255]);
+	return thx.color._RGBX.RGBX_Impl_.toHSV(thx.color._RGBX.RGBX_Impl_.fromInts([this1 >> 16 & 255,this1 >> 8 & 255,this1 & 255]));
 };
 thx.color._RGB.RGB_Impl_.toRGBX = function(this1) {
-	return [(this1 >> 16 & 255) / 255,(this1 >> 8 & 255) / 255,(this1 & 255) / 255];
+	return thx.color._RGBX.RGBX_Impl_.fromInts([this1 >> 16 & 255,this1 >> 8 & 255,this1 & 255]);
 };
 thx.color._RGB.RGB_Impl_.toRGBA = function(this1) {
-	var this2 = thx.color._RGBA.RGBA_Impl_.toRGBXA(-16777216 | (this1 >> 16 & 255 & 255) << 16 | (this1 >> 8 & 255 & 255) << 8 | this1 & 255 & 255);
-	return thx.color._RGBA.RGBA_Impl_.fromFloats(this2[0],this2[1],this2[2],this2[3]);
+	return thx.color._RGBA.RGBA_Impl_.fromInts([this1 >> 16 & 255,this1 >> 8 & 255,this1 & 255,255]);
 };
 thx.color._RGB.RGB_Impl_.toRGBXA = function(this1) {
-	return thx.color._RGBA.RGBA_Impl_.toRGBXA((function($this) {
-		var $r;
-		var this2 = thx.color._RGBA.RGBA_Impl_.toRGBXA(-16777216 | (this1 >> 16 & 255 & 255) << 16 | (this1 >> 8 & 255 & 255) << 8 | this1 & 255 & 255);
-		$r = thx.color._RGBA.RGBA_Impl_.fromFloats(this2[0],this2[1],this2[2],this2[3]);
-		return $r;
-	}(this)));
+	return thx.color._RGBA.RGBA_Impl_.toRGBXA(thx.color._RGBA.RGBA_Impl_.fromInts([this1 >> 16 & 255,this1 >> 8 & 255,this1 & 255,255]));
 };
 thx.color._RGB.RGB_Impl_.toYxy = function(this1) {
-	return thx.color._XYZ.XYZ_Impl_.toYxy(thx.color._RGBX.RGBX_Impl_.toXYZ([(this1 >> 16 & 255) / 255,(this1 >> 8 & 255) / 255,(this1 & 255) / 255]));
+	var this2 = thx.color._RGBX.RGBX_Impl_.fromInts([this1 >> 16 & 255,this1 >> 8 & 255,this1 & 255]);
+	return thx.color._XYZ.XYZ_Impl_.toYxy(thx.color._RGBX.RGBX_Impl_.toXYZ(this2));
 };
 thx.color._RGB.RGB_Impl_.toXYZ = function(this1) {
-	return thx.color._RGBX.RGBX_Impl_.toXYZ([(this1 >> 16 & 255) / 255,(this1 >> 8 & 255) / 255,(this1 & 255) / 255]);
+	return thx.color._RGBX.RGBX_Impl_.toXYZ(thx.color._RGBX.RGBX_Impl_.fromInts([this1 >> 16 & 255,this1 >> 8 & 255,this1 & 255]));
 };
 thx.color._RGB.RGB_Impl_.get_red = function(this1) {
 	return this1 >> 16 & 255;
@@ -4961,8 +5408,24 @@ thx.color._RGB.RGB_Impl_.get_blue = function(this1) {
 	return this1 & 255;
 };
 thx.color._RGBA = {};
-thx.color._RGBA.RGBA_Impl_ = {};
+thx.color._RGBA.RGBA_Impl_ = function() { };
 thx.color._RGBA.RGBA_Impl_.__name__ = ["thx","color","_RGBA","RGBA_Impl_"];
+thx.color._RGBA.RGBA_Impl_.create = function(red,green,blue,alpha) {
+	return (alpha & 255) << 24 | (red & 255) << 16 | (green & 255) << 8 | blue & 255;
+};
+thx.color._RGBA.RGBA_Impl_.fromFloats = function(arr) {
+	var ints = thx.core.ArrayFloats.resize(arr,4).map(function(_) {
+		return Math.round(_ * 255);
+	});
+	return thx.color._RGBA.RGBA_Impl_.create(ints[0],ints[1],ints[2],ints[3]);
+};
+thx.color._RGBA.RGBA_Impl_.fromInt = function(rgba) {
+	return rgba;
+};
+thx.color._RGBA.RGBA_Impl_.fromInts = function(arr) {
+	thx.core.ArrayInts.resize(arr,4);
+	return thx.color._RGBA.RGBA_Impl_.create(arr[0],arr[1],arr[2],arr[3]);
+};
 thx.color._RGBA.RGBA_Impl_.fromString = function(color) {
 	var info = thx.color.parse.ColorParser.parseHex(color);
 	if(null == info) info = thx.color.parse.ColorParser.parseColor(color);
@@ -4971,17 +5434,10 @@ thx.color._RGBA.RGBA_Impl_.fromString = function(color) {
 		var _g = info.name;
 		switch(_g) {
 		case "rgb":
-			var this1;
-			var arr = thx.color.parse.ColorParser.getInt8Channels(info.channels,3);
-			this1 = (arr[0] & 255) << 16 | (arr[1] & 255) << 8 | arr[2] & 255;
-			var this2 = thx.color._RGBA.RGBA_Impl_.toRGBXA(-16777216 | (this1 >> 16 & 255 & 255) << 16 | (this1 >> 8 & 255 & 255) << 8 | this1 & 255 & 255);
-			return thx.color._RGBA.RGBA_Impl_.fromFloats(this2[0],this2[1],this2[2],this2[3]);
+			var this1 = thx.color._RGB.RGB_Impl_.fromInts(thx.color.parse.ColorParser.getInt8Channels(info.channels,3));
+			return thx.color._RGBA.RGBA_Impl_.fromInts([this1 >> 16 & 255,this1 >> 8 & 255,this1 & 255,255]);
 		case "rgba":
-			var arr_0 = thx.color.parse.ColorParser.getInt8Channel(info.channels[0]);
-			var arr_1 = thx.color.parse.ColorParser.getInt8Channel(info.channels[1]);
-			var arr_2 = thx.color.parse.ColorParser.getInt8Channel(info.channels[2]);
-			var arr_3 = Math.round(thx.color.parse.ColorParser.getFloatChannel(info.channels[3]) * 255);
-			return (arr_3 & 255) << 24 | (arr_0 & 255) << 16 | (arr_1 & 255) << 8 | arr_2 & 255;
+			return thx.color._RGBA.RGBA_Impl_.create(thx.color.parse.ColorParser.getInt8Channel(info.channels[0]),thx.color.parse.ColorParser.getInt8Channel(info.channels[1]),thx.color.parse.ColorParser.getInt8Channel(info.channels[2]),Math.round(thx.color.parse.ColorParser.getFloatChannel(info.channels[3]) * 255));
 		default:
 			return null;
 		}
@@ -4989,44 +5445,40 @@ thx.color._RGBA.RGBA_Impl_.fromString = function(color) {
 		return null;
 	}
 };
-thx.color._RGBA.RGBA_Impl_.fromArray = function(arr) {
-	return (arr[3] & 255) << 24 | (arr[0] & 255) << 16 | (arr[1] & 255) << 8 | arr[2] & 255;
-};
-thx.color._RGBA.RGBA_Impl_.fromFloats = function(red,green,blue,alpha) {
-	var red1 = Math.round((red < 0?0:red > 1?1:red) * 255);
-	var green1 = Math.round((green < 0?0:green > 1?1:green) * 255);
-	var blue1 = Math.round((blue < 0?0:blue > 1?1:blue) * 255);
-	var alpha1 = Math.round((alpha < 0?0:alpha > 1?1:alpha) * 255);
-	return (alpha1 & 255) << 24 | (red1 & 255) << 16 | (green1 & 255) << 8 | blue1 & 255;
-};
-thx.color._RGBA.RGBA_Impl_.fromInts = function(red,green,blue,alpha) {
-	return (alpha & 255) << 24 | (red & 255) << 16 | (green & 255) << 8 | blue & 255;
-};
-thx.color._RGBA.RGBA_Impl_.fromInt = function(rgba) {
-	return rgba;
-};
 thx.color._RGBA.RGBA_Impl_._new = function(rgba) {
 	return rgba;
 };
 thx.color._RGBA.RGBA_Impl_.darker = function(this1,t) {
 	var this2 = thx.color._RGBXA.RGBXA_Impl_.darker(thx.color._RGBA.RGBA_Impl_.toRGBXA(this1),t);
-	return thx.color._RGBA.RGBA_Impl_.fromFloats(this2[0],this2[1],this2[2],this2[3]);
+	return thx.color._RGBA.RGBA_Impl_.fromFloats([this2[0],this2[1],this2[2],this2[3]]);
 };
 thx.color._RGBA.RGBA_Impl_.lighter = function(this1,t) {
 	var this2 = thx.color._RGBXA.RGBXA_Impl_.lighter(thx.color._RGBA.RGBA_Impl_.toRGBXA(this1),t);
-	return thx.color._RGBA.RGBA_Impl_.fromFloats(this2[0],this2[1],this2[2],this2[3]);
+	return thx.color._RGBA.RGBA_Impl_.fromFloats([this2[0],this2[1],this2[2],this2[3]]);
 };
 thx.color._RGBA.RGBA_Impl_.transparent = function(this1,t) {
 	var this2 = thx.color._RGBXA.RGBXA_Impl_.transparent(thx.color._RGBA.RGBA_Impl_.toRGBXA(this1),t);
-	return thx.color._RGBA.RGBA_Impl_.fromFloats(this2[0],this2[1],this2[2],this2[3]);
+	return thx.color._RGBA.RGBA_Impl_.fromFloats([this2[0],this2[1],this2[2],this2[3]]);
 };
 thx.color._RGBA.RGBA_Impl_.opaque = function(this1,t) {
 	var this2 = thx.color._RGBXA.RGBXA_Impl_.opaque(thx.color._RGBA.RGBA_Impl_.toRGBXA(this1),t);
-	return thx.color._RGBA.RGBA_Impl_.fromFloats(this2[0],this2[1],this2[2],this2[3]);
+	return thx.color._RGBA.RGBA_Impl_.fromFloats([this2[0],this2[1],this2[2],this2[3]]);
 };
 thx.color._RGBA.RGBA_Impl_.interpolate = function(this1,other,t) {
 	var this2 = thx.color._RGBXA.RGBXA_Impl_.interpolate(thx.color._RGBA.RGBA_Impl_.toRGBXA(this1),thx.color._RGBA.RGBA_Impl_.toRGBXA(other),t);
-	return thx.color._RGBA.RGBA_Impl_.fromFloats(this2[0],this2[1],this2[2],this2[3]);
+	return thx.color._RGBA.RGBA_Impl_.fromFloats([this2[0],this2[1],this2[2],this2[3]]);
+};
+thx.color._RGBA.RGBA_Impl_.withAlpha = function(this1,newalpha) {
+	return thx.color._RGBA.RGBA_Impl_.fromInts([this1 >> 16 & 255,this1 >> 8 & 255,this1 & 255,newalpha]);
+};
+thx.color._RGBA.RGBA_Impl_.withRed = function(this1,newred) {
+	return thx.color._RGBA.RGBA_Impl_.fromInts([newred,this1 >> 8 & 255,this1 & 255]);
+};
+thx.color._RGBA.RGBA_Impl_.withGreen = function(this1,newgreen) {
+	return thx.color._RGBA.RGBA_Impl_.fromInts([this1 >> 16 & 255,newgreen,this1 & 255]);
+};
+thx.color._RGBA.RGBA_Impl_.withBlue = function(this1,newblue) {
+	return thx.color._RGBA.RGBA_Impl_.fromInts([this1 >> 16 & 255,this1 >> 8 & 255,newblue]);
 };
 thx.color._RGBA.RGBA_Impl_.toHSLA = function(this1) {
 	return thx.color._RGBXA.RGBXA_Impl_.toHSLA(thx.color._RGBA.RGBA_Impl_.toRGBXA(this1));
@@ -5035,13 +5487,13 @@ thx.color._RGBA.RGBA_Impl_.toHSVA = function(this1) {
 	return thx.color._RGBXA.RGBXA_Impl_.toHSVA(thx.color._RGBA.RGBA_Impl_.toRGBXA(this1));
 };
 thx.color._RGBA.RGBA_Impl_.toRGB = function(this1) {
-	return (this1 >> 16 & 255 & 255) << 16 | (this1 >> 8 & 255 & 255) << 8 | this1 & 255 & 255;
+	return thx.color._RGB.RGB_Impl_.create(this1 >> 16 & 255,this1 >> 8 & 255,this1 & 255);
 };
 thx.color._RGBA.RGBA_Impl_.toRGBX = function(this1) {
-	return [(this1 >> 16 & 255) / 255,(this1 >> 8 & 255) / 255,(this1 & 255) / 255];
+	return thx.color._RGBX.RGBX_Impl_.fromInts([this1 >> 16 & 255,this1 >> 8 & 255,this1 & 255]);
 };
 thx.color._RGBA.RGBA_Impl_.toRGBXA = function(this1) {
-	return [(this1 >> 16 & 255) / 255,(this1 >> 8 & 255) / 255,(this1 & 255) / 255,(this1 >> 24 & 255) / 255];
+	return thx.color._RGBXA.RGBXA_Impl_.fromInts([this1 >> 16 & 255,this1 >> 8 & 255,this1 & 255,this1 >> 24 & 255]);
 };
 thx.color._RGBA.RGBA_Impl_.toCSS3 = function(this1) {
 	return "rgba(" + (this1 >> 16 & 255) + "," + (this1 >> 8 & 255) + "," + (this1 & 255) + "," + (this1 >> 24 & 255) / 255 + ")";
@@ -5069,8 +5521,19 @@ thx.color._RGBA.RGBA_Impl_.get_blue = function(this1) {
 	return this1 & 255;
 };
 thx.color._RGBX = {};
-thx.color._RGBX.RGBX_Impl_ = {};
+thx.color._RGBX.RGBX_Impl_ = function() { };
 thx.color._RGBX.RGBX_Impl_.__name__ = ["thx","color","_RGBX","RGBX_Impl_"];
+thx.color._RGBX.RGBX_Impl_.create = function(red,green,blue) {
+	return [red < 0?0:red > 1?1:red,green < 0?0:green > 1?1:green,blue < 0?0:blue > 1?1:blue];
+};
+thx.color._RGBX.RGBX_Impl_.fromFloats = function(arr) {
+	thx.core.ArrayFloats.resize(arr,3);
+	return thx.color._RGBX.RGBX_Impl_.create(arr[0],arr[1],arr[2]);
+};
+thx.color._RGBX.RGBX_Impl_.fromInts = function(arr) {
+	thx.core.ArrayInts.resize(arr,3);
+	return thx.color._RGBX.RGBX_Impl_.create(arr[0] / 255,arr[1] / 255,arr[2] / 255);
+};
 thx.color._RGBX.RGBX_Impl_.fromString = function(color) {
 	var info = thx.color.parse.ColorParser.parseHex(color);
 	if(null == info) info = thx.color.parse.ColorParser.parseColor(color);
@@ -5079,25 +5542,13 @@ thx.color._RGBX.RGBX_Impl_.fromString = function(color) {
 		var _g = info.name;
 		switch(_g) {
 		case "rgb":
-			return thx.color._RGBX.RGBX_Impl_.fromArray(thx.color.parse.ColorParser.getFloatChannels(info.channels,3));
+			return thx.color._RGBX.RGBX_Impl_.fromFloats(thx.color.parse.ColorParser.getFloatChannels(info.channels,3));
 		default:
 			return null;
 		}
 	} catch( e ) {
 		return null;
 	}
-};
-thx.color._RGBX.RGBX_Impl_.fromArray = function(values) {
-	var channels = values.map(function(v) {
-		if(v < 0) return 0; else if(v > 1) return 1; else return v;
-	}).concat([0,0,0]).slice(0,3);
-	return channels;
-};
-thx.color._RGBX.RGBX_Impl_.fromInts = function(red,green,blue) {
-	return [red / 255,green / 255,blue / 255];
-};
-thx.color._RGBX.RGBX_Impl_.fromFloats = function(red,green,blue) {
-	return [red,green,blue];
 };
 thx.color._RGBX.RGBX_Impl_._new = function(channels) {
 	return channels;
@@ -5127,6 +5578,22 @@ thx.color._RGBX.RGBX_Impl_.toHex = function(this1,prefix) {
 thx.color._RGBX.RGBX_Impl_.equals = function(this1,other) {
 	return Math.abs(this1[0] - other[0]) <= 10e-10 && Math.abs(this1[1] - other[1]) <= 10e-10 && Math.abs(this1[2] - other[2]) <= 10e-10;
 };
+thx.color._RGBX.RGBX_Impl_.withAlpha = function(this1,alpha) {
+	var channels = this1.concat([alpha < 0?0:alpha > 1?1:alpha]);
+	return channels;
+};
+thx.color._RGBX.RGBX_Impl_.withRed = function(this1,newred) {
+	var channels = [newred < 0?0:newred > 1?1:newred,Math.round(this1[1] * 255),Math.round(this1[2] * 255)];
+	return channels;
+};
+thx.color._RGBX.RGBX_Impl_.withGreen = function(this1,newgreen) {
+	var channels = [Math.round(this1[0] * 255),newgreen < 0?0:newgreen > 1?1:newgreen,Math.round(this1[2] * 255)];
+	return channels;
+};
+thx.color._RGBX.RGBX_Impl_.withBlue = function(this1,newblue) {
+	var channels = [Math.round(this1[0] * 255),Math.round(this1[1] * 255),newblue < 0?0:newblue > 1?1:newblue];
+	return channels;
+};
 thx.color._RGBX.RGBX_Impl_.toCIELab = function(this1) {
 	return thx.color._XYZ.XYZ_Impl_.toCIELab(thx.color._RGBX.RGBX_Impl_.toXYZ(this1));
 };
@@ -5150,22 +5617,14 @@ thx.color._RGBX.RGBX_Impl_.toCMYK = function(this1) {
 	return [c,m,y,k];
 };
 thx.color._RGBX.RGBX_Impl_.toGrey = function(this1) {
-	var grey = this1[0] * .2126 + this1[1] * .7152 + this1[2] * .0722;
-	var this2;
-	if(grey < 0) this2 = 0; else if(grey > 1) this2 = 1; else this2 = grey;
-	return this2;
+	return this1[0] * .2126 + this1[1] * .7152 + this1[2] * .0722;
 };
 thx.color._RGBX.RGBX_Impl_.toPerceivedGrey = function(this1) {
-	var grey = this1[0] * .299 + this1[1] * .587 + this1[2] * .114;
-	var this2;
-	if(grey < 0) this2 = 0; else if(grey > 1) this2 = 1; else this2 = grey;
-	return this2;
+	return this1[0] * .299 + this1[1] * .587 + this1[2] * .114;
 };
 thx.color._RGBX.RGBX_Impl_.toPerceivedAccurateGrey = function(this1) {
 	var grey = Math.pow(this1[0],2) * .241 + Math.pow(this1[1],2) * .691 + Math.pow(this1[2],2) * .068;
-	var this2;
-	if(grey < 0) this2 = 0; else if(grey > 1) this2 = 1; else this2 = grey;
-	return this2;
+	return grey;
 };
 thx.color._RGBX.RGBX_Impl_.toHSL = function(this1) {
 	var min = Math.min(Math.min(this1[0],this1[1]),this1[2]);
@@ -5199,7 +5658,7 @@ thx.color._RGBX.RGBX_Impl_.toHSV = function(this1) {
 	return [h,s,v];
 };
 thx.color._RGBX.RGBX_Impl_.toRGB = function(this1) {
-	return thx.color._RGB.RGB_Impl_.fromFloats(this1[0],this1[1],this1[2]);
+	return thx.color._RGB.RGB_Impl_.createf(this1[0],this1[1],this1[2]);
 };
 thx.color._RGBX.RGBX_Impl_.toRGBXA = function(this1) {
 	var channels = this1.concat([1.0]);
@@ -5216,10 +5675,6 @@ thx.color._RGBX.RGBX_Impl_.toXYZ = function(this1) {
 };
 thx.color._RGBX.RGBX_Impl_.toYxy = function(this1) {
 	return thx.color._XYZ.XYZ_Impl_.toYxy(thx.color._RGBX.RGBX_Impl_.toXYZ(this1));
-};
-thx.color._RGBX.RGBX_Impl_.withAlpha = function(this1,alpha) {
-	var channels = this1.concat([alpha]);
-	return channels;
 };
 thx.color._RGBX.RGBX_Impl_.get_red = function(this1) {
 	return Math.round(this1[0] * 255);
@@ -5240,9 +5695,20 @@ thx.color._RGBX.RGBX_Impl_.get_bluef = function(this1) {
 	return this1[2];
 };
 thx.color._RGBXA = {};
-thx.color._RGBXA.RGBXA_Impl_ = {};
+thx.color._RGBXA.RGBXA_Impl_ = function() { };
 thx.color._RGBXA.RGBXA_Impl_.__name__ = ["thx","color","_RGBXA","RGBXA_Impl_"];
-thx.color._RGBXA.RGBXA_Impl_.parse = function(color) {
+thx.color._RGBXA.RGBXA_Impl_.create = function(red,green,blue,alpha) {
+	return [red < 0?0:red > 1?1:red,green < 0?0:green > 1?1:green,blue < 0?0:blue > 1?1:blue,alpha < 0?0:alpha > 1?1:alpha];
+};
+thx.color._RGBXA.RGBXA_Impl_.fromFloats = function(arr) {
+	thx.core.ArrayFloats.resize(arr,4);
+	return thx.color._RGBXA.RGBXA_Impl_.create(arr[0],arr[1],arr[2],arr[3]);
+};
+thx.color._RGBXA.RGBXA_Impl_.fromInts = function(arr) {
+	thx.core.ArrayInts.resize(arr,4);
+	return thx.color._RGBXA.RGBXA_Impl_.create(arr[0] / 255,arr[1] / 255,arr[2] / 255,arr[3] / 255);
+};
+thx.color._RGBXA.RGBXA_Impl_.fromString = function(color) {
 	var info = thx.color.parse.ColorParser.parseHex(color);
 	if(null == info) info = thx.color.parse.ColorParser.parseColor(color);
 	if(null == info) return null;
@@ -5250,11 +5716,11 @@ thx.color._RGBXA.RGBXA_Impl_.parse = function(color) {
 		var _g = info.name;
 		switch(_g) {
 		case "rgb":
-			var this1 = thx.color._RGBX.RGBX_Impl_.fromArray(thx.color.parse.ColorParser.getFloatChannels(info.channels,3));
+			var this1 = thx.color._RGBX.RGBX_Impl_.fromFloats(thx.color.parse.ColorParser.getFloatChannels(info.channels,3));
 			var channels = this1.concat([1.0]);
 			return channels;
 		case "rgba":
-			return thx.color._RGBXA.RGBXA_Impl_.fromArray(thx.color.parse.ColorParser.getFloatChannels(info.channels,4));
+			return thx.color._RGBXA.RGBXA_Impl_.fromFloats(thx.color.parse.ColorParser.getFloatChannels(info.channels,4));
 		default:
 			return null;
 		}
@@ -5262,17 +5728,8 @@ thx.color._RGBXA.RGBXA_Impl_.parse = function(color) {
 		return null;
 	}
 };
-thx.color._RGBXA.RGBXA_Impl_.fromArray = function(values) {
-	var channels = values.map(function(v) {
-		if(v < 0) return 0; else if(v > 1) return 1; else return v;
-	}).concat([0,0,0,0]).slice(0,4);
+thx.color._RGBXA.RGBXA_Impl_._new = function(channels) {
 	return channels;
-};
-thx.color._RGBXA.RGBXA_Impl_.fromInts = function(red,green,blue,alpha) {
-	return [red / 255,green / 255,blue / 255,alpha / 255];
-};
-thx.color._RGBXA.RGBXA_Impl_.fromFloats = function(red,green,blue,alpha) {
-	return [red,green,blue,alpha];
 };
 thx.color._RGBXA.RGBXA_Impl_.darker = function(this1,t) {
 	var this2 = thx.color._RGBX.RGBX_Impl_.darker((function($this) {
@@ -5282,7 +5739,7 @@ thx.color._RGBXA.RGBXA_Impl_.darker = function(this1,t) {
 		return $r;
 	}(this)),t);
 	var alpha = Math.round(this1[3] * 255);
-	var channels1 = this2.concat([alpha]);
+	var channels1 = this2.concat([alpha < 0?0:alpha > 1?1:alpha]);
 	return channels1;
 };
 thx.color._RGBXA.RGBXA_Impl_.lighter = function(this1,t) {
@@ -5293,7 +5750,7 @@ thx.color._RGBXA.RGBXA_Impl_.lighter = function(this1,t) {
 		return $r;
 	}(this)),t);
 	var alpha = Math.round(this1[3] * 255);
-	var channels1 = this2.concat([alpha]);
+	var channels1 = this2.concat([alpha < 0?0:alpha > 1?1:alpha]);
 	return channels1;
 };
 thx.color._RGBXA.RGBXA_Impl_.transparent = function(this1,t) {
@@ -5308,7 +5765,20 @@ thx.color._RGBXA.RGBXA_Impl_.interpolate = function(this1,other,t) {
 	var channels = [thx.core.Ints.interpolate(t,this1[0],other[0]),thx.core.Ints.interpolate(t,this1[1],other[1]),thx.core.Ints.interpolate(t,this1[2],other[2]),thx.core.Ints.interpolate(t,this1[3],other[3])];
 	return channels;
 };
-thx.color._RGBXA.RGBXA_Impl_._new = function(channels) {
+thx.color._RGBXA.RGBXA_Impl_.withAlpha = function(this1,newalpha) {
+	var channels = [Math.round(this1[0] * 255),Math.round(this1[1] * 255),Math.round(this1[2] * 255),newalpha < 0?0:newalpha > 1?1:newalpha];
+	return channels;
+};
+thx.color._RGBXA.RGBXA_Impl_.withRed = function(this1,newred) {
+	var channels = [newred < 0?0:newred > 1?1:newred,Math.round(this1[1] * 255),Math.round(this1[2] * 255),Math.round(this1[3] * 255)];
+	return channels;
+};
+thx.color._RGBXA.RGBXA_Impl_.withGreen = function(this1,newgreen) {
+	var channels = [Math.round(this1[0] * 255),newgreen < 0?0:newgreen > 1?1:newgreen,Math.round(this1[2] * 255),Math.round(this1[3] * 255)];
+	return channels;
+};
+thx.color._RGBXA.RGBXA_Impl_.withBlue = function(this1,newblue) {
+	var channels = [Math.round(this1[0] * 255),Math.round(this1[1] * 255),newblue < 0?0:newblue > 1?1:newblue,Math.round(this1[3] * 255)];
 	return channels;
 };
 thx.color._RGBXA.RGBXA_Impl_.toCSS3 = function(this1) {
@@ -5332,7 +5802,7 @@ thx.color._RGBXA.RGBXA_Impl_.toHSLA = function(this1) {
 		return $r;
 	}(this)));
 	var alpha = Math.round(this1[3] * 255);
-	var channels1 = this2.concat([alpha]);
+	var channels1 = this2.concat([alpha < 0?0:alpha > 1?1:alpha]);
 	return channels1;
 };
 thx.color._RGBXA.RGBXA_Impl_.toHSVA = function(this1) {
@@ -5343,21 +5813,21 @@ thx.color._RGBXA.RGBXA_Impl_.toHSVA = function(this1) {
 		return $r;
 	}(this)));
 	var alpha = Math.round(this1[3] * 255);
-	var channels1 = this2.concat([alpha]);
+	var channels1 = this2.concat([alpha < 0?0:alpha > 1?1:alpha]);
 	return channels1;
 };
 thx.color._RGBXA.RGBXA_Impl_.toRGB = function(this1) {
 	var this2;
 	var channels = this1.slice(0,3);
 	this2 = channels;
-	return thx.color._RGB.RGB_Impl_.fromFloats(this2[0],this2[1],this2[2]);
+	return thx.color._RGB.RGB_Impl_.createf(this2[0],this2[1],this2[2]);
 };
 thx.color._RGBXA.RGBXA_Impl_.toRGBX = function(this1) {
 	var channels = this1.slice(0,3);
 	return channels;
 };
 thx.color._RGBXA.RGBXA_Impl_.toRGBA = function(this1) {
-	return thx.color._RGBA.RGBA_Impl_.fromFloats(this1[0],this1[1],this1[2],this1[3]);
+	return thx.color._RGBA.RGBA_Impl_.fromFloats([this1[0],this1[1],this1[2],this1[3]]);
 };
 thx.color._RGBXA.RGBXA_Impl_.get_red = function(this1) {
 	return Math.round(this1[0] * 255);
@@ -5384,8 +5854,15 @@ thx.color._RGBXA.RGBXA_Impl_.get_alphaf = function(this1) {
 	return this1[3];
 };
 thx.color._XYZ = {};
-thx.color._XYZ.XYZ_Impl_ = {};
+thx.color._XYZ.XYZ_Impl_ = function() { };
 thx.color._XYZ.XYZ_Impl_.__name__ = ["thx","color","_XYZ","XYZ_Impl_"];
+thx.color._XYZ.XYZ_Impl_.create = function(x,y,z) {
+	return [x,y,z];
+};
+thx.color._XYZ.XYZ_Impl_.fromFloats = function(arr) {
+	thx.core.ArrayFloats.resize(arr,3);
+	return thx.color._XYZ.XYZ_Impl_.create(arr[0],arr[1],arr[2]);
+};
 thx.color._XYZ.XYZ_Impl_.fromString = function(color) {
 	var info = thx.color.parse.ColorParser.parseColor(color);
 	if(null == info) return null;
@@ -5402,9 +5879,6 @@ thx.color._XYZ.XYZ_Impl_.fromString = function(color) {
 		return null;
 	}
 };
-thx.color._XYZ.XYZ_Impl_.fromFloats = function(x,y,z) {
-	return [x,y,z];
-};
 thx.color._XYZ.XYZ_Impl_._new = function(channels) {
 	return channels;
 };
@@ -5412,11 +5886,20 @@ thx.color._XYZ.XYZ_Impl_.interpolate = function(this1,other,t) {
 	var channels = [thx.core.Floats.interpolate(t,this1[0],other[0]),thx.core.Floats.interpolate(t,this1[1],other[1]),thx.core.Floats.interpolate(t,this1[2],other[2])];
 	return channels;
 };
+thx.color._XYZ.XYZ_Impl_.withX = function(this1,newx) {
+	return [newx,this1[1],this1[2]];
+};
+thx.color._XYZ.XYZ_Impl_.withY = function(this1,newy) {
+	return [this1[0],newy,this1[2]];
+};
+thx.color._XYZ.XYZ_Impl_.withZ = function(this1,newz) {
+	return [this1[0],this1[1],newz];
+};
 thx.color._XYZ.XYZ_Impl_.toString = function(this1) {
 	return "XYZ(" + this1[0] + "," + this1[1] + "," + this1[2] + ")";
 };
 thx.color._XYZ.XYZ_Impl_.equals = function(this1,other) {
-	return this1[0] == other[0] && this1[1] == other[1] && this1[2] == other[2];
+	return Math.abs(this1[0] - other[0]) <= 10e-10 && Math.abs(this1[1] - other[1]) <= 10e-10 && Math.abs(this1[2] - other[2]) <= 10e-10;
 };
 thx.color._XYZ.XYZ_Impl_.toCIELab = function(this1) {
 	var x = this1[0] * 0.0105211106;
@@ -5439,10 +5922,7 @@ thx.color._XYZ.XYZ_Impl_.toCMYK = function(this1) {
 };
 thx.color._XYZ.XYZ_Impl_.toGrey = function(this1) {
 	var this2 = thx.color._XYZ.XYZ_Impl_.toRGBX(this1);
-	var grey = this2[0] * .2126 + this2[1] * .7152 + this2[2] * .0722;
-	var this3;
-	if(grey < 0) this3 = 0; else if(grey > 1) this3 = 1; else this3 = grey;
-	return this3;
+	return this2[0] * .2126 + this2[1] * .7152 + this2[2] * .0722;
 };
 thx.color._XYZ.XYZ_Impl_.toHSL = function(this1) {
 	return thx.color._RGBX.RGBX_Impl_.toHSL(thx.color._XYZ.XYZ_Impl_.toRGBX(this1));
@@ -5452,7 +5932,14 @@ thx.color._XYZ.XYZ_Impl_.toHSV = function(this1) {
 };
 thx.color._XYZ.XYZ_Impl_.toRGB = function(this1) {
 	var this2 = thx.color._XYZ.XYZ_Impl_.toRGBX(this1);
-	return thx.color._RGB.RGB_Impl_.fromFloats(this2[0],this2[1],this2[2]);
+	return thx.color._RGB.RGB_Impl_.createf(this2[0],this2[1],this2[2]);
+};
+thx.color._XYZ.XYZ_Impl_.toRGBA = function(this1) {
+	var this2;
+	var this3 = thx.color._XYZ.XYZ_Impl_.toRGBX(this1);
+	var channels = this3.concat([1.0]);
+	this2 = channels;
+	return thx.color._RGBA.RGBA_Impl_.fromFloats([this2[0],this2[1],this2[2],this2[3]]);
 };
 thx.color._XYZ.XYZ_Impl_.toRGBX = function(this1) {
 	var x = this1[0] / 100;
@@ -5485,8 +5972,15 @@ thx.color._XYZ.XYZ_Impl_.get_z = function(this1) {
 	return this1[2];
 };
 thx.color._Yxy = {};
-thx.color._Yxy.Yxy_Impl_ = {};
+thx.color._Yxy.Yxy_Impl_ = function() { };
 thx.color._Yxy.Yxy_Impl_.__name__ = ["thx","color","_Yxy","Yxy_Impl_"];
+thx.color._Yxy.Yxy_Impl_.create = function(y1,x,y2) {
+	return [y1,x,y2];
+};
+thx.color._Yxy.Yxy_Impl_.fromFloats = function(arr) {
+	thx.core.ArrayFloats.resize(arr,3);
+	return thx.color._Yxy.Yxy_Impl_.create(arr[0],arr[1],arr[2]);
+};
 thx.color._Yxy.Yxy_Impl_.fromString = function(color) {
 	var info = thx.color.parse.ColorParser.parseColor(color);
 	if(null == info) return null;
@@ -5503,9 +5997,6 @@ thx.color._Yxy.Yxy_Impl_.fromString = function(color) {
 		return null;
 	}
 };
-thx.color._Yxy.Yxy_Impl_.fromFloats = function(y1,x,y2) {
-	return [y1,x,y2];
-};
 thx.color._Yxy.Yxy_Impl_._new = function(channels) {
 	return channels;
 };
@@ -5513,11 +6004,20 @@ thx.color._Yxy.Yxy_Impl_.interpolate = function(this1,other,t) {
 	var channels = [thx.core.Floats.interpolate(t,this1[0],other[0]),thx.core.Floats.interpolate(t,this1[1],other[1]),thx.core.Floats.interpolate(t,this1[2],other[2])];
 	return channels;
 };
+thx.color._Yxy.Yxy_Impl_.withY1 = function(this1,newy1) {
+	return [newy1,this1[1],this1[2]];
+};
+thx.color._Yxy.Yxy_Impl_.withY = function(this1,newx) {
+	return [this1[0],this1[1],this1[2]];
+};
+thx.color._Yxy.Yxy_Impl_.withZ = function(this1,newy2) {
+	return [this1[0],this1[1],this1[2]];
+};
 thx.color._Yxy.Yxy_Impl_.toString = function(this1) {
 	return "Yxy(" + this1[0] + "," + this1[1] + "," + this1[2] + ")";
 };
 thx.color._Yxy.Yxy_Impl_.equals = function(this1,other) {
-	return this1[0] == other[0] && this1[1] == other[1] && this1[2] == other[2];
+	return Math.abs(this1[0] - other[0]) <= 10e-10 && Math.abs(this1[1] - other[1]) <= 10e-10 && Math.abs(this1[2] - other[2]) <= 10e-10;
 };
 thx.color._Yxy.Yxy_Impl_.toCIELab = function(this1) {
 	return thx.color._XYZ.XYZ_Impl_.toCIELab(thx.color._Yxy.Yxy_Impl_.toXYZ(this1));
@@ -5533,10 +6033,7 @@ thx.color._Yxy.Yxy_Impl_.toCMYK = function(this1) {
 };
 thx.color._Yxy.Yxy_Impl_.toGrey = function(this1) {
 	var this2 = thx.color._XYZ.XYZ_Impl_.toRGBX(thx.color._Yxy.Yxy_Impl_.toXYZ(this1));
-	var grey = this2[0] * .2126 + this2[1] * .7152 + this2[2] * .0722;
-	var this3;
-	if(grey < 0) this3 = 0; else if(grey > 1) this3 = 1; else this3 = grey;
-	return this3;
+	return this2[0] * .2126 + this2[1] * .7152 + this2[2] * .0722;
 };
 thx.color._Yxy.Yxy_Impl_.toHSL = function(this1) {
 	return thx.color._RGBX.RGBX_Impl_.toHSL(thx.color._XYZ.XYZ_Impl_.toRGBX(thx.color._Yxy.Yxy_Impl_.toXYZ(this1)));
@@ -5546,7 +6043,14 @@ thx.color._Yxy.Yxy_Impl_.toHSV = function(this1) {
 };
 thx.color._Yxy.Yxy_Impl_.toRGB = function(this1) {
 	var this2 = thx.color._XYZ.XYZ_Impl_.toRGBX(thx.color._Yxy.Yxy_Impl_.toXYZ(this1));
-	return thx.color._RGB.RGB_Impl_.fromFloats(this2[0],this2[1],this2[2]);
+	return thx.color._RGB.RGB_Impl_.createf(this2[0],this2[1],this2[2]);
+};
+thx.color._Yxy.Yxy_Impl_.toRGBA = function(this1) {
+	var this2;
+	var this3 = thx.color._XYZ.XYZ_Impl_.toRGBX(thx.color._Yxy.Yxy_Impl_.toXYZ(this1));
+	var channels = this3.concat([1.0]);
+	this2 = channels;
+	return thx.color._RGBA.RGBA_Impl_.fromFloats([this2[0],this2[1],this2[2],this2[3]]);
 };
 thx.color._Yxy.Yxy_Impl_.toRGBX = function(this1) {
 	return thx.color._XYZ.XYZ_Impl_.toRGBX(thx.color._Yxy.Yxy_Impl_.toXYZ(this1));
@@ -5583,15 +6087,21 @@ thx.color.parse.ColorParser.parseHex = function(s) {
 thx.color.parse.ColorParser.parseChannel = function(s) {
 	return thx.color.parse.ColorParser.parser.processChannel(s);
 };
-thx.color.parse.ColorParser.getFloatChannels = function(channels,length) {
+thx.color.parse.ColorParser.getFloatChannels = function(channels,length,useInt8) {
+	if(useInt8 == null) useInt8 = true;
 	if(length != channels.length) throw "invalid number of channels, expected " + length + " but it is " + channels.length;
-	return channels.map(thx.color.parse.ColorParser.getFloatChannel);
+	return channels.map((function(f,a2) {
+		return function(a1) {
+			return f(a1,a2);
+		};
+	})(thx.color.parse.ColorParser.getFloatChannel,useInt8));
 };
 thx.color.parse.ColorParser.getInt8Channels = function(channels,length) {
 	if(length != channels.length) throw "invalid number of channels, expected " + length + " but it is " + channels.length;
 	return channels.map(thx.color.parse.ColorParser.getInt8Channel);
 };
-thx.color.parse.ColorParser.getFloatChannel = function(channel) {
+thx.color.parse.ColorParser.getFloatChannel = function(channel,useInt8) {
+	if(useInt8 == null) useInt8 = true;
 	switch(channel[1]) {
 	case 5:
 		var v = channel[2];
@@ -5608,10 +6118,14 @@ thx.color.parse.ColorParser.getFloatChannel = function(channel) {
 		return v3;
 	case 3:
 		var v4 = channel[2];
-		return v4 / 255;
+		if(useInt8) return v4 / 255; else {
+			var v5 = channel[2];
+			return v5;
+		}
+		break;
 	case 0:
-		var v5 = channel[2];
-		return v5 / 100;
+		var v6 = channel[2];
+		return v6 / 100;
 	}
 };
 thx.color.parse.ColorParser.getInt8Channel = function(channel) {
@@ -5717,12 +6231,12 @@ thx.color.parse.ColorInfo.prototype = {
 	,__class__: thx.color.parse.ColorInfo
 };
 thx.color.parse.ChannelInfo = { __ename__ : ["thx","color","parse","ChannelInfo"], __constructs__ : ["CIPercent","CIFloat","CIDegree","CIInt8","CIInt","CIBool"] };
-thx.color.parse.ChannelInfo.CIPercent = function(value) { var $x = ["CIPercent",0,value]; $x.__enum__ = thx.color.parse.ChannelInfo; return $x; };
-thx.color.parse.ChannelInfo.CIFloat = function(value) { var $x = ["CIFloat",1,value]; $x.__enum__ = thx.color.parse.ChannelInfo; return $x; };
-thx.color.parse.ChannelInfo.CIDegree = function(value) { var $x = ["CIDegree",2,value]; $x.__enum__ = thx.color.parse.ChannelInfo; return $x; };
-thx.color.parse.ChannelInfo.CIInt8 = function(value) { var $x = ["CIInt8",3,value]; $x.__enum__ = thx.color.parse.ChannelInfo; return $x; };
-thx.color.parse.ChannelInfo.CIInt = function(value) { var $x = ["CIInt",4,value]; $x.__enum__ = thx.color.parse.ChannelInfo; return $x; };
-thx.color.parse.ChannelInfo.CIBool = function(value) { var $x = ["CIBool",5,value]; $x.__enum__ = thx.color.parse.ChannelInfo; return $x; };
+thx.color.parse.ChannelInfo.CIPercent = function(value) { var $x = ["CIPercent",0,value]; $x.__enum__ = thx.color.parse.ChannelInfo; $x.toString = $estr; return $x; };
+thx.color.parse.ChannelInfo.CIFloat = function(value) { var $x = ["CIFloat",1,value]; $x.__enum__ = thx.color.parse.ChannelInfo; $x.toString = $estr; return $x; };
+thx.color.parse.ChannelInfo.CIDegree = function(value) { var $x = ["CIDegree",2,value]; $x.__enum__ = thx.color.parse.ChannelInfo; $x.toString = $estr; return $x; };
+thx.color.parse.ChannelInfo.CIInt8 = function(value) { var $x = ["CIInt8",3,value]; $x.__enum__ = thx.color.parse.ChannelInfo; $x.toString = $estr; return $x; };
+thx.color.parse.ChannelInfo.CIInt = function(value) { var $x = ["CIInt",4,value]; $x.__enum__ = thx.color.parse.ChannelInfo; $x.toString = $estr; return $x; };
+thx.color.parse.ChannelInfo.CIBool = function(value) { var $x = ["CIBool",5,value]; $x.__enum__ = thx.color.parse.ChannelInfo; $x.toString = $estr; return $x; };
 thx.core = {};
 thx.core.Arrays = function() { };
 thx.core.Arrays.__name__ = ["thx","core","Arrays"];
@@ -5927,6 +6441,11 @@ thx.core.Arrays.pushIf = function(array,condition,value) {
 thx.core.Arrays.reduce = function(array,callback,initial) {
 	return array.reduce(callback,initial);
 };
+thx.core.Arrays.resize = function(array,length,fill) {
+	while(array.length < length) array.push(fill);
+	array.splice(length,array.length - length);
+	return array;
+};
 thx.core.Arrays.reducei = function(array,callback,initial) {
 	return array.reduce(callback,initial);
 };
@@ -5973,6 +6492,23 @@ thx.core.Arrays.take = function(arr,n) {
 };
 thx.core.Arrays.takeLast = function(arr,n) {
 	return arr.slice(arr.length - n);
+};
+thx.core.Arrays.rotate = function(arr) {
+	var result = [];
+	var _g1 = 0;
+	var _g = arr[0].length;
+	while(_g1 < _g) {
+		var i = _g1++;
+		var row = [];
+		result.push(row);
+		var _g3 = 0;
+		var _g2 = arr.length;
+		while(_g3 < _g2) {
+			var j = _g3++;
+			row.push(arr[j][i]);
+		}
+	}
+	return result;
 };
 thx.core.Arrays.zip = function(array1,array2) {
 	var length = thx.core.Ints.min(array1.length,array2.length);
@@ -6069,7 +6605,7 @@ thx.core.ArrayFloats.average = function(arr) {
 };
 thx.core.ArrayFloats.compact = function(arr) {
 	return arr.filter(function(v) {
-		return null != v && isFinite(v);
+		return null != v && Math.isFinite(v);
 	});
 };
 thx.core.ArrayFloats.max = function(arr) {
@@ -6081,6 +6617,12 @@ thx.core.ArrayFloats.min = function(arr) {
 	if(arr.length == 0) return null; else return arr.reduce(function(min,v) {
 		if(v < min) return v; else return min;
 	},arr[0]);
+};
+thx.core.ArrayFloats.resize = function(array,length,fill) {
+	if(fill == null) fill = 0.0;
+	while(array.length < length) array.push(fill);
+	array.splice(length,array.length - length);
+	return array;
 };
 thx.core.ArrayFloats.sum = function(arr) {
 	return arr.reduce(function(tot,v) {
@@ -6101,6 +6643,12 @@ thx.core.ArrayInts.min = function(arr) {
 	if(arr.length == 0) return null; else return arr.reduce(function(min,v) {
 		if(v < min) return v; else return min;
 	},arr[0]);
+};
+thx.core.ArrayInts.resize = function(array,length,fill) {
+	if(fill == null) fill = 0;
+	while(array.length < length) array.push(fill);
+	array.splice(length,array.length - length);
+	return array;
 };
 thx.core.ArrayInts.sum = function(arr) {
 	return arr.reduce(function(tot,v) {
@@ -6125,8 +6673,8 @@ thx.core.ArrayStrings.min = function(arr) {
 	},arr[0]);
 };
 thx.core.Either = { __ename__ : ["thx","core","Either"], __constructs__ : ["Left","Right"] };
-thx.core.Either.Left = function(value) { var $x = ["Left",0,value]; $x.__enum__ = thx.core.Either; return $x; };
-thx.core.Either.Right = function(value) { var $x = ["Right",1,value]; $x.__enum__ = thx.core.Either; return $x; };
+thx.core.Either.Left = function(value) { var $x = ["Left",0,value]; $x.__enum__ = thx.core.Either; $x.toString = $estr; return $x; };
+thx.core.Either.Right = function(value) { var $x = ["Right",1,value]; $x.__enum__ = thx.core.Either; $x.toString = $estr; return $x; };
 thx.core.Error = function(message,stack,pos) {
 	Error.call(this,message);
 	this.message = message;
@@ -6161,6 +6709,13 @@ thx.core.Error.prototype = $extend(Error.prototype,{
 });
 thx.core.Floats = function() { };
 thx.core.Floats.__name__ = ["thx","core","Floats"];
+thx.core.Floats.angleDifference = function(a,b,turn) {
+	if(turn == null) turn = 360;
+	var r = (b - a) % turn;
+	if(r < 0) r += turn;
+	if(r > turn / 2) r -= turn;
+	return r;
+};
 thx.core.Floats.ceilTo = function(f,decimals) {
 	var p = Math.pow(10,decimals);
 	return Math.ceil(f * p) / p;
@@ -6184,6 +6739,28 @@ thx.core.Floats.floorTo = function(f,decimals) {
 thx.core.Floats.interpolate = function(f,a,b) {
 	return (b - a) * f + a;
 };
+thx.core.Floats.interpolateAngle = function(f,a,b,turn) {
+	if(turn == null) turn = 360;
+	return thx.core.Floats.wrapCircular(thx.core.Floats.interpolate(f,a,a + thx.core.Floats.angleDifference(a,b,turn)),turn);
+};
+thx.core.Floats.interpolateAngleWidest = function(f,a,b,turn) {
+	if(turn == null) turn = 360;
+	return thx.core.Floats.wrapCircular(thx.core.Floats.interpolateAngle(f,a,b,turn) - turn / 2,turn);
+};
+thx.core.Floats.interpolateAngleCW = function(f,a,b,turn) {
+	if(turn == null) turn = 360;
+	a = thx.core.Floats.wrapCircular(a,turn);
+	b = thx.core.Floats.wrapCircular(b,turn);
+	if(b < a) b += turn;
+	return thx.core.Floats.wrapCircular(thx.core.Floats.interpolate(f,a,b),turn);
+};
+thx.core.Floats.interpolateAngleCCW = function(f,a,b,turn) {
+	if(turn == null) turn = 360;
+	a = thx.core.Floats.wrapCircular(a,turn);
+	b = thx.core.Floats.wrapCircular(b,turn);
+	if(b > a) b -= turn;
+	return thx.core.Floats.wrapCircular(thx.core.Floats.interpolate(f,a,b),turn);
+};
 thx.core.Floats.nearEquals = function(a,b) {
 	return Math.abs(a - b) <= 10e-10;
 };
@@ -6195,7 +6772,10 @@ thx.core.Floats.normalize = function(v) {
 };
 thx.core.Floats.parse = function(s) {
 	if(s.substring(0,1) == "+") s = s.substring(1);
-	return parseFloat(s);
+	return Std.parseFloat(s);
+};
+thx.core.Floats.root = function(base,index) {
+	return Math.pow(base,1 / index);
 };
 thx.core.Floats.roundTo = function(f,decimals) {
 	var p = Math.pow(10,decimals);
@@ -6270,12 +6850,12 @@ thx.core.Functions1.memoize = function(callback,resolver) {
 	if(null == resolver) resolver = function(v) {
 		return "" + Std.string(v);
 	};
-	var map_h = { };
+	var map = new haxe.ds.StringMap();
 	return function(v1) {
 		var key = resolver(v1);
-		if(map_h.hasOwnProperty("$" + key)) return map_h["$" + key];
+		if(map.exists(key)) return map.get(key);
 		var result = callback(v1);
-		map_h["$" + key] = result;
+		map.set(key,result);
 		return result;
 	};
 };
@@ -6311,12 +6891,12 @@ thx.core.Functions2.memoize = function(callback,resolver) {
 	if(null == resolver) resolver = function(v1,v2) {
 		return "" + Std.string(v1) + ":" + Std.string(v2);
 	};
-	var map_h = { };
+	var map = new haxe.ds.StringMap();
 	return function(v11,v21) {
 		var key = resolver(v11,v21);
-		if(map_h.hasOwnProperty("$" + key)) return map_h["$" + key];
+		if(map.exists(key)) return map.get(key);
 		var result = callback(v11,v21);
-		map_h["$" + key] = result;
+		map.set(key,result);
 		return result;
 	};
 };
@@ -6331,12 +6911,12 @@ thx.core.Functions3.memoize = function(callback,resolver) {
 	if(null == resolver) resolver = function(v1,v2,v3) {
 		return "" + Std.string(v1) + ":" + Std.string(v2) + ":" + Std.string(v3);
 	};
-	var map_h = { };
+	var map = new haxe.ds.StringMap();
 	return function(v11,v21,v31) {
 		var key = resolver(v11,v21,v31);
-		if(map_h.hasOwnProperty("$" + key)) return map_h["$" + key];
+		if(map.exists(key)) return map.get(key);
 		var result = callback(v11,v21,v31);
-		map_h["$" + key] = result;
+		map.set(key,result);
 		return result;
 	};
 };
@@ -6394,7 +6974,7 @@ thx.core.Ints.min = function(a,b) {
 };
 thx.core.Ints.parse = function(s,base) {
 	var v = parseInt(s,base);
-	if(isNaN(v)) return null; else return v;
+	if(Math.isNaN(v)) return null; else return v;
 };
 thx.core.Ints.random = function(min,max) {
 	if(min == null) min = 0;
@@ -6406,7 +6986,7 @@ thx.core.Ints.range = function(start,stop,step) {
 		stop = start;
 		start = 0;
 	}
-	if((stop - start) / step == Infinity) throw "infinite range";
+	if((stop - start) / step == Math.POSITIVE_INFINITY) throw "infinite range";
 	var range = [];
 	var i = -1;
 	var j;
@@ -6517,6 +7097,7 @@ thx.core.Iterators.toArray = function(it) {
 };
 thx.core.Nil = { __ename__ : ["thx","core","Nil"], __constructs__ : ["nil"] };
 thx.core.Nil.nil = ["nil",0];
+thx.core.Nil.nil.toString = $estr;
 thx.core.Nil.nil.__enum__ = thx.core.Nil;
 thx.core.Nulls = function() { };
 thx.core.Nulls.__name__ = ["thx","core","Nulls"];
@@ -6598,7 +7179,7 @@ thx.core.Options.toValue = function(option) {
 	}
 };
 thx.core._Result = {};
-thx.core._Result.Result_Impl_ = {};
+thx.core._Result.Result_Impl_ = function() { };
 thx.core._Result.Result_Impl_.__name__ = ["thx","core","_Result","Result_Impl_"];
 thx.core._Result.Result_Impl_.optionValue = function(this1) {
 	switch(this1[1]) {
@@ -6882,14 +7463,14 @@ thx.core.Timer.throttle = function(callback,delayms,leading) {
 thx.core.Timer.repeat = function(callback,delayms) {
 	return (function(f,id) {
 		return function() {
-			f(id);
+			return f(id);
 		};
 	})(thx.core.Timer.clear,setInterval(callback,delayms));
 };
 thx.core.Timer.delay = function(callback,delayms) {
 	return (function(f,id) {
 		return function() {
-			f(id);
+			return f(id);
 		};
 	})(thx.core.Timer.clear,setTimeout(callback,delayms));
 };
@@ -6919,19 +7500,18 @@ thx.core.Timer.nextFrame = function(callback) {
 thx.core.Timer.immediate = function(callback) {
 	return (function(f,id) {
 		return function() {
-			f(id);
+			return f(id);
 		};
 	})(thx.core.Timer.clear,setImmediate(callback));
 };
 thx.core.Timer.clear = function(id) {
-	clearTimeout(id);
-	return;
+	return clearTimeout(id);
 };
 thx.core.Timer.time = function() {
 	return performance.now();
 };
 thx.core._Tuple = {};
-thx.core._Tuple.Tuple0_Impl_ = {};
+thx.core._Tuple.Tuple0_Impl_ = function() { };
 thx.core._Tuple.Tuple0_Impl_.__name__ = ["thx","core","_Tuple","Tuple0_Impl_"];
 thx.core._Tuple.Tuple0_Impl_._new = function() {
 	return thx.core.Nil.nil;
@@ -6948,7 +7528,7 @@ thx.core._Tuple.Tuple0_Impl_.toNil = function(this1) {
 thx.core._Tuple.Tuple0_Impl_.nilToTuple = function(v) {
 	return thx.core.Nil.nil;
 };
-thx.core._Tuple.Tuple1_Impl_ = {};
+thx.core._Tuple.Tuple1_Impl_ = function() { };
 thx.core._Tuple.Tuple1_Impl_.__name__ = ["thx","core","_Tuple","Tuple1_Impl_"];
 thx.core._Tuple.Tuple1_Impl_._new = function(_0) {
 	return _0;
@@ -6962,7 +7542,7 @@ thx.core._Tuple.Tuple1_Impl_["with"] = function(this1,v) {
 thx.core._Tuple.Tuple1_Impl_.toString = function(this1) {
 	return "Tuple1(" + Std.string(this1) + ")";
 };
-thx.core._Tuple.Tuple2_Impl_ = {};
+thx.core._Tuple.Tuple2_Impl_ = function() { };
 thx.core._Tuple.Tuple2_Impl_.__name__ = ["thx","core","_Tuple","Tuple2_Impl_"];
 thx.core._Tuple.Tuple2_Impl_._new = function(_0,_1) {
 	return { _0 : _0, _1 : _1};
@@ -6988,7 +7568,7 @@ thx.core._Tuple.Tuple2_Impl_["with"] = function(this1,v) {
 thx.core._Tuple.Tuple2_Impl_.toString = function(this1) {
 	return "Tuple2(" + Std.string(this1._0) + "," + Std.string(this1._1) + ")";
 };
-thx.core._Tuple.Tuple3_Impl_ = {};
+thx.core._Tuple.Tuple3_Impl_ = function() { };
 thx.core._Tuple.Tuple3_Impl_.__name__ = ["thx","core","_Tuple","Tuple3_Impl_"];
 thx.core._Tuple.Tuple3_Impl_._new = function(_0,_1,_2) {
 	return { _0 : _0, _1 : _1, _2 : _2};
@@ -7008,7 +7588,7 @@ thx.core._Tuple.Tuple3_Impl_["with"] = function(this1,v) {
 thx.core._Tuple.Tuple3_Impl_.toString = function(this1) {
 	return "Tuple3(" + Std.string(this1._0) + "," + Std.string(this1._1) + "," + Std.string(this1._2) + ")";
 };
-thx.core._Tuple.Tuple4_Impl_ = {};
+thx.core._Tuple.Tuple4_Impl_ = function() { };
 thx.core._Tuple.Tuple4_Impl_.__name__ = ["thx","core","_Tuple","Tuple4_Impl_"];
 thx.core._Tuple.Tuple4_Impl_._new = function(_0,_1,_2,_3) {
 	return { _0 : _0, _1 : _1, _2 : _2, _3 : _3};
@@ -7028,7 +7608,7 @@ thx.core._Tuple.Tuple4_Impl_["with"] = function(this1,v) {
 thx.core._Tuple.Tuple4_Impl_.toString = function(this1) {
 	return "Tuple4(" + Std.string(this1._0) + "," + Std.string(this1._1) + "," + Std.string(this1._2) + "," + Std.string(this1._3) + ")";
 };
-thx.core._Tuple.Tuple5_Impl_ = {};
+thx.core._Tuple.Tuple5_Impl_ = function() { };
 thx.core._Tuple.Tuple5_Impl_.__name__ = ["thx","core","_Tuple","Tuple5_Impl_"];
 thx.core._Tuple.Tuple5_Impl_._new = function(_0,_1,_2,_3,_4) {
 	return { _0 : _0, _1 : _1, _2 : _2, _3 : _3, _4 : _4};
@@ -7048,7 +7628,7 @@ thx.core._Tuple.Tuple5_Impl_["with"] = function(this1,v) {
 thx.core._Tuple.Tuple5_Impl_.toString = function(this1) {
 	return "Tuple5(" + Std.string(this1._0) + "," + Std.string(this1._1) + "," + Std.string(this1._2) + "," + Std.string(this1._3) + "," + Std.string(this1._4) + ")";
 };
-thx.core._Tuple.Tuple6_Impl_ = {};
+thx.core._Tuple.Tuple6_Impl_ = function() { };
 thx.core._Tuple.Tuple6_Impl_.__name__ = ["thx","core","_Tuple","Tuple6_Impl_"];
 thx.core._Tuple.Tuple6_Impl_._new = function(_0,_1,_2,_3,_4,_5) {
 	return { _0 : _0, _1 : _1, _2 : _2, _3 : _3, _4 : _4, _5 : _5};
@@ -7313,8 +7893,7 @@ thx.promise.FutureTuple6.mapTuple = function(future,callback) {
 };
 thx.promise.FutureTuple6.mapTupleAsync = function(future,callback) {
 	return future.mapAsync(function(t,cb) {
-		callback(t._0,t._1,t._2,t._3,t._4,t._5,cb);
-		return;
+		return callback(t._0,t._1,t._2,t._3,t._4,t._5,cb);
 	});
 };
 thx.promise.FutureTuple6.mapTupleFuture = function(future,callback) {
@@ -7348,8 +7927,7 @@ thx.promise.FutureTuple5.mapTuple = function(future,callback) {
 };
 thx.promise.FutureTuple5.mapTupleAsync = function(future,callback) {
 	return future.mapAsync(function(t,cb) {
-		callback(t._0,t._1,t._2,t._3,t._4,cb);
-		return;
+		return callback(t._0,t._1,t._2,t._3,t._4,cb);
 	});
 };
 thx.promise.FutureTuple5.mapTupleFuture = function(future,callback) {
@@ -7383,8 +7961,7 @@ thx.promise.FutureTuple4.mapTuple = function(future,callback) {
 };
 thx.promise.FutureTuple4.mapTupleAsync = function(future,callback) {
 	return future.mapAsync(function(t,cb) {
-		callback(t._0,t._1,t._2,t._3,cb);
-		return;
+		return callback(t._0,t._1,t._2,t._3,cb);
 	});
 };
 thx.promise.FutureTuple4.mapTupleFuture = function(future,callback) {
@@ -7418,8 +7995,7 @@ thx.promise.FutureTuple3.mapTuple = function(future,callback) {
 };
 thx.promise.FutureTuple3.mapTupleAsync = function(future,callback) {
 	return future.mapAsync(function(t,cb) {
-		callback(t._0,t._1,t._2,cb);
-		return;
+		return callback(t._0,t._1,t._2,cb);
 	});
 };
 thx.promise.FutureTuple3.mapTupleFuture = function(future,callback) {
@@ -7453,8 +8029,7 @@ thx.promise.FutureTuple2.mapTuple = function(future,callback) {
 };
 thx.promise.FutureTuple2.mapTupleAsync = function(future,callback) {
 	return future.mapAsync(function(t,cb) {
-		callback(t._0,t._1,cb);
-		return;
+		return callback(t._0,t._1,cb);
 	});
 };
 thx.promise.FutureTuple2.mapTupleFuture = function(future,callback) {
@@ -7477,7 +8052,7 @@ thx.promise.FutureNil.join = function(p1,p2) {
 	});
 };
 thx.promise._Promise = {};
-thx.promise._Promise.Promise_Impl_ = {};
+thx.promise._Promise.Promise_Impl_ = function() { };
 thx.promise._Promise.Promise_Impl_.__name__ = ["thx","promise","_Promise","Promise_Impl_"];
 thx.promise._Promise.Promise_Impl_.futureToPromise = function(future) {
 	return future.map(function(v) {
@@ -7593,8 +8168,7 @@ thx.promise._Promise.Promise_Impl_.mapAlways = function(this1,handler) {
 };
 thx.promise._Promise.Promise_Impl_.mapAlwaysAsync = function(this1,handler) {
 	return this1.mapAsync(function(_,cb) {
-		handler(cb);
-		return;
+		return handler(cb);
 	});
 };
 thx.promise._Promise.Promise_Impl_.mapAlwaysFuture = function(this1,handler) {
@@ -7865,7 +8439,7 @@ thx.promise.Timer.delayValue = function(value,delayms) {
 	return thx.promise.Future.create(function(callback) {
 		thx.core.Timer.delay((function(f,a1) {
 			return function() {
-				f(a1);
+				return f(a1);
 			};
 		})(callback,value),delayms);
 	});
@@ -7877,7 +8451,7 @@ thx.promise.Timer.immediateValue = function(value) {
 	return thx.promise.Future.create(function(callback) {
 		thx.core.Timer.immediate((function(f,a1) {
 			return function() {
-				f(a1);
+				return f(a1);
 			};
 		})(callback,value));
 	});
@@ -7991,7 +8565,7 @@ thx.stream.Emitter.prototype = {
 					cancel();
 					cancel = thx.core.Timer.delay((function(f,v1) {
 						return function() {
-							f(v1);
+							return f(v1);
 						};
 					})($bind(stream,stream.pulse),v),delay);
 					break;
@@ -8683,10 +9257,10 @@ thx.stream.EmitterStrings.truthy = function(emitter) {
 };
 thx.stream.EmitterStrings.unique = function(emitter) {
 	return emitter.filter((function() {
-		var buf_h = { };
+		var buf = new haxe.ds.StringMap();
 		return function(v) {
-			if(buf_h.hasOwnProperty("$" + v)) return false; else {
-				buf_h["$" + v] = true;
+			if(buf.exists(v)) return false; else {
+				buf.set(v,true);
 				return true;
 			}
 		};
@@ -8770,10 +9344,10 @@ thx.stream.EmitterInts.toBool = function(emitter) {
 };
 thx.stream.EmitterInts.unique = function(emitter) {
 	return emitter.filter((function() {
-		var buf_h = { };
+		var buf = new haxe.ds.IntMap();
 		return function(v) {
-			if(buf_h.hasOwnProperty(v)) return false; else {
-				buf_h[v] = true;
+			if(buf.exists(v)) return false; else {
+				buf.set(v,true);
 				return true;
 			}
 		};
@@ -8822,7 +9396,7 @@ thx.stream.EmitterFloats.lessThanOrEqualTo = function(emitter,x) {
 };
 thx.stream.EmitterFloats.max = function(emitter) {
 	return emitter.filter((function() {
-		var max = -Infinity;
+		var max = Math.NEGATIVE_INFINITY;
 		return function(v) {
 			if(v > max) {
 				max = v;
@@ -8833,7 +9407,7 @@ thx.stream.EmitterFloats.max = function(emitter) {
 };
 thx.stream.EmitterFloats.min = function(emitter) {
 	return emitter.filter((function() {
-		var min = Infinity;
+		var min = Math.POSITIVE_INFINITY;
 		return function(v) {
 			if(v < min) {
 				min = v;
@@ -9001,8 +9575,8 @@ thx.stream.Stream.prototype = {
 	,__class__: thx.stream.Stream
 };
 thx.stream.StreamValue = { __ename__ : ["thx","stream","StreamValue"], __constructs__ : ["Pulse","End"] };
-thx.stream.StreamValue.Pulse = function(value) { var $x = ["Pulse",0,value]; $x.__enum__ = thx.stream.StreamValue; return $x; };
-thx.stream.StreamValue.End = function(cancel) { var $x = ["End",1,cancel]; $x.__enum__ = thx.stream.StreamValue; return $x; };
+thx.stream.StreamValue.Pulse = function(value) { var $x = ["Pulse",0,value]; $x.__enum__ = thx.stream.StreamValue; $x.toString = $estr; return $x; };
+thx.stream.StreamValue.End = function(cancel) { var $x = ["End",1,cancel]; $x.__enum__ = thx.stream.StreamValue; $x.toString = $estr; return $x; };
 thx.stream.Value = function(value,equals) {
 	var _g = this;
 	if(null == equals) this.equals = thx.core.Functions.equality; else this.equals = equals;
@@ -9200,7 +9774,7 @@ thx.stream.dom.Dom.subscribeToggleVisibility = function(el) {
 thx.unit = {};
 thx.unit.angle = {};
 thx.unit.angle._BinaryDegree = {};
-thx.unit.angle._BinaryDegree.BinaryDegree_Impl_ = {};
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_ = function() { };
 thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.__name__ = ["thx","unit","angle","_BinaryDegree","BinaryDegree_Impl_"];
 thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.pointToBinaryDegree = function(x,y) {
 	var this1;
@@ -9329,7 +9903,7 @@ thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.toString = function(this1) {
 	return this1 + "binary degree";
 };
 thx.unit.angle._Degree = {};
-thx.unit.angle._Degree.Degree_Impl_ = {};
+thx.unit.angle._Degree.Degree_Impl_ = function() { };
 thx.unit.angle._Degree.Degree_Impl_.__name__ = ["thx","unit","angle","_Degree","Degree_Impl_"];
 thx.unit.angle._Degree.Degree_Impl_.pointToDegree = function(x,y) {
 	var this1;
@@ -9458,7 +10032,7 @@ thx.unit.angle._Degree.Degree_Impl_.toString = function(this1) {
 	return this1 + "°";
 };
 thx.unit.angle._Grad = {};
-thx.unit.angle._Grad.Grad_Impl_ = {};
+thx.unit.angle._Grad.Grad_Impl_ = function() { };
 thx.unit.angle._Grad.Grad_Impl_.__name__ = ["thx","unit","angle","_Grad","Grad_Impl_"];
 thx.unit.angle._Grad.Grad_Impl_.pointToGrad = function(x,y) {
 	var this1;
@@ -9587,7 +10161,7 @@ thx.unit.angle._Grad.Grad_Impl_.toString = function(this1) {
 	return this1 + "grad";
 };
 thx.unit.angle._HourAngle = {};
-thx.unit.angle._HourAngle.HourAngle_Impl_ = {};
+thx.unit.angle._HourAngle.HourAngle_Impl_ = function() { };
 thx.unit.angle._HourAngle.HourAngle_Impl_.__name__ = ["thx","unit","angle","_HourAngle","HourAngle_Impl_"];
 thx.unit.angle._HourAngle.HourAngle_Impl_.pointToHourAngle = function(x,y) {
 	var this1;
@@ -9716,7 +10290,7 @@ thx.unit.angle._HourAngle.HourAngle_Impl_.toString = function(this1) {
 	return this1 + "hour";
 };
 thx.unit.angle._MinuteOfArc = {};
-thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_ = {};
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_ = function() { };
 thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.__name__ = ["thx","unit","angle","_MinuteOfArc","MinuteOfArc_Impl_"];
 thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.pointToMinuteOfArc = function(x,y) {
 	var this1;
@@ -9845,7 +10419,7 @@ thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.toString = function(this1) {
 	return this1 + "′";
 };
 thx.unit.angle._Point = {};
-thx.unit.angle._Point.Point_Impl_ = {};
+thx.unit.angle._Point.Point_Impl_ = function() { };
 thx.unit.angle._Point.Point_Impl_.__name__ = ["thx","unit","angle","_Point","Point_Impl_"];
 thx.unit.angle._Point.Point_Impl_.pointToPoint = function(x,y) {
 	var this1;
@@ -9974,7 +10548,7 @@ thx.unit.angle._Point.Point_Impl_.toString = function(this1) {
 	return this1 + "point";
 };
 thx.unit.angle._Quadrant = {};
-thx.unit.angle._Quadrant.Quadrant_Impl_ = {};
+thx.unit.angle._Quadrant.Quadrant_Impl_ = function() { };
 thx.unit.angle._Quadrant.Quadrant_Impl_.__name__ = ["thx","unit","angle","_Quadrant","Quadrant_Impl_"];
 thx.unit.angle._Quadrant.Quadrant_Impl_.pointToQuadrant = function(x,y) {
 	var this1;
@@ -10103,7 +10677,7 @@ thx.unit.angle._Quadrant.Quadrant_Impl_.toString = function(this1) {
 	return this1 + "quad.";
 };
 thx.unit.angle._Radian = {};
-thx.unit.angle._Radian.Radian_Impl_ = {};
+thx.unit.angle._Radian.Radian_Impl_ = function() { };
 thx.unit.angle._Radian.Radian_Impl_.__name__ = ["thx","unit","angle","_Radian","Radian_Impl_"];
 thx.unit.angle._Radian.Radian_Impl_.pointToRadian = function(x,y) {
 	var value = Math.atan2(y,x);
@@ -10228,7 +10802,7 @@ thx.unit.angle._Radian.Radian_Impl_.toString = function(this1) {
 	return this1 + "rad";
 };
 thx.unit.angle._Revolution = {};
-thx.unit.angle._Revolution.Revolution_Impl_ = {};
+thx.unit.angle._Revolution.Revolution_Impl_ = function() { };
 thx.unit.angle._Revolution.Revolution_Impl_.__name__ = ["thx","unit","angle","_Revolution","Revolution_Impl_"];
 thx.unit.angle._Revolution.Revolution_Impl_.pointToRevolution = function(x,y) {
 	var this1;
@@ -10357,7 +10931,7 @@ thx.unit.angle._Revolution.Revolution_Impl_.toString = function(this1) {
 	return this1 + "r";
 };
 thx.unit.angle._SecondOfArc = {};
-thx.unit.angle._SecondOfArc.SecondOfArc_Impl_ = {};
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_ = function() { };
 thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.__name__ = ["thx","unit","angle","_SecondOfArc","SecondOfArc_Impl_"];
 thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.pointToSecondOfArc = function(x,y) {
 	var this1;
@@ -10486,7 +11060,7 @@ thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.toString = function(this1) {
 	return this1 + "″";
 };
 thx.unit.angle._Sextant = {};
-thx.unit.angle._Sextant.Sextant_Impl_ = {};
+thx.unit.angle._Sextant.Sextant_Impl_ = function() { };
 thx.unit.angle._Sextant.Sextant_Impl_.__name__ = ["thx","unit","angle","_Sextant","Sextant_Impl_"];
 thx.unit.angle._Sextant.Sextant_Impl_.pointToSextant = function(x,y) {
 	var this1;
@@ -10615,7 +11189,7 @@ thx.unit.angle._Sextant.Sextant_Impl_.toString = function(this1) {
 	return this1 + "sextant";
 };
 thx.unit.angle._Turn = {};
-thx.unit.angle._Turn.Turn_Impl_ = {};
+thx.unit.angle._Turn.Turn_Impl_ = function() { };
 thx.unit.angle._Turn.Turn_Impl_.__name__ = ["thx","unit","angle","_Turn","Turn_Impl_"];
 thx.unit.angle._Turn.Turn_Impl_.pointToTurn = function(x,y) {
 	var this1;
@@ -10749,6 +11323,15 @@ function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id
 if(Array.prototype.indexOf) HxOverrides.indexOf = function(a,o,i) {
 	return Array.prototype.indexOf.call(a,o,i);
 };
+Math.NaN = Number.NaN;
+Math.NEGATIVE_INFINITY = Number.NEGATIVE_INFINITY;
+Math.POSITIVE_INFINITY = Number.POSITIVE_INFINITY;
+Math.isFinite = function(i) {
+	return isFinite(i);
+};
+Math.isNaN = function(i1) {
+	return isNaN(i1);
+};
 String.prototype.__class__ = String;
 String.__name__ = ["String"];
 Array.__name__ = ["Array"];
@@ -10855,23 +11438,16 @@ Canvas.height = 600;
 dots.Html.pattern = new EReg("[<]([^> ]+)","");
 dots.Query.doc = document;
 haxe.ds.ObjectMap.count = 0;
-js.Boot.__toStr = {}.toString;
+sui._Sui.Anchor_Impl_.topLeft = "sui-top-left";
+sui._Sui.Anchor_Impl_.topRight = "sui-top-right";
+sui._Sui.Anchor_Impl_.bottomLeft = "sui-bottom-left";
+sui._Sui.Anchor_Impl_.bottomRight = "sui-bottom-right";
+sui._Sui.Anchor_Impl_.fill = "sui-fill";
+sui._Sui.Anchor_Impl_.append = "sui-append";
 sui.controls.ColorControl.PATTERN = new EReg("^[#][0-9a-f]{6}$","i");
 sui.controls.DataList.nid = 0;
-thx.color._Grey.Grey_Impl_.black = (function($this) {
-	var $r;
-	var this1;
-	this1 = 0;
-	$r = this1;
-	return $r;
-}(this));
-thx.color._Grey.Grey_Impl_.white = (function($this) {
-	var $r;
-	var this1;
-	this1 = 1;
-	$r = this1;
-	return $r;
-}(this));
+thx.color._Grey.Grey_Impl_.black = 0;
+thx.color._Grey.Grey_Impl_.white = 1;
 thx.color.parse.ColorParser.parser = new thx.color.parse.ColorParser();
 thx.color.parse.ColorParser.isPureHex = new EReg("^([0-9a-f]{2}){3,4}$","i");
 thx.core.Floats.TOLERANCE = 10e-5;
@@ -10888,29 +11464,29 @@ thx.core.Strings.WSG = new EReg("\\s+","g");
 thx.core.Strings.SPLIT_LINES = new EReg("\r\n|\n\r|\n|\r","g");
 thx.core.Timer.FRAME_RATE = Math.round(16.6666666666666679);
 thx.promise._Promise.Promise_Impl_.nil = thx.promise._Promise.Promise_Impl_.value(thx.core.Nil.nil);
-thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.turn = thx.unit.angle._BinaryDegree.BinaryDegree_Impl_._new(256);
+thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.turn = 256;
 thx.unit.angle._BinaryDegree.BinaryDegree_Impl_.symbol = "binary degree";
-thx.unit.angle._Degree.Degree_Impl_.turn = thx.unit.angle._Degree.Degree_Impl_._new(360);
+thx.unit.angle._Degree.Degree_Impl_.turn = 360;
 thx.unit.angle._Degree.Degree_Impl_.symbol = "°";
-thx.unit.angle._Grad.Grad_Impl_.turn = thx.unit.angle._Grad.Grad_Impl_._new(400);
+thx.unit.angle._Grad.Grad_Impl_.turn = 400;
 thx.unit.angle._Grad.Grad_Impl_.symbol = "grad";
-thx.unit.angle._HourAngle.HourAngle_Impl_.turn = thx.unit.angle._HourAngle.HourAngle_Impl_._new(24);
+thx.unit.angle._HourAngle.HourAngle_Impl_.turn = 24;
 thx.unit.angle._HourAngle.HourAngle_Impl_.symbol = "hour";
-thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.turn = thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_._new(21600);
+thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.turn = 21600;
 thx.unit.angle._MinuteOfArc.MinuteOfArc_Impl_.symbol = "′";
-thx.unit.angle._Point.Point_Impl_.turn = thx.unit.angle._Point.Point_Impl_._new(32);
+thx.unit.angle._Point.Point_Impl_.turn = 32;
 thx.unit.angle._Point.Point_Impl_.symbol = "point";
-thx.unit.angle._Quadrant.Quadrant_Impl_.turn = thx.unit.angle._Quadrant.Quadrant_Impl_._new(4);
+thx.unit.angle._Quadrant.Quadrant_Impl_.turn = 4;
 thx.unit.angle._Quadrant.Quadrant_Impl_.symbol = "quad.";
-thx.unit.angle._Radian.Radian_Impl_.turn = thx.unit.angle._Radian.Radian_Impl_._new(6.28318530717959);
+thx.unit.angle._Radian.Radian_Impl_.turn = 6.28318530717959;
 thx.unit.angle._Radian.Radian_Impl_.symbol = "rad";
-thx.unit.angle._Revolution.Revolution_Impl_.turn = thx.unit.angle._Revolution.Revolution_Impl_._new(1);
+thx.unit.angle._Revolution.Revolution_Impl_.turn = 1;
 thx.unit.angle._Revolution.Revolution_Impl_.symbol = "r";
-thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.turn = thx.unit.angle._SecondOfArc.SecondOfArc_Impl_._new(1296000);
+thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.turn = 1296000;
 thx.unit.angle._SecondOfArc.SecondOfArc_Impl_.symbol = "″";
-thx.unit.angle._Sextant.Sextant_Impl_.turn = thx.unit.angle._Sextant.Sextant_Impl_._new(6);
+thx.unit.angle._Sextant.Sextant_Impl_.turn = 6;
 thx.unit.angle._Sextant.Sextant_Impl_.symbol = "sextant";
-thx.unit.angle._Turn.Turn_Impl_.turn = thx.unit.angle._Turn.Turn_Impl_._new(1);
+thx.unit.angle._Turn.Turn_Impl_.turn = 1;
 thx.unit.angle._Turn.Turn_Impl_.symbol = "τ";
 Canvas.main();
 })();
