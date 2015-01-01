@@ -30,6 +30,7 @@ class AvoidCollisions implements IFlockRule {
         dy = 0.0,
         count = 0;
     a.x = a.y = 0.0;
+    b.data.neighbors = 0.0;
     for (n in flock.boids) {
       if(n == b) continue;
       dx = b.x - n.x;
@@ -40,6 +41,7 @@ class AvoidCollisions implements IFlockRule {
       a.y += n.y;
 
       count++;
+      b.data.neighbors++;
     }
     if(count == 0) return;
 
