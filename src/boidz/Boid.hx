@@ -2,14 +2,12 @@ package boidz;
 
 import thx.unit.angle.Degree;
 
-class Boid {
+class Boid<T : {}> {
   public var x : Float;
   public var y : Float;
   public var v : Float;
   public var d : Degree;
-  public var data = {
-    neighbors: 0.0
-  };
+  public var data : T;
 
   public function new (x : Float, y : Float, ?v = 0.0, ?d : Degree) {
     if(null == d)

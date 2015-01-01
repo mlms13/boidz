@@ -3,16 +3,16 @@ package boidz.rules;
 import thx.unit.angle.Degree;
 import boidz.IFlockRule;
 
-class IndividualWaypoints implements IFlockRule {
+class IndividualWaypoints implements IFlockRule<{}> {
   public var goals(default, null) : Array<{ x : Float, y : Float }>;
   public var enabled : Bool = true;
   public var radius : Float;
   public var onStep : { x : Float, y : Float } -> Void;
-  public var onBoidStep : Boid -> { x : Float, y : Float } -> Void;
+  public var onBoidStep : Boid<{}> -> { x : Float, y : Float } -> Void;
   public var flock : Flock;
   @:isVar public var maxSteer(get, set) : Float;
   var goalRule : SteerTowardGoal;
-  var map : Map<Boid, Int>;
+  var map : Map<Boid<{}>, Int>;
   public var current(default, null) : Int = 0;
 
   public function new(flock : Flock, ?radius : Float = 10, ?maxSteer : Degree) {
@@ -22,7 +22,7 @@ class IndividualWaypoints implements IFlockRule {
     this.radius = radius;
     this.goals = [];
     this.onStep = function(coords : { x : Float, y : Float }) {};
-    this.onBoidStep = function(b : Boid, coords : { x : Float, y : Float }) {};
+    this.onBoidStep = function(b : Boid<{}>, coords : { x : Float, y : Float }) {};
     this.maxSteer = maxSteer;
     this.goalRule = new SteerTowardGoal(0, 0, maxSteer);
     this.map = new Map();
@@ -88,7 +88,7 @@ class IndividualWaypoints implements IFlockRule {
     return goals.length > 0;
   }
 
-  public function modify(b : Boid) : Void {
+  public function modify(b : Boid<{}>) : Void {
     var pos = map.get(b);
     if(pos < goals.length) {
       var p = goals[pos];
@@ -98,7 +98,7 @@ class IndividualWaypoints implements IFlockRule {
     }
   }
 
-  function updateGoalRuleForBoid(b : Boid) {
+  function updateGoalRuleForBoid(b : Boid<{}>) {
     // TODO
     goalRule.x = 100;
     goalRule.y = 200;

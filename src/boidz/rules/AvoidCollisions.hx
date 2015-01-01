@@ -5,7 +5,7 @@ import boidz.Point;
 import boidz.util.Steer;
 import thx.unit.angle.Degree;
 
-class AvoidCollisions implements IFlockRule {
+class AvoidCollisions implements IFlockRule<{}> {
   @:isVar public var radius(get, set) : Float;
   var flock : Flock;
   public var enabled : Bool = true;
@@ -25,12 +25,11 @@ class AvoidCollisions implements IFlockRule {
 
   public function before() return true;
 
-  public function modify(b : Boid):Void {
+  public function modify(b : Boid<{}>):Void {
     var dx = 0.0,
         dy = 0.0,
         count = 0;
     a.x = a.y = 0.0;
-    b.data.neighbors = 0.0;
     for (n in flock.boids) {
       if(n == b) continue;
       dx = b.x - n.x;
@@ -41,7 +40,6 @@ class AvoidCollisions implements IFlockRule {
       a.y += n.y;
 
       count++;
-      b.data.neighbors++;
     }
     if(count == 0) return;
 

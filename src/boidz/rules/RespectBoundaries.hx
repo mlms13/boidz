@@ -6,7 +6,7 @@ using boidz.util.Steer;
 
 using thx.core.Floats;
 
-class RespectBoundaries implements IFlockRule {
+class RespectBoundaries implements IFlockRule<{}> {
   public var minx : Float;
   public var maxx : Float;
   public var miny : Float;
@@ -27,7 +27,7 @@ class RespectBoundaries implements IFlockRule {
 
   public function before() return true;
 
-  public function modify(b:Boid):Void {
+  public function modify(b:Boid<{}>):Void {
     if (
       (b.x < minx + offset && b.d.facingLeft()) ||
       (b.x > maxx - offset && b.d.facingRight())

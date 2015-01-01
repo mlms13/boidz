@@ -3,8 +3,8 @@ package boidz;
 import thx.unit.angle.Degree;
 
 class Flock {
-  public var boids(default, null) : Array<Boid>;
-  public var rules(default, null) : Array<IFlockRule>;
+  public var boids(default, null) : Array<Boid<{}>>;
+  public var rules(default, null) : Array<IFlockRule<{}>>;
   public var x : Float;
   public var y : Float;
   public var v : Float;
@@ -20,7 +20,7 @@ class Flock {
     rules = [];
   }
 
-  public function addRule(rule:IFlockRule) {
+  public function addRule(rule:IFlockRule<{}>) {
       // for now, just push the rule to the array, but in the future
       // we could use weighting to determine precedence and have a key
       // to look up and replace a single rule
