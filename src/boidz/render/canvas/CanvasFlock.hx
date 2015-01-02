@@ -17,7 +17,7 @@ class CanvasFlock implements IRenderable<CanvasRender> {
   var crownColor : String;
   var trailColor : String;
 
-  var map : Map<Boid, Array<Point>>;
+  var map : Map<Boid<{}>, Array<Point>>;
   public function new(flock : Flock, ?boidColor : RGBA, ?crownColor : RGBA, ?trailColor : RGBA) {
     this.boidColor = null == boidColor ? "#000000" : boidColor;
     this.crownColor = null == crownColor ? "rgba(255,255,255,100)" : crownColor;
@@ -27,7 +27,7 @@ class CanvasFlock implements IRenderable<CanvasRender> {
     this.map = new Map();
   }
 
-  function getTrail(b : Boid) {
+  function getTrail(b : Boid<{}>) {
     var c = map.get(b);
     if(c == null) {
       c = [for(i in 0...trailLength) { x : b.x, y : b.y }];

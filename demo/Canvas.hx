@@ -18,12 +18,14 @@ class Canvas {
         canvas = getCanvas(),
         render = new CanvasRender(canvas),
         display = new Display(render),
-        avoidCollisions = new AvoidCollisions(flock, 3, 25),
+        neighbors = new CollectNeighbors(flock, 3),
+        avoidCollisions = new AvoidCollisions(25),
         respectBoundaries = new RespectBoundaries(0, width, 0, height, 50, 25),
         waypoints = new IndividualWaypoints(flock, 10),
         velocity = 3.0;
 
     //flock.addRule(new SteerTowardCenter(flock));
+    flock.addRule(neighbors);
     flock.addRule(waypoints);
     flock.addRule(avoidCollisions);
     flock.addRule(respectBoundaries);
@@ -124,10 +126,12 @@ class Canvas {
     ui.bind(canvasFlock.renderTrail);
     ui.bind(canvasFlock.trailLength, { min : 1, max : 400 });
 
+    ui = sui.folder("neighbors");
+    ui.bind(neighbors.enabled);
+    ui.bind(neighbors.radius, { min : 0, max : 100 });
+
     ui = sui.folder("collisions");
     ui.bind(avoidCollisions.enabled);
-    ui.bind(avoidCollisions.proportional);
-    ui.bind(avoidCollisions.radius, { min : 0, max : 100 });
     ui.bind(avoidCollisions.maxSteer, { min : 1, max : 90 });
 
     ui = sui.folder("boundaries");
@@ -167,6 +171,7 @@ class Canvas {
             offset + (height - offset * 2) * Math.random(),
             velocity,
             Math.random() * 360);
+      b.data = { neighbors : [] };
       flock.boids.push(b);
     }
   }

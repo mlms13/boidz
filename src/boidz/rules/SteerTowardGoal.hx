@@ -4,7 +4,7 @@ import thx.unit.angle.Degree;
 import boidz.IFlockRule;
 import boidz.util.Steer;
 
-class SteerTowardGoal implements IFlockRule {
+class SteerTowardGoal implements IFlockRule<{}> {
   public var x : Float;
   public var y : Float;
   public var maxSteer : Float;
@@ -20,7 +20,7 @@ class SteerTowardGoal implements IFlockRule {
 
   public function before() return true;
 
-  public function modify(b : Boid):Void {
+  public function modify(b : Boid<{}>):Void {
     b.d += Steer.toward(b, this, maxSteer);
   }
 }
